@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.0 (YooHoo Test)
+
+### TEST TEST TEST
+
+Just test the pipeline!
+
 ## v1.8.0 (Unreleased)
 
 ### Mono-Repository Improvements
