@@ -16,3 +16,5 @@ RUN mkdir -p /home/user/.cache && chmod 777 /home/user/.cache
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# test
