@@ -983,7 +983,11 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
+<<<<<<< HEAD
 		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
+=======
+		Timestamp: metav1.Now(),
+>>>>>>> d7c1eeaa8f49ce0d66164a03ba87bacc8accab5e
 		Object:    object,
 		Source:    &source,
 	}
@@ -1031,9 +1035,14 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 	}
 
 	payload := events.EventPayload{
+<<<<<<< HEAD
 		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
 		Object:    object,
 		Source:    source,
+=======
+		Timestamp: metav1.Now(),
+		Object:    object,
+>>>>>>> d7c1eeaa8f49ce0d66164a03ba87bacc8accab5e
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
