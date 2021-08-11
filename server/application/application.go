@@ -983,7 +983,7 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp: metav1.Now(),
+		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
 		Object:    object,
 		Source:    &source,
 	}
@@ -1011,9 +1011,29 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 		return nil, fmt.Errorf("failed to marshal application event")
 	}
 
+	source := &events.ObjectSource{
+		DesiredManifest: "", // not sure
+		GitManifest:     "", // not sure
+		ActualManifest:  string(object),
+		RepoURL:         a.Spec.Source.RepoURL,
+		Path:            "", // not sure
+		Revision:        "",
+		AppName:         "",
+		SyncStatus:      string(a.Status.Sync.Status),
+	}
+
+	if a.Status.OperationState != nil {
+		source.SyncStartedAt = a.Status.OperationState.StartedAt
+		source.SyncFinishedAt = a.Status.OperationState.FinishedAt
+		hs := string(a.Status.Health.Status)
+		source.HealthStatus = &hs
+		source.HealthMessage = &a.Status.Health.Message
+	}
+
 	payload := events.EventPayload{
-		Timestamp: metav1.Now(),
+		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
 		Object:    object,
+		Source:    source,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
@@ -1026,22 +1046,23 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 
 func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse) (*apiclient.Manifest, error) {
 	for _, m := range ds.Manifests {
-		u := unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(m.CompiledManifest), &u)
+		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal compiled manifest: %w", err)
 		}
 
+		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
+
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
 			u.GetName() == rs.Name &&
-			u.GetNamespace() == rs.Namespace {
+			ns == rs.Namespace {
 			return m, nil
 		}
 	}
 
 	// no desired state for resource
 	// it's probably deleted from git
-	return nil, nil
+	return &apiclient.Manifest{}, nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
