@@ -1858,9 +1858,24 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-
-			depInfo, err := findRevisionHistory(app, int64(depID))
-			errors.CheckError(err)
+			var depInfo *argoappv1.RevisionHistory
+			if depID == -1 {
+				l := len(app.Status.History)
+				if l < 2 {
+					log.Fatalf("Application '%s' should have at least two successful deployments", app.ObjectMeta.Name)
+				}
+				depInfo = &app.Status.History[l-2]
+			} else {
+				for _, di := range app.Status.History {
+					if di.ID == int64(depID) {
+						depInfo = &di
+						break
+					}
+				}
+				if depInfo == nil {
+					log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
+				}
+			}
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
 				Name:  &appName,
