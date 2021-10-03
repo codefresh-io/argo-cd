@@ -6,7 +6,7 @@ on:
       - master
 
 env:
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: "1.16.5"
 
 jobs:
   publish:
@@ -36,15 +36,9 @@ jobs:
       - run: |
           docker login ghcr.io --username $USERNAME --password $PASSWORD
           docker push ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
-
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
-          docker tag ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} argoproj/argocd:latest
-          docker push argoproj/argocd:latest
         env:
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.TOKEN }}
-          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
 
       # deploy
       - run: git clone "https://$TOKEN@github.com/codefresh-io/argoproj-deployments"
