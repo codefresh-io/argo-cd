@@ -3,7 +3,7 @@ name: Image
 on:
   push:
     branches:
-      - master
+      - 'release-*'
 
 env:
   GOLANG_VERSION: "1.16.5"
