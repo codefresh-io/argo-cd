@@ -758,6 +758,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	var (
 		manifests     []manifest
 		dest          *v1alpha1.ApplicationDestination
+		commitDate    time.Time
 		commitMessage string
 		commitAuthor  string
 	)
@@ -768,6 +769,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 			return nil, err
 		}
 
+		commitDate = m.Date
 		commitMessage = m.Message
 		commitAuthor = m.Author
 	}
@@ -827,6 +829,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		SourceType:    string(appSourceType),
 		CommitMessage: commitMessage,
 		CommitAuthor:  commitAuthor,
+		CommitDate:    &metav1.Time{Time: commitDate},
 	}
 	if dest != nil {
 		res.Namespace = dest.Namespace

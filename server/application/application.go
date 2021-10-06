@@ -1060,6 +1060,7 @@ func getResourceEventPayload(
 		Revision:        a.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
+		CommitDate:      *manifestsResponse.CommitDate,
 		AppName:         a.Name,
 		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
@@ -1076,7 +1077,7 @@ func getResourceEventPayload(
 	if rs.Health != nil {
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
-		if rs.Health.Status == health.HealthStatusDegraded {
+		if rs.Health.Status != health.HealthStatusHealthy {
 			errors = append(errors, parseAggregativeHealthErrors(rs, apptree)...)
 		}
 	}
@@ -1206,6 +1207,9 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 			return nil, fmt.Errorf("failed to unmarshal compiled manifest: %w", err)
 		}
 
+		if u == nil {
+			return nil, fmt.Errorf("no compiled manifest for: %s", m.Path)
+		}
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
