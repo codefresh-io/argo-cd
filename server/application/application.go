@@ -1029,20 +1029,35 @@ func getResourceEventPayload(
 	manifestsResponse *apiclient.ManifestResponse,
 	apptree *appv1.ApplicationTree,
 ) (*events.Event, error) {
+	var err error
 	errors := []*events.ObjectError{}
 	object := []byte(actualState.Manifest)
 	if len(object) == 0 {
 		if len(desiredState.CompiledManifest) == 0 {
 			// no actual or desired state, don't send event
-			return nil, fmt.Errorf("cannot get resources desired and actual state")
-		}
+			u := &unstructured.Unstructured{}
+			apiVersion := rs.Version
+			if rs.Group != "" {
+				apiVersion = rs.Group + "/" + rs.Version
+			}
 
-		// no actual state, use desired state as event object
-		manifestWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+			u.SetAPIVersion(apiVersion)
+			u.SetKind(rs.Kind)
+			u.SetName(rs.Name)
+			u.SetNamespace(rs.Namespace)
+			object, err = u.MarshalJSON()
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
+			}
+		} else {
+			// no actual state, use desired state as event object
+			manifestWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+			}
+
+			object = manifestWithNamespace
 		}
-		object = manifestWithNamespace
 	}
 
 	if rs.RequiresPruning {
