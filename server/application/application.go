@@ -947,22 +947,22 @@ func (s *Server) streamApplicationEvents(
 ) error {
 	logCtx := log.NewEntry(log.New()).WithField("application", a.Name)
 
-	// get the desired state manifests of the application
-	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name: &a.Name,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to get application desired state manifests: %w", err)
-	}
-
 	logCtx.Info("streaming application events")
-	appEvent, err := getApplicationEventPayload(a, es, desiredManifests)
+	appEvent, err := getApplicationEventPayload(a, es)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
 	}
 
 	if err := stream.Send(appEvent); err != nil {
 		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+	}
+
+	// get the desired state manifests of the application
+	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
+		Name: &a.Name,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get application desired state manifests: %w", err)
 	}
 
 	appTree, err := s.getAppResources(ctx, a)
@@ -1164,7 +1164,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	return errs
 }
 
-func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, manifestsResponse *apiclient.ManifestResponse) (*events.Event, error) {
+func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*events.Event, error) {
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
 
@@ -1179,14 +1179,19 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, ma
 		return nil, fmt.Errorf("failed to marshal application event")
 	}
 
+	actualManifest := string(object)
+	if a.DeletionTimestamp != nil {
+		actualManifest = "" // mark as deleted
+	}
+
 	source := &events.ObjectSource{
-		DesiredManifest: "", // not sure
-		GitManifest:     "", // not sure
-		ActualManifest:  string(object),
+		DesiredManifest: "",
+		GitManifest:     "",
+		ActualManifest:  actualManifest,
 		RepoURL:         a.Spec.Source.RepoURL,
-		CommitMessage:   manifestsResponse.CommitMessage,
-		CommitAuthor:    manifestsResponse.CommitAuthor,
-		Path:            "", // not sure
+		CommitMessage:   "",
+		CommitAuthor:    "",
+		Path:            "",
 		Revision:        "",
 		AppName:         "",
 		AppLabels:       map[string]string{},
@@ -1201,10 +1206,26 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, ma
 		source.HealthMessage = &a.Status.Health.Message
 	}
 
+	errs := []*events.ObjectError{}
+
+	for _, cnd := range a.Status.Conditions {
+		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
+			continue
+		}
+
+		errs = append(errs, &events.ObjectError{
+			Type:     "sync",
+			Level:    "error",
+			Message:  cnd.Message,
+			LastSeen: *cnd.LastTransitionTime,
+		})
+	}
+
 	payload := events.EventPayload{
 		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
 		Object:    object,
 		Source:    source,
+		Errors:    errs,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
