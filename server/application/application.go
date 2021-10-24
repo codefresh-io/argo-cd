@@ -70,9 +70,7 @@ const (
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
-	resourceStatusNotFoundErr = errors.New("resource status not found")
-
-	applicationEventCacheExpiration = time.Minute * 60
+	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 // Server provides a Application service
@@ -959,7 +957,8 @@ func (s *Server) streamApplicationEvents(
 
 	// get the desired state manifests of the application
 	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name: &a.Name,
+		Name:     &a.Name,
+		Revision: a.Status.Sync.Revision,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to get application desired state manifests: %w", err)
@@ -1075,7 +1074,7 @@ func getResourceEventPayload(
 		Revision:        a.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
-		CommitDate:      *manifestsResponse.CommitDate,
+		CommitDate:      manifestsResponse.CommitDate,
 		AppName:         a.Name,
 		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
