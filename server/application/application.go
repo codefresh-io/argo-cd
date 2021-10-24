@@ -949,7 +949,8 @@ func (s *Server) streamApplicationEvents(
 
 	// get the desired state manifests of the application
 	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name: &a.Name,
+		Name:     &a.Name,
+		Revision: a.Status.Sync.Revision,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to get application desired state manifests: %w", err)
