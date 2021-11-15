@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -55,7 +56,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
 			Author:  "",
-			Date: time.Now(),
+			Date: time.Time{},
 			Message: "",
 		}, nil)
 		gitClient.On("Root").Return(root)
@@ -195,6 +196,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
+	commitDate := metav1.NewTime(time.Time{})
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
@@ -211,6 +213,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 			},
 		},
 		Namespace:  "",
+		CommitDate: &commitDate,
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
