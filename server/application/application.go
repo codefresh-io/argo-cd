@@ -1225,37 +1225,6 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 	return &apiclient.Manifest{}, nil
 }
 
-func getCensoredRawManifest(manifest string) (string, error) {
-	var secret v1.Secret
-	var m []byte
-	var err error
-
-	if (true) {  //if yaml
-		yaml.Unmarshal([]byte(manifest), &secret)
-		secret.Data = map[string][]uint8{}
-		secret.StringData = map[string]string{}
-		m, err = yaml.Marshal(secret)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	if false {  //if json
-		err := json.Unmarshal([]byte(manifest), &secret)
-		if err != nil {
-			return "", err
-		}
-		secret.Data = map[string][]uint8{}
-		secret.StringData = map[string]string{}
-		m, err = json.Marshal(secret)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return string(m), nil
-}
-
 func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) ([]byte, error) {
 	u, err := appv1.UnmarshalToUnstructured(string(resourceManifest))
 	if err != nil {
