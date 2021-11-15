@@ -1250,7 +1250,11 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
 			u.GetName() == rs.Name &&
 			ns == rs.Namespace {
-			return m, nil
+				if rs.Kind == kube.SecretKind && rs.Version == "v1" {
+					m.RawManifest = m.CompiledManifest
+				}
+	
+				return m, nil
 		}
 	}
 
