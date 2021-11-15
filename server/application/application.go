@@ -956,7 +956,7 @@ func (s *Server) streamApplicationEvents(
 	}
 
 	logCtx.Info("streaming application events")
-	appEvent, err := getApplicationEventPayload(a, es, desiredManifests, s, ctx)
+	appEvent, err := s.getApplicationEventPayload(ctx, a, es, desiredManifests)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
 	}
@@ -1148,12 +1148,13 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	return errs
 }
 
-func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, manifestsResponse *apiclient.ManifestResponse, s *Server, ctx context.Context) (*events.Event, error) {
+func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource, manifestsResponse *apiclient.ManifestResponse) (*events.Event, error) {
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
 
-	revision := new(application.RevisionMetadataQuery)
-	revision.Revision = &manifestsResponse.Revision
+	revision := &application.RevisionMetadataQuery{
+		Revision: &manifestsResponse.Revision,
+	}
 
 	// make sure there is type meta on object
 	obj.TypeMeta = metav1.TypeMeta{
@@ -1166,9 +1167,9 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, ma
 		return nil, fmt.Errorf("failed to marshal application event")
 	}
 
-	revisionMetadata, errs := s.RevisionMetadata(ctx, revision)
+	revisionMetadata, err := s.RevisionMetadata(ctx, revision)
 
-	if errs != nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to get revision metadata")
 	}
 
