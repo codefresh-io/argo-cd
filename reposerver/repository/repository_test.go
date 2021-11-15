@@ -53,10 +53,10 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 		gitClient.On("Checkout", mock.Anything).Return(nil)
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
-		gitClient.On("RevisionMetadata").Return(&git.RevisionMetadata{
-			Author:  "foo",
-			Date:    time.Now(),
-			Message: "some message",
+		gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
+			Author:  "",
+			Date: time.Now(),
+			Message: "",
 		}, nil)
 		gitClient.On("Root").Return(root)
 		if signed {
