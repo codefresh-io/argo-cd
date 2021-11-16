@@ -119,6 +119,12 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything).Return(nil)
 		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
+		gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
+			Author:  "author",
+			Date:    time.Time{},
+			Message: "test",
+			Tags:    []string{"tag1", "tag2"},
+		}, nil)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
 	})
@@ -215,6 +221,8 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		},
 		Namespace:  "",
 		CommitDate: &commitDate,
+		CommitMessage: "test",
+		CommitAuthor: "author",
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
@@ -739,6 +747,8 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Revision:   "1.1.0",
 		SourceType: "Helm",
 		CommitDate: &commitDate,
+		CommitMessage: "test",
+		CommitAuthor: "author",
 	}, response)
 }
 
@@ -1435,6 +1445,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 					TargetRevision: regularGitTagHash,
 				},
 				NoCache: true,
+				Revision: regularGitTagHash,
 			},
 			wantError: false,
 			service:   newServiceWithCommitSHA(".", regularGitTagHash),
@@ -1449,6 +1460,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 					TargetRevision: annotatedGitTaghash,
 				},
 				NoCache: true,
+				Revision: annotatedGitTaghash,
 			},
 			wantError: false,
 			service:   newServiceWithCommitSHA(".", annotatedGitTaghash),
