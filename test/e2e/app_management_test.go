@@ -490,43 +490,43 @@ stringData:
 		})
 }
 
-// func TestResourceDiffing(t *testing.T) {
-// 	Given(t).
-// 		Path(guestbookPath).
-// 		When().
-// 		Create().
-// 		Sync().
-// 		Then().
-// 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-// 		And(func(app *Application) {
-// 			// Patch deployment
-// 			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(context.Background(),
-// 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
-// 			assert.NoError(t, err)
-// 		}).
-// 		When().
-// 		Refresh(RefreshTypeNormal).
-// 		Then().
-// 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-// 		And(func(app *Application) {
-// 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
-// 			assert.Error(t, err)
-// 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
-// 		}).
-// 		Given().
-// 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
-// 			IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image"}},
-// 		}}).
-// 		When().
-// 		Refresh(RefreshTypeNormal).
-// 		Then().
-// 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-// 		And(func(app *Application) {
-// 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
-// 			assert.NoError(t, err)
-// 			assert.Empty(t, diffOutput)
-// 		})
-// }
+func TestResourceDiffing(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Patch deployment
+			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(context.Background(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
+			assert.NoError(t, err)
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			assert.Error(t, err)
+			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
+		}).
+		Given().
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
+			IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image"}},
+		}}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			assert.NoError(t, err)
+			assert.Empty(t, diffOutput)
+		})
+}
 
 func TestCRDs(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "crd-creation", health.HealthStatusHealthy)
