@@ -946,7 +946,7 @@ func (s *Server) streamApplicationEvents(
 	logCtx := log.NewEntry(log.New()).WithField("application", a.Name)
 
 	logCtx.Info("streaming application events")
-	appEvent, err := getApplicationEventPayload(a, es)
+	appEvent, err := s.getApplicationEventPayload(ctx, a, es)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
 	}
@@ -1163,7 +1163,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	return errs
 }
 
-func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*events.Event, error) {
+func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource) (*events.Event, error) {
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
 
@@ -1172,6 +1172,19 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 		Kind:       appv1reg.ApplicationKind,
 		APIVersion: appv1.SchemeGroupVersion.String(),
 	}
+
+	revisionMetadata, err := s.RevisionMetadata(ctx, &application.RevisionMetadataQuery{Revision: &a.Status.Sync.Revision})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
+	}
+
+	if obj.ObjectMeta.Labels == nil {
+		obj.ObjectMeta.Labels = map[string]string{}
+	}
+
+	obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
+	obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
+	obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
 
 	object, err := json.Marshal(&obj)
 	if err != nil {
