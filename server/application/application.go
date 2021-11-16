@@ -1173,7 +1173,10 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 		APIVersion: appv1.SchemeGroupVersion.String(),
 	}
 
-	revisionMetadata, err := s.RevisionMetadata(ctx, &application.RevisionMetadataQuery{Revision: &a.Status.Sync.Revision})
+	revisionMetadata, err := s.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
+		Name:     &a.Name,
+		Revision: &a.Status.Sync.Revision,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
 	}
