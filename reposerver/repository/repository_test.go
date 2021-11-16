@@ -712,6 +712,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 // This is a Helm first-class app with a values file inside the repo directory
 // (`~/go/src/github.com/argoproj/argo-cd/reposerver/repository`), so it is allowed
 func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
+	commitDate := metav1.NewTime(time.Time{})
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{
 		Chart:          "my-chart",
@@ -736,6 +737,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		CommitDate: &commitDate,
 	}, response)
 }
 
