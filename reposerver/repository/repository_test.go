@@ -219,13 +219,13 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 				Line:             1,
 			},
 		},
-		Namespace:  "",
-		CommitDate: &commitDate,
+		Namespace:     "",
+		CommitDate:    &commitDate,
 		CommitMessage: "test",
-		CommitAuthor: "author",
-		Server:     "",
-		Revision:   "1.1.0",
-		SourceType: "Helm",
+		CommitAuthor:  "author",
+		Server:        "",
+		Revision:      "1.1.0",
+		SourceType:    "Helm",
 	}
 	assert.Equal(t, expected, response)
 }
@@ -742,13 +742,13 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 				Path:             "Chart.yaml",
 			},
 		},
-		Namespace:  "",
-		Server:     "",
-		Revision:   "1.1.0",
-		SourceType: "Helm",
-		CommitDate: &commitDate,
+		Namespace:     "",
+		Server:        "",
+		Revision:      "1.1.0",
+		SourceType:    "Helm",
+		CommitDate:    &commitDate,
 		CommitMessage: "test",
-		CommitAuthor: "author",
+		CommitAuthor:  "author",
 	}, response)
 }
 
@@ -1444,7 +1444,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{
 					TargetRevision: regularGitTagHash,
 				},
-				NoCache: true,
+				NoCache:  true,
 				Revision: regularGitTagHash,
 			},
 			wantError: false,
@@ -1459,7 +1459,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{
 					TargetRevision: annotatedGitTaghash,
 				},
-				NoCache: true,
+				NoCache:  true,
 				Revision: annotatedGitTaghash,
 			},
 			wantError: false,
