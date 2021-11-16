@@ -1020,7 +1020,7 @@ func kustomizeBuild(
 		return nil, err
 	}
 	relPath, _ := filepath.Rel(repoRoot, appPath)
-	
+
 	k := kustomize.NewKustomizeApp(appPath, gitCreds, repoURL, kustomizeBinary)
 	targetObjs, _, err = k.Build(opts, kustomizeOptions)
 	if err != nil {
