@@ -1068,12 +1068,12 @@ func TestGetHelmCharts(t *testing.T) {
 
 func TestGetRevisionMetadata(t *testing.T) {
 	service, gitClient := newServiceWithMocks("../..", false)
-	now := time.Now()
+	epoch := time.Time{}
 
-	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
+	gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
 		Message: "test",
 		Author:  "author",
-		Date:    now,
+		Date:    epoch,
 		Tags:    []string{"tag1", "tag2"},
 	}, nil)
 
@@ -1085,7 +1085,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test", res.Message)
-	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, epoch, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
@@ -1099,7 +1099,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test", res.Message)
-	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, epoch, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
