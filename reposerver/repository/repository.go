@@ -953,10 +953,7 @@ func ksShow(appLabelKey, appPath, repoRoot string, ksonnetOpts *v1alpha1.Applica
 	if err != nil {
 		return nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
 	}
-	relPath, err := filepath.Rel(repoRoot, filepath.Join(appPath, "app.yaml"))
-	if err != nil {
-		return nil, nil, err
-	}
+	relPath, _ := filepath.Rel(repoRoot, filepath.Join(appPath, "app.yaml"))
 
 	// try to read app.yaml
 	appYAML, err := ioutil.ReadFile(relPath)
@@ -1082,14 +1079,9 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		relPath, err := filepath.Rel(absAppPath, absPath)
-		if err != nil {
-			return err
-		}
-		repoRelPath, err := filepath.Rel(absRepoRoot, absPath)
-		if err != nil {
-			return err
-		}
+		relPath, _ := filepath.Rel(absAppPath, absPath)
+
+		repoRelPath, _ := filepath.Rel(absRepoRoot, absPath)
 
 		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
 			return nil
