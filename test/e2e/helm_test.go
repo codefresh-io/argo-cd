@@ -95,24 +95,24 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
-func TestHelmRepo(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		Create().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
+// func TestHelmRepo(t *testing.T) {
+// 	SkipOnEnv(t, "HELM")
+// 	Given(t).
+// 		CustomCACertAdded().
+// 		HelmRepoAdded("custom-repo").
+// 		RepoURLType(RepoURLTypeHelm).
+// 		Chart("helm").
+// 		Revision("1.0.0").
+// 		When().
+// 		Create().
+// 		Then().
+// 		When().
+// 		Sync().
+// 		Then().
+// 		Expect(OperationPhaseIs(OperationSucceeded)).
+// 		Expect(HealthIs(health.HealthStatusHealthy)).
+// 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+// }
 
 func TestHelmValues(t *testing.T) {
 	Given(t).
