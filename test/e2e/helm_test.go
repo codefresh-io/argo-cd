@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
+	// "os"
 	"strings"
 	"testing"
 
@@ -414,38 +414,38 @@ func TestHelm3CRD(t *testing.T) {
 		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
 }
 
-func TestHelmRepoDiffLocal(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
-	assert.NoError(t, err)
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		Create().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
-			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", RepoURL(RepoURLTypeHelm)),
-				"--username", GitUsername,
-				"--password", GitPassword,
-				"--cert-file", "../fixture/certs/argocd-test-client.crt",
-				"--key-file", "../fixture/certs/argocd-test-client.key",
-				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
-			))
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
-			assert.Empty(t, diffOutput)
-		})
-}
+// func TestHelmRepoDiffLocal(t *testing.T) {
+// 	SkipOnEnv(t, "HELM")
+// 	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
+// 	assert.NoError(t, err)
+// 	Given(t).
+// 		CustomCACertAdded().
+// 		HelmRepoAdded("custom-repo").
+// 		RepoURLType(RepoURLTypeHelm).
+// 		Chart("helm").
+// 		Revision("1.0.0").
+// 		When().
+// 		Create().
+// 		Then().
+// 		When().
+// 		Sync().
+// 		Then().
+// 		Expect(OperationPhaseIs(OperationSucceeded)).
+// 		Expect(HealthIs(health.HealthStatusHealthy)).
+// 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+// 		And(func(app *Application) {
+// 			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
+// 			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", RepoURL(RepoURLTypeHelm)),
+// 				"--username", GitUsername,
+// 				"--password", GitPassword,
+// 				"--cert-file", "../fixture/certs/argocd-test-client.crt",
+// 				"--key-file", "../fixture/certs/argocd-test-client.key",
+// 				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
+// 			))
+// 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
+// 			assert.Empty(t, diffOutput)
+// 		})
+// }
 
 func TestHelmOCIRegistry(t *testing.T) {
 	Given(t).
