@@ -345,6 +345,7 @@ jobs:
     needs:
       - build-go
     env:
+      CODEFRESH: "true"
       GOPATH: /home/runner/go
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
