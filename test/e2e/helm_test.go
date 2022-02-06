@@ -95,24 +95,24 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
-func TestHelmRepo(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		Create().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
+// func TestHelmRepo(t *testing.T) {
+// 	SkipOnEnv(t, "HELM")
+// 	Given(t).
+// 		CustomCACertAdded().
+// 		HelmRepoAdded("custom-repo").
+// 		RepoURLType(RepoURLTypeHelm).
+// 		Chart("helm").
+// 		Revision("1.0.0").
+// 		When().
+// 		Create().
+// 		Then().
+// 		When().
+// 		Sync().
+// 		Then().
+// 		Expect(OperationPhaseIs(OperationSucceeded)).
+// 		Expect(HealthIs(health.HealthStatusHealthy)).
+// 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+// }
 
 func TestHelmValues(t *testing.T) {
 	Given(t).
@@ -431,6 +431,8 @@ func TestHelm3CRD(t *testing.T) {
 
 func TestHelmRepoDiffLocal(t *testing.T) {
 	SkipOnEnv(t, "HELM")
+	SkipOnEnv(t, "CODEFRESH")
+
 	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
 	assert.NoError(t, err)
 	Given(t).
@@ -463,6 +465,8 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 }
 
 func TestHelmOCIRegistry(t *testing.T) {
+	SkipOnEnv(t, "CODEFRESH")
+
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
@@ -481,6 +485,8 @@ func TestHelmOCIRegistry(t *testing.T) {
 }
 
 func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
+	SkipOnEnv(t, "CODEFRESH")
+
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
@@ -497,6 +503,8 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 }
 
 func TestHelmOCIRegistryWithDependencies(t *testing.T) {
+	SkipOnEnv(t, "CODEFRESH")
+
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
@@ -516,6 +524,8 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 }
 
 func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
+	SkipOnEnv(t, "CODEFRESH")
+
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
@@ -532,6 +542,8 @@ func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 }
 
 func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
+	SkipOnEnv(t, "CODEFRESH")
+
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
