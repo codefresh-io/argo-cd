@@ -71,7 +71,7 @@ var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
-	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 10, 0, math.MaxInt32))
+	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 // Server provides a Application service
@@ -871,7 +871,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-events:
-			go sendIfPermitted(event.Application, event.Type)
+			sendIfPermitted(event.Application, event.Type)
 		case <-stream.Context().Done():
 			return nil
 		}
@@ -943,7 +943,10 @@ func (s *Server) streamApplicationEvents(
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
 ) error {
-	logCtx := log.WithField("application", a.Name)
+	var (
+		logCtx         = log.WithField("application", a.Name)
+		manifestGenErr bool
+	)
 
 	logCtx.Info("streaming application events")
 
@@ -977,14 +980,15 @@ func (s *Server) streamApplicationEvents(
 		Revision: a.Status.Sync.Revision,
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "Manifest generation error") {
-			// if it's manifest generation error we need to still cache the application
-			// event as sent because otherwise it would keep sending the application event
-			// until it could get the manifests
-			logCtx.WithError(err).Error("failed to get application desired state manifests")
-			return nil
+		if !strings.Contains(err.Error(), "Manifest generation error") {
+			return fmt.Errorf("failed to get application desired state manifests: %w", err)
 		}
-		return fmt.Errorf("failed to get application desired state manifests: %w", err)
+		// if it's manifest generation error we need to still report the actual state
+		// of the resources, but since we can't get the desired state, we will report
+		// each resource with empty desired state
+		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
+		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
+		manifestGenErr = true // will ignore requiresPruning=true to not delete resources with actual state
 	}
 
 	appTree, err := s.getAppResources(ctx, a)
@@ -1005,11 +1009,7 @@ func (s *Server) streamApplicationEvents(
 		}
 
 		// get resource desired state
-		desiredState, err := getResourceDesiredState(&rs, desiredManifests)
-		if err != nil {
-			logCtx.WithError(err).Error("failed to get desired state")
-			continue
-		}
+		desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 		// get resource actual state
 		actualState, err := s.GetResource(ctx, &application.ApplicationResourceRequest{
@@ -1030,7 +1030,7 @@ func (s *Server) streamApplicationEvents(
 			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree)
+		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to get event payload")
 			continue
@@ -1059,6 +1059,7 @@ func getResourceEventPayload(
 	desiredState *apiclient.Manifest,
 	manifestsResponse *apiclient.ManifestResponse,
 	apptree *appv1.ApplicationTree,
+	manifestGenErr bool,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -1094,9 +1095,7 @@ func getResourceEventPayload(
 
 			object = manifestWithNamespace
 		}
-	}
-
-	if rs.RequiresPruning {
+	} else if rs.RequiresPruning && !manifestGenErr {
 		// resource should be deleted
 		desiredState.CompiledManifest = ""
 		actualState.Manifest = ""
@@ -1301,16 +1300,19 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse) (*apiclient.Manifest, error) {
+func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
 	for _, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal compiled manifest: %w", err)
+			logger.WithError(err).Warnf("failed to unmarshal compiled manifest")
+			continue
 		}
 
 		if u == nil {
-			return nil, fmt.Errorf("no compiled manifest for: %s", m.Path)
+			logger.WithError(err).Warnf("no compiled manifest for: %s", m.Path)
+			continue
 		}
+
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
@@ -1320,13 +1322,13 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 				m.RawManifest = m.CompiledManifest
 			}
 
-			return m, nil
+			return m
 		}
 	}
 
 	// no desired state for resource
 	// it's probably deleted from git
-	return &apiclient.Manifest{}, nil
+	return &apiclient.Manifest{}
 }
 
 func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) ([]byte, error) {
