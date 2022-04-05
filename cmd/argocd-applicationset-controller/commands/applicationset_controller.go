@@ -131,6 +131,7 @@ func NewCommand() *cobra.Command {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
 			askPassServer := askpass.NewServer()
+			startAskPassServer(askPassServer)
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
@@ -202,6 +203,17 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	return &command
+}
+
+func startAskPassServer(askPass askpass.Server) {
+	log.Info("Starting askpass server")
+	go func() {
+		err := askPass.Run(askpass.SocketPath)
+		if err != nil {
+			log.Error(err, "failed to start askpass server")
+			os.Exit(1)
+		}
+	}()
 }
 
 func startWebhookServer(webhookHandler *utils.WebhookHandler, webhookAddr string) {

@@ -389,6 +389,7 @@ type ApplicationSourceKustomize struct {
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
+		len(k.Components) == 0 &&
 		k.NamePrefix == "" &&
 		k.NameSuffix == ""
 }
@@ -401,7 +402,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			k.Version == "" &&
 			len(k.Images) == 0 &&
 			len(k.CommonLabels) == 0 &&
-			len(k.CommonAnnotations) == 0
+			len(k.CommonAnnotations) == 0 &&
+			len(k.Components) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images

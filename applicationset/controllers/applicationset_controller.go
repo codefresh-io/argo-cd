@@ -421,7 +421,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 	var firstError error
 	var applicationSetReason argoprojiov1alpha1.ApplicationSetReasonType
 
-	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
+	for i, requestedGenerator := range applicationSetInfo.Spec.Generators {
 		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo)
 		if err != nil {
 			log.WithError(err).WithField("generator", requestedGenerator).
@@ -452,13 +452,15 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 			}
 		}
 
-		log.WithField("generator", requestedGenerator).Infof("generated %d applications", len(res))
+		log.WithField("generator-index", i).Infof("generated %d applications", len(res))
 		log.WithField("generator", requestedGenerator).Debugf("apps from generator: %+v", res)
 	}
 
 	// apps with the same name will be overridden by different generators
 	// depending on the oreder of the generator that produced them
 	res = dedupApps(res)
+
+	log.Infof("generated %d unique applications from %d different generators", len(res), len(applicationSetInfo.Spec.Generators))
 
 	return res, applicationSetReason, firstError
 }
