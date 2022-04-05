@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
 
@@ -353,16 +354,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 // generated applications.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argoprojiov1alpha1.ApplicationSet, namespace string) (map[int]error, error) {
 	errorsByIndex := map[int]error{}
-	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
-
-		if !namesSet[app.Name] {
-			namesSet[app.Name] = true
-		} else {
-			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
-			continue
-		}
-
 		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
 		if err != nil {
 			if apierr.IsNotFound(err) {
@@ -464,7 +456,39 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 		log.WithField("generator", requestedGenerator).Debugf("apps from generator: %+v", res)
 	}
 
+	// apps with the same name will be overridden by different generators
+	// depending on the oreder of the generator that produced them
+	res = dedupApps(res)
+
 	return res, applicationSetReason, firstError
+}
+
+func dedupApps(apps []v1alpha1.Application) []v1alpha1.Application {
+	appIdx := map[string]int{}
+	res := []v1alpha1.Application{}
+
+	for i, a := range apps {
+		name := a.Name
+		namespace := "default"
+		if a.Namespace != "" {
+			namespace = a.Namespace
+		}
+		if a.GenerateName != "" {
+			name = a.GenerateName
+		}
+
+		key := fmt.Sprintf("%s/%s", namespace, name)
+
+		if idx, ok := appIdx[key]; ok {
+			res[idx] = a // override previous app with same name
+			continue
+		}
+
+		res = append(res, a)
+		appIdx[key] = i
+	}
+
+	return res
 }
 
 func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {

@@ -145,6 +145,26 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				return nil, nil, err
 			}
 		}
+
+		if len(opts.Components) > 0 {
+			// components only supported in kustomize >= v3.7.0
+			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
+			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
+				return nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+			}
+
+			// add components
+			args := []string{"edit", "add", "component"}
+			for _, component := range opts.Components {
+				args = append(args, component)
+			}
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
 	}
 
 	var cmd *exec.Cmd
