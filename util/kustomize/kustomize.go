@@ -33,7 +33,7 @@ type ResolveRevisionFunc func(repo, revision string, creds git.Creds) (string, e
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, namespace string) ([]*unstructured.Unstructured, []Image, error)
 	// GetCacheKeyWithComponents returns a cache key that takes remote components repositories in consideration and
 	// not just the repository that contains the base Kustomization file. This is required if we want to rebuild the
 	// manifests everytime one of the component repositories change and not wait for a hard refresh.
@@ -91,7 +91,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, namespace string) ([]*unstructured.Unstructured, []Image, error) {
 	env := os.Environ()
 	if envVars != nil {
 		env = append(env, envVars.Environ()...)
@@ -125,6 +125,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	env = append(env, environ...)
+
+	if namespace != "" {
+		cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", namespace)
+		cmd.Dir = k.path
+		_, err := executil.Run(cmd)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
