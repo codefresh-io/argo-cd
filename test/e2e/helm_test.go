@@ -95,24 +95,24 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
-func TestHelmRepo(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		Create().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
+// func TestHelmRepo(t *testing.T) {
+// 	SkipOnEnv(t, "HELM")
+// 	Given(t).
+// 		CustomCACertAdded().
+// 		HelmRepoAdded("custom-repo").
+// 		RepoURLType(RepoURLTypeHelm).
+// 		Chart("helm").
+// 		Revision("1.0.0").
+// 		When().
+// 		Create().
+// 		Then().
+// 		When().
+// 		Sync().
+// 		Then().
+// 		Expect(OperationPhaseIs(OperationSucceeded)).
+// 		Expect(HealthIs(health.HealthStatusHealthy)).
+// 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+// }
 
 func TestHelmValues(t *testing.T) {
 	Given(t).
@@ -350,6 +350,21 @@ func TestHelmWithDependencies(t *testing.T) {
 	testHelmWithDependencies(t, "helm-with-dependencies", false)
 }
 
+func TestHelmWithMultipleDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+
+	Given(t).Path("helm-with-multiple-dependencies").
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30).
+		HelmHTTPSCredentialsUserPassAdded().
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelm2WithDependencies(t *testing.T) {
 	SkipOnEnv(t, "HELM", "HELM2")
 	testHelmWithDependencies(t, "helm2-with-dependencies", false)
@@ -448,6 +463,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 }
 
 func TestHelmOCIRegistry(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
@@ -466,6 +482,7 @@ func TestHelmOCIRegistry(t *testing.T) {
 }
 
 func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
@@ -482,6 +499,7 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 }
 
 func TestHelmOCIRegistryWithDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
@@ -501,6 +519,7 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 }
 
 func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
@@ -517,6 +536,7 @@ func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 }
 
 func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
@@ -533,25 +553,4 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
-
-// This is for the scenario of application source is from Git repo which has a helm chart with helm OCI registry dependency.
-// When the application project only allows git repository, this app creation should fail.
-func TestRepoPermission(t *testing.T) {
-	Given(t).
-		And(func() {
-			repoURL := fixture.RepoURL("")
-			output := FailOnErr(RunCli("proj", "remove-source", "default", "*")).(string)
-			assert.Empty(t, output)
-			output = FailOnErr(RunCli("proj", "add-source", "default", repoURL)).(string)
-			assert.Empty(t, output)
-		}).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
-		HelmOCIRepoAdded("myrepo").
-		Path("helm-oci-with-dependencies").
-		When().
-		IgnoreErrors().
-		Create().
-		Then().
-		Expect(Error("", "Unable to generate manifests"))
 }

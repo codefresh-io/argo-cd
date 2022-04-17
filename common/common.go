@@ -70,6 +70,9 @@ const (
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+
+	// PasswordPatten is the default password patten
+	PasswordPatten = `^.{8,32}$`
 )
 
 // Dex related constants
@@ -169,6 +172,10 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
+	// EnvApplicationEventCacheDuration controls the expiration of application events cache
+	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
+	// EnvResourceEventCacheDuration controls the expiration of resource events cache
+	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
 )
 
 const (

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -37,6 +39,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -65,25 +68,29 @@ const (
 
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+
+	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
+	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 // Server provides a Application service
 type Server struct {
-	ns             string
-	kubeclientset  kubernetes.Interface
-	appclientset   appclientset.Interface
-	appLister      applisters.ApplicationNamespaceLister
-	appInformer    cache.SharedIndexInformer
-	appBroadcaster *broadcasterHandler
-	repoClientset  apiclient.Clientset
-	kubectl        kube.Kubectl
-	db             db.ArgoDB
-	enf            *rbac.Enforcer
-	projectLock    sync.KeyLock
-	auditLogger    *argo.AuditLogger
-	settingsMgr    *settings.SettingsManager
-	cache          *servercache.Cache
-	projInformer   cache.SharedIndexInformer
+	ns                       string
+	kubeclientset            kubernetes.Interface
+	appclientset             appclientset.Interface
+	appLister                applisters.ApplicationNamespaceLister
+	appInformer              cache.SharedIndexInformer
+	appBroadcaster           *broadcasterHandler
+	repoClientset            apiclient.Clientset
+	kubectl                  kube.Kubectl
+	db                       db.ArgoDB
+	enf                      *rbac.Enforcer
+	projectLock              sync.KeyLock
+	auditLogger              *argo.AuditLogger
+	settingsMgr              *settings.SettingsManager
+	cache                    *servercache.Cache
+	projInformer             cache.SharedIndexInformer
+	applicationEventReporter *applicationEventReporter
 }
 
 // NewServer returns a new instance of the Application service
@@ -101,10 +108,10 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-) application.ApplicationServiceServer {
+) *Server {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
-	return &Server{
+	server := &Server{
 		ns:             namespace,
 		appclientset:   appclientset,
 		appLister:      appLister,
@@ -121,6 +128,10 @@ func NewServer(
 		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
 	}
+
+	server.applicationEventReporter = NewApplicationEventReporter(server)
+
+	return server
 }
 
 // appRBACName formats fully qualified application name for RBAC check
@@ -229,6 +240,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
 	helmCreds []*v1alpha1.RepoCreds,
+	helmOptions *v1alpha1.HelmOptions,
 	kustomizeOptions *v1alpha1.KustomizeOptions,
 ) error) error {
 
@@ -270,11 +282,15 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
+	helmOptions, err := s.settingsMgr.GetHelmSettings()
+	if err != nil {
+		return err
+	}
 	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return err
 	}
-	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, kustomizeOptions)
+	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions)
 }
 
 // GetManifests returns application manifests
@@ -289,7 +305,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, kustomizeOptions *appv1.KustomizeOptions) error {
+		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions) error {
 		revision := a.Spec.Source.TargetRevision
 		if q.Revision != "" {
 			revision = q.Revision
@@ -331,6 +347,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			KubeVersion:       serverVersion,
 			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 			HelmRepoCreds:     helmCreds,
+			HelmOptions:       helmOptions,
 		})
 		return err
 	})
@@ -341,7 +358,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	for i, manifest := range manifestInfo.Manifests {
 		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
 		if err != nil {
 			return nil, err
 		}
@@ -354,7 +371,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return nil, err
 			}
-			manifestInfo.Manifests[i] = string(data)
+			manifestInfo.Manifests[i].CompiledManifest = string(data)
 		}
 	}
 
@@ -405,6 +422,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
+			helmOptions *appv1.HelmOptions,
 			kustomizeOptions *appv1.KustomizeOptions,
 		) error {
 			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
@@ -414,6 +432,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				KustomizeOptions: kustomizeOptions,
 				Repos:            helmRepos,
 				NoCache:          true,
+				HelmOptions:      helmOptions,
 			})
 			return err
 		}); err != nil {
@@ -470,6 +489,21 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
+		tree, err := s.getAppResources(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
+			if n.ResourceRef.UID == q.ResourceUID && n.ResourceRef.Name == q.ResourceName && n.ResourceRef.Namespace == q.ResourceNamespace {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, status.Errorf(codes.InvalidArgument, "%s not found as part of application %s", q.ResourceName, *q.Name)
+		}
+
 		namespace = q.ResourceNamespace
 		var config *rest.Config
 		config, err = s.getApplicationClusterConfig(ctx, a)
@@ -486,7 +520,6 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": namespace,
 		}).String()
 	}
-
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
 	return kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
@@ -799,6 +832,89 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 }
 
+func shouldProcessNonRootApp() bool {
+	value := os.Getenv("PROCESS_NON_ROOT_APP")
+	result, err := strconv.ParseBool(value)
+	if err != nil {
+		return false
+	}
+	return result
+}
+
+func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
+	var (
+		logCtx log.FieldLogger = log.StandardLogger()
+	)
+	q := application.ApplicationQuery{}
+	if err := yaml.Unmarshal(es.Config, &q); err != nil {
+		logCtx.WithError(err).Error("failed to unmarshal event-source config")
+		return fmt.Errorf("failed to unmarshal event-source config: %w", err)
+	}
+
+	if q.Name != nil {
+		logCtx = logCtx.WithField("application", *q.Name)
+	}
+
+	claims := stream.Context().Value("claims")
+	selector, err := labels.Parse(q.Selector)
+	if err != nil {
+		return err
+	}
+	minVersion := 0
+	if q.ResourceVersion != "" {
+		if minVersion, err = strconv.Atoi(q.ResourceVersion); err != nil {
+			minVersion = 0
+		}
+	}
+
+	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
+	// caller has RBAC privileges permissions to view it
+	sendIfPermitted := func(a appv1.Application, eventType watch.EventType, ts string) {
+		if eventType == watch.Bookmark {
+			return // ignore this event
+		}
+
+		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+			return
+		}
+
+		matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
+		if !matchedEvent {
+			return
+		}
+
+		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
+			// do not emit apps user does not have accessing
+			return
+		}
+
+		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts, shouldProcessNonRootApp())
+		if err != nil {
+			logCtx.WithError(err).Error("failed to stream application events")
+			return
+		}
+
+		if err := s.cache.SetLastApplicationEvent(&a, applicationEventCacheExpiration); err != nil {
+			logCtx.WithError(err).Error("failed to cache last sent application event")
+			return
+		}
+	}
+
+	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+
+	unsubscribe := s.appBroadcaster.Subscribe(events, s.applicationEventReporter.shouldSendApplicationEvent)
+	defer unsubscribe()
+	for {
+		select {
+		case event := <-events:
+			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			sendIfPermitted(event.Application, event.Type, ts)
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
+}
+
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
 	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
 	if err != nil {
@@ -848,7 +964,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return err
 		}
@@ -912,7 +1028,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 	return &tree, err
 }
 
-func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
+func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.appLister.Get(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
@@ -927,7 +1043,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	}
 
 	found := tree.FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
-	if found == nil {
+	if found == nil || found.ResourceRef.UID == "" {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)
@@ -938,7 +1054,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 }
 
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -983,7 +1099,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,7 +1139,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1293,7 +1409,7 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	var pods []appv1.ResourceNode
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
-		if treeNode.Kind == kube.PodKind && treeNode.Group == "" {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
 			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
@@ -1603,7 +1719,7 @@ func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, 
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1654,7 +1770,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Group:        q.Group,
 	}
 	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
-	res, config, a, err := s.getAppResource(ctx, actionRequest, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}

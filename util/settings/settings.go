@@ -82,6 +82,8 @@ type ArgoCDSettings struct {
 	UiBannerContent string `json:"uiBannerContent,omitempty"`
 	// URL for UI Banner
 	UiBannerURL string `json:"uiBannerURL,omitempty"`
+	// PasswordPattern for password regular expression
+	PasswordPattern string `json:"passwordPattern,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -309,6 +311,10 @@ const (
 	externalServerTLSSecretName = "argocd-server-tls"
 	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
+	// settingsPasswordPatternKey is the key to configure user password regular expression
+	settingsPasswordPatternKey = "passwordPattern"
+	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
+	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -515,6 +521,18 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	return label, nil
 }
 
+func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	label := argoCDCM.Data[settingsPasswordPatternKey]
+	if label == "" {
+		return common.PasswordPatten, nil
+	}
+	return label, nil
+}
+
 func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -694,6 +712,25 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 	}
 
 	return diffOptions, nil
+}
+
+// GetHelmSettings returns helm settings
+func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	helmOptions := &v1alpha1.HelmOptions{}
+	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
+		for _, item := range strings.Split(value, ",") {
+			if item := strings.TrimSpace(item); item != "" {
+				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
+			}
+		}
+	} else {
+		helmOptions.ValuesFileSchemes = []string{"https", "http"}
+	}
+	return helmOptions, nil
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
@@ -1038,6 +1075,10 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		}
 	} else {
 		settings.UserSessionDuration = time.Hour * 24
+	}
+	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
+	if settings.PasswordPattern == "" {
+		settings.PasswordPattern = common.PasswordPatten
 	}
 }
 

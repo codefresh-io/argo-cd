@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	goio "io"
 	"io/fs"
 	"math"
 	"net"
@@ -12,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	gosync "sync"
@@ -54,6 +52,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
@@ -134,7 +133,6 @@ var (
 	maxConcurrentLoginRequestsCount = 50
 	replicasCount                   = 1
 	enableGRPCTimeHistogram         = true
-	staticAssets                    = http.FS(&subDirFs{dir: "dist/app", fs: ui.Embedded})
 )
 
 func init() {
@@ -157,6 +155,7 @@ type ArgoCDServer struct {
 	settingsMgr    *settings_util.SettingsManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
+	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
@@ -167,12 +166,14 @@ type ArgoCDServer struct {
 	indexDataInit    gosync.Once
 	indexData        []byte
 	indexDataErr     error
+	staticAssets     http.FileSystem
 }
 
 type ArgoCDServerOpts struct {
 	DisableAuth         bool
 	EnableGZip          bool
 	Insecure            bool
+	StaticAssetsDir     string
 	ListenPort          int
 	MetricsPort         int
 	Namespace           string
@@ -236,6 +237,11 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
+	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
+	if opts.StaticAssetsDir != "" {
+		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+	}
+
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.StandardLogger()),
@@ -244,10 +250,12 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		settingsMgr:      settingsMgr,
 		enf:              enf,
 		projInformer:     projInformer,
+		projLister:       projLister,
 		appInformer:      appInformer,
 		appLister:        appLister,
 		policyEnforcer:   policyEnf,
 		userStateStorage: userStateStorage,
+		staticAssets:     http.FS(staticFS),
 	}
 }
 
@@ -367,6 +375,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
 	errors.CheckError(conn.Close())
+	if err := metricsServ.Shutdown(ctx); err != nil {
+		log.Fatalf("Failed to gracefully shutdown metrics server: %v", err)
+	}
 }
 
 func (a *ArgoCDServer) Initialized() bool {
@@ -552,7 +563,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.appLister, a.projLister, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
@@ -591,6 +602,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
+	eventspkg.RegisterEventingServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
 	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
 	sessionpkg.RegisterSessionServiceServer(grpcS, sessionService)
@@ -727,6 +739,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(eventspkg.RegisterEventingHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
@@ -842,8 +855,8 @@ func (s *ArgoCDServer) getIndexData() ([]byte, error) {
 	return s.indexData, s.indexDataErr
 }
 
-func uiAssetExists(filename string) bool {
-	f, err := staticAssets.Open(strings.Trim(filename, "/"))
+func (server *ArgoCDServer) uiAssetExists(filename string) bool {
+	f, err := server.staticAssets.Open(strings.Trim(filename, "/"))
 	if err != nil {
 		return false
 	}
@@ -866,7 +879,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			}
 		}
 
-		fileRequest := r.URL.Path != "/index.html" && uiAssetExists(r.URL.Path)
+		fileRequest := r.URL.Path != "/index.html" && server.uiAssetExists(r.URL.Path)
 
 		// Set X-Frame-Options according to configuration
 		if server.XFrameOptions != "" {
@@ -889,48 +902,11 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			if err != nil {
 				modTime = time.Now()
 			}
-			http.ServeContent(w, r, "index.html", modTime, byteReadSeeker{data: data})
+			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
-			http.FileServer(staticAssets).ServeHTTP(w, r)
+			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
 	}
-}
-
-type subDirFs struct {
-	dir string
-	fs  fs.FS
-}
-
-func (s subDirFs) Open(name string) (fs.File, error) {
-	return s.fs.Open(filepath.Join(s.dir, name))
-}
-
-type byteReadSeeker struct {
-	data   []byte
-	offset int64
-}
-
-func (f byteReadSeeker) Read(b []byte) (int, error) {
-	if f.offset >= int64(len(f.data)) {
-		return 0, goio.EOF
-	}
-	n := copy(b, f.data[f.offset:])
-	f.offset += int64(n)
-	return n, nil
-}
-
-func (f byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	switch whence {
-	case 1:
-		offset += f.offset
-	case 2:
-		offset += int64(len(f.data))
-	}
-	if offset < 0 || offset > int64(len(f.data)) {
-		return 0, &fs.PathError{Op: "seek", Err: fs.ErrInvalid}
-	}
-	f.offset = offset
-	return offset, nil
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
