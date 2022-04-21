@@ -327,6 +327,12 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
+                          components:
+                            description: Components specifies a list of kustomize
+                              components to add to the kustmization before building
+                            items:
+                              type: string
+                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -699,6 +705,12 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
+                      components:
+                        description: Components specifies a list of kustomize components
+                          to add to the kustmization before building
+                        items:
+                          type: string
+                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -1079,6 +1091,12 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
+                            components:
+                              description: Components specifies a list of kustomize
+                                components to add to the kustmization before building
+                              items:
+                                type: string
+                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1476,6 +1494,13 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
+                                  components:
+                                    description: Components specifies a list of kustomize
+                                      components to add to the kustmization before
+                                      building
+                                    items:
+                                      type: string
+                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -1847,6 +1872,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2207,6 +2238,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2563,6 +2600,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -2869,6 +2910,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -3177,6 +3222,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -3461,6 +3510,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -3775,6 +3828,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4081,6 +4138,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4389,6 +4450,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4673,6 +4738,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4985,6 +5054,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -5349,6 +5422,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -5626,6 +5703,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -5940,6 +6021,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -6246,6 +6331,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -6554,6 +6643,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -6838,6 +6931,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7150,6 +7247,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7514,6 +7615,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7795,6 +7900,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -8104,6 +8213,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -8468,6 +8581,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -8750,6 +8867,10 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              components:
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
@@ -10504,7 +10625,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/argoproj/argocd-applicationset:latest
+        image: quay.io/codefresh/applicationset:v0.4.2
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -10585,7 +10706,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -10618,7 +10739,7 @@ spec:
       containers:
       - command:
         - argocd-notifications
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -10851,7 +10972,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -10900,7 +11021,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
         name: copyutil
         volumeMounts:
         - mountPath: /var/run/argocd
@@ -11127,7 +11248,7 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -11323,7 +11444,7 @@ spec:
               key: controller.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

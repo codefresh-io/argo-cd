@@ -9,7 +9,7 @@ patchesStrategicMerge:
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: latest
+  newTag: release-v2.3.3-cap-CR-kustomize-components
 resources:
 - ../../base/application-controller
 - ../../base/dex
