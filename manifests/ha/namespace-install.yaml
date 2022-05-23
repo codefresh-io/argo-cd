@@ -2764,6 +2764,29 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  bitbucket:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      appPasswordRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      owner:
+                                        type: string
+                                      user:
+                                        type: string
+                                    required:
+                                    - appPasswordRef
+                                    - owner
+                                    - user
+                                    type: object
                                   cloneProtocol:
                                     type: string
                                   filters:
@@ -4906,6 +4929,29 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  bitbucket:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      appPasswordRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      owner:
+                                        type: string
+                                      user:
+                                        type: string
+                                    required:
+                                    - appPasswordRef
+                                    - owner
+                                    - user
+                                    type: object
                                   cloneProtocol:
                                     type: string
                                   filters:
@@ -5837,6 +5883,29 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        bitbucket:
+                          properties:
+                            allBranches:
+                              type: boolean
+                            appPasswordRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                            owner:
+                              type: string
+                            user:
+                              type: string
+                          required:
+                          - appPasswordRef
+                          - owner
+                          - user
+                          type: object
                         cloneProtocol:
                           type: string
                         filters:
@@ -7731,7 +7800,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/argoproj/argocd-applicationset:v0.4.1
+        image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -7812,7 +7881,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.3.4
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -7845,7 +7914,7 @@ spec:
       containers:
       - command:
         - argocd-notifications
-        image: quay.io/argoproj/argocd:v2.3.4
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -8078,7 +8147,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.3.4
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -8127,7 +8196,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.3.4
+        image: quay.io/codefresh/argocd:latest
         name: copyutil
         volumeMounts:
         - mountPath: /var/run/argocd
@@ -8354,7 +8423,7 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.3.4
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -8550,7 +8619,7 @@ spec:
               key: controller.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.3.4
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
