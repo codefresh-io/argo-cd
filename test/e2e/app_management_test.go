@@ -1476,7 +1476,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateWithNoNameSpace().
-		Refresh(RefreshTypeHard).
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
 			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
@@ -1498,7 +1498,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Path(guestbookWithNamespace).
 		When().
 		CreateWithNoNameSpace().
-		Refresh(RefreshTypeHard).
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
 			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
