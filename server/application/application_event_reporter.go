@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -55,13 +56,19 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
+func isChildApp(a *appv1.Application) bool {
+	if a.Labels != nil {
+		return a.Labels["app.kubernetes.io/instance"] != ""
+	}
+	return false
+}
+
 func (s *applicationEventReporter) streamApplicationEvents(
 	ctx context.Context,
 	a *appv1.Application,
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
 	ts string,
-	processRootApp bool,
 ) error {
 	var (
 		logCtx         = log.WithField("application", a.Name)
@@ -70,12 +77,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 	logCtx.Info("streaming application events")
 
-	isChildApp := false
-	if a.Labels != nil {
-		isChildApp = a.Labels["app.kubernetes.io/instance"] != ""
-	}
-
-	if !isChildApp || processRootApp {
+	if !isChildApp(a) {
 		// application events for child apps would be sent by its parent app
 		// as resource event
 		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
@@ -91,6 +93,36 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		logWithAppStatus(a, logCtx, ts).Info("sending application event")
 		if err := stream.Send(appEvent); err != nil {
 			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+		}
+	} else {
+		parentApp := a.Labels["app.kubernetes.io/instance"]
+
+		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
+			Name: &parentApp,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get application event: %w", err)
+		}
+
+		rs := appv1.ResourceStatus{
+			Name:      a.Name,
+			Namespace: a.Namespace,
+			Version:   "v1alpha1",
+			Kind:      "Application",
+			Group:     "argoproj.io",
+		}
+
+		appTree, err := s.server.getAppResources(ctx, a)
+
+		// get the desired state manifests of the application
+		desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
+			Name:     &a.Name,
+			Revision: a.Status.Sync.Revision,
+		})
+
+		err = s.processResource(ctx, rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
+		if err != nil {
+			return fmt.Errorf("failed to get application event: %w", err)
 		}
 	}
 
@@ -119,76 +151,85 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
-		logCtx = logCtx.WithFields(log.Fields{
-			"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
-			"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
-		})
-
-		if !s.shouldSendResourceEvent(a, rs) {
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
+		if err != nil {
 			continue
 		}
+	}
 
-		// get resource desired state
-		desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
+	return nil
+}
 
-		// get resource actual state
-		actualState, err := s.server.GetResource(ctx, &application.ApplicationResourceRequest{
-			Name:         &a.Name,
-			Namespace:    rs.Namespace,
-			ResourceName: rs.Name,
-			Version:      rs.Version,
-			Group:        rs.Group,
-			Kind:         rs.Kind,
+func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1.ResourceStatus, a *appv1.Application, logCtx *log.Entry, ts string, desiredManifests *apiclient.ManifestResponse, stream events.Eventing_StartEventSourceServer, appTree *appv1.ApplicationTree, es *events.EventSource, manifestGenErr bool) error {
+	logCtx = logCtx.WithFields(log.Fields{
+		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
+		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
+	})
+
+	if !s.shouldSendResourceEvent(a, rs) {
+		return errors.New("")
+	}
+
+	// get resource desired state
+	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
+
+	// get resource actual state
+	actualState, err := s.server.GetResource(ctx, &application.ApplicationResourceRequest{
+		Name:         &a.Name,
+		Namespace:    rs.Namespace,
+		ResourceName: rs.Name,
+		Version:      rs.Version,
+		Group:        rs.Group,
+		Kind:         rs.Kind,
+	})
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			logCtx.WithError(err).Error("failed to get actual state")
+			return errors.New("")
+		}
+
+		// empty actual state
+		actualState = &application.ApplicationResourceResponse{Manifest: ""}
+	}
+
+	var mr *apiclient.ManifestResponse = desiredManifests
+	if isApp(rs) {
+		app := &v1alpha1.Application{}
+		if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
+			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
+		}
+		resourceDesiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
+			Name:     &rs.Name,
+			Revision: app.Status.Sync.Revision,
 		})
 		if err != nil {
-			if !strings.Contains(err.Error(), "not found") {
-				logCtx.WithError(err).Error("failed to get actual state")
-				continue
-			}
-
-			// empty actual state
-			actualState = &application.ApplicationResourceResponse{Manifest: ""}
-		}
-
-		var mr *apiclient.ManifestResponse = desiredManifests
-		if isApp(rs) {
-			app := &v1alpha1.Application{}
-			if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
-				logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
-			}
-			resourceDesiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
-				Name:     &rs.Name,
-				Revision: app.Status.Sync.Revision,
-			})
-			if err != nil {
-				logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
-			} else {
-				mr = resourceDesiredManifests
-			}
-		}
-
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
-		if err != nil {
-			logCtx.WithError(err).Error("failed to get event payload")
-			continue
-		}
-
-		appRes := appv1.Application{}
-		if isApp(rs) && actualState.Manifest != "" && json.Unmarshal([]byte(actualState.Manifest), &appRes) == nil {
-			logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
+			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
 		} else {
-			logCtx.Info("streaming resource event")
+			mr = resourceDesiredManifests
 		}
+	}
 
-		if err := stream.Send(ev); err != nil {
-			logCtx.WithError(err).Error("failed to send even")
-			continue
-		}
+	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
+	if err != nil {
+		logCtx.WithError(err).Error("failed to get event payload")
+		return errors.New("")
+	}
 
-		if err := s.server.cache.SetLastResourceEvent(a, rs, resourceEventCacheExpiration); err != nil {
-			logCtx.WithError(err).Error("failed to cache resource event")
-			continue
-		}
+	appRes := appv1.Application{}
+	if isApp(rs) && actualState.Manifest != "" && json.Unmarshal([]byte(actualState.Manifest), &appRes) == nil {
+		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
+	} else {
+		logCtx.Info("streaming resource event")
+	}
+
+	if err := stream.Send(ev); err != nil {
+		logCtx.WithError(err).Error("failed to send even")
+		return errors.New("")
+	}
+
+	if err := s.server.cache.SetLastResourceEvent(a, rs, resourceEventCacheExpiration); err != nil {
+		logCtx.WithError(err).Error("failed to cache resource event")
+		return errors.New("")
 	}
 
 	return nil

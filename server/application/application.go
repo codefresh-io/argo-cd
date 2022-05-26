@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -832,15 +831,6 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 }
 
-func shouldProcessNonRootApp() bool {
-	value := os.Getenv("PROCESS_NON_ROOT_APP")
-	result, err := strconv.ParseBool(value)
-	if err != nil {
-		return false
-	}
-	return result
-}
-
 func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
 	var (
 		logCtx log.FieldLogger = log.StandardLogger()
@@ -888,7 +878,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 
-		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts, shouldProcessNonRootApp())
+		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to stream application events")
 			return
