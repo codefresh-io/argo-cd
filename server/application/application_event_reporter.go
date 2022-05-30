@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -120,10 +119,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			Revision: a.Status.Sync.Revision,
 		})
 
-		err = s.processResource(ctx, rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
-		if err != nil {
-			return fmt.Errorf("failed to get application event: %w", err)
-		}
+		s.processResource(ctx, rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
 	}
 
 	// get the desired state manifests of the application
@@ -151,23 +147,23 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
-		if err != nil {
+		if isApp(rs) {
 			continue
 		}
+		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
 	}
 
 	return nil
 }
 
-func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1.ResourceStatus, a *appv1.Application, logCtx *log.Entry, ts string, desiredManifests *apiclient.ManifestResponse, stream events.Eventing_StartEventSourceServer, appTree *appv1.ApplicationTree, es *events.EventSource, manifestGenErr bool) error {
+func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1.ResourceStatus, a *appv1.Application, logCtx *log.Entry, ts string, desiredManifests *apiclient.ManifestResponse, stream events.Eventing_StartEventSourceServer, appTree *appv1.ApplicationTree, es *events.EventSource, manifestGenErr bool) {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 	})
 
 	if !s.shouldSendResourceEvent(a, rs) {
-		return errors.New("")
+		return
 	}
 
 	// get resource desired state
@@ -185,7 +181,7 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
 			logCtx.WithError(err).Error("failed to get actual state")
-			return errors.New("")
+			return
 		}
 
 		// empty actual state
@@ -212,7 +208,7 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
-		return errors.New("")
+		return
 	}
 
 	appRes := appv1.Application{}
@@ -224,15 +220,12 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 
 	if err := stream.Send(ev); err != nil {
 		logCtx.WithError(err).Error("failed to send even")
-		return errors.New("")
+		return
 	}
 
 	if err := s.server.cache.SetLastResourceEvent(a, rs, resourceEventCacheExpiration); err != nil {
 		logCtx.WithError(err).Error("failed to cache resource event")
-		return errors.New("")
 	}
-
-	return nil
 }
 
 func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) bool {
