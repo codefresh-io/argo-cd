@@ -69,6 +69,8 @@ func getAppAsResource(a *appv1.Application) (*appv1.ResourceStatus, error) {
 		Version:   "v1alpha1",
 		Kind:      "Application",
 		Group:     "argoproj.io",
+		Status:    a.Status.Sync.Status,
+		Health:    &a.Status.Health,
 	}, nil
 }
 
@@ -142,7 +144,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return fmt.Errorf("failed to get application as resource: %w", err)
 		}
 
-		desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
+		desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 		if err != nil {
 			return err
 		}
@@ -199,7 +201,24 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 		actualState = &application.ApplicationResourceResponse{Manifest: ""}
 	}
 
-	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr, ts)
+	var mr *apiclient.ManifestResponse = desiredManifests
+	if isApp(rs) {
+		app := &appv1.Application{}
+		if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
+			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
+		}
+		resourceDesiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
+			Name:     &rs.Name,
+			Revision: app.Status.Sync.Revision,
+		})
+		if err != nil {
+			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
+		} else {
+			mr = resourceDesiredManifests
+		}
+	}
+
+	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return
