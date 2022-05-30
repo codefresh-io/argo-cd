@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"reflect"
 	"strings"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
@@ -57,9 +57,39 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 
 func isChildApp(a *appv1.Application) bool {
 	if a.Labels != nil {
-		return a.Labels["app.kubernetes.io/instance"] != ""
+		return a.Labels[common.LabelKeyAppInstance] != ""
 	}
 	return false
+}
+
+func getAppAsResource(a *appv1.Application) (*appv1.ResourceStatus, error) {
+	return &appv1.ResourceStatus{
+		Name:      a.Name,
+		Namespace: a.Namespace,
+		Version:   "v1alpha1",
+		Kind:      "Application",
+		Group:     "argoproj.io",
+	}, nil
+}
+
+func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
+	// get the desired state manifests of the application
+	desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
+		Name:     &a.Name,
+		Revision: a.Status.Sync.Revision,
+	})
+	if err != nil {
+		if !strings.Contains(err.Error(), "Manifest generation error") {
+			return nil, fmt.Errorf("failed to get application desired state manifests: %w", err), false
+		}
+		// if it's manifest generation error we need to still report the actual state
+		// of the resources, but since we can't get the desired state, we will report
+		// each resource with empty desired state
+		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
+		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
+		return desiredManifests, nil, true // will ignore requiresPruning=true to not delete resources with actual state
+	}
+	return desiredManifests, nil, false
 }
 
 func (s *applicationEventReporter) streamApplicationEvents(
@@ -70,11 +100,15 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	ts string,
 ) error {
 	var (
-		logCtx         = log.WithField("application", a.Name)
-		manifestGenErr bool
+		logCtx = log.WithField("application", a.Name)
 	)
 
 	logCtx.Info("streaming application events")
+
+	appTree, err := s.server.getAppResources(ctx, a)
+	if err != nil {
+		return fmt.Errorf("failed to get application resources tree: %w", err)
+	}
 
 	if !isChildApp(a) {
 		// application events for child apps would be sent by its parent app
@@ -94,7 +128,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 		}
 	} else {
-		parentApp := a.Labels["app.kubernetes.io/instance"]
+		parentApp := a.Labels[common.LabelKeyAppInstance]
 
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
 			Name: &parentApp,
@@ -103,45 +137,22 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
 
-		rs := appv1.ResourceStatus{
-			Name:      a.Name,
-			Namespace: a.Namespace,
-			Version:   "v1alpha1",
-			Kind:      "Application",
-			Group:     "argoproj.io",
+		rs, err := getAppAsResource(a)
+		if err != nil {
+			return fmt.Errorf("failed to get application as resource: %w", err)
 		}
 
-		appTree, err := s.server.getAppResources(ctx, a)
-
-		// get the desired state manifests of the application
-		desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
-			Name:     &a.Name,
-			Revision: a.Status.Sync.Revision,
-		})
-
-		s.processResource(ctx, rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
-	}
-
-	// get the desired state manifests of the application
-	desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name:     &a.Name,
-		Revision: a.Status.Sync.Revision,
-	})
-	if err != nil {
-		if !strings.Contains(err.Error(), "Manifest generation error") {
-			return fmt.Errorf("failed to get application desired state manifests: %w", err)
+		desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
+		if err != nil {
+			return err
 		}
-		// if it's manifest generation error we need to still report the actual state
-		// of the resources, but since we can't get the desired state, we will report
-		// each resource with empty desired state
-		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
-		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
-		manifestGenErr = true // will ignore requiresPruning=true to not delete resources with actual state
+
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
 	}
 
-	appTree, err := s.server.getAppResources(ctx, a)
+	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
 	if err != nil {
-		return fmt.Errorf("failed to get application resources tree: %w", err)
+		return err
 	}
 
 	// for each resource in the application get desired and actual state,
@@ -188,24 +199,7 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 		actualState = &application.ApplicationResourceResponse{Manifest: ""}
 	}
 
-	var mr *apiclient.ManifestResponse = desiredManifests
-	if isApp(rs) {
-		app := &v1alpha1.Application{}
-		if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
-			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
-		}
-		resourceDesiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
-			Name:     &rs.Name,
-			Revision: app.Status.Sync.Revision,
-		})
-		if err != nil {
-			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
-		} else {
-			mr = resourceDesiredManifests
-		}
-	}
-
-	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
+	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr, ts)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return
