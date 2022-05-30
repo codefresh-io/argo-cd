@@ -71,9 +71,6 @@ const (
 	ociPrefix                      = "oci://"
 )
 
-// List of protocol schemes allowed for fetching remote value files
-var allowedHelmRemoteProtocols = []string{"http", "https"}
-
 // Service implements ManifestService interface
 type Service struct {
 	gitCredsStore             git.CredsStore
