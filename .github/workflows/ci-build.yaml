@@ -356,7 +356,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      uses: ./.github/actions/checkout-argo-e2e
+      -name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
