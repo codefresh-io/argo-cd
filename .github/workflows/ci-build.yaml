@@ -24,7 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
@@ -42,7 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
@@ -63,7 +67,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
@@ -83,7 +89,9 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
@@ -143,7 +151,9 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
@@ -194,7 +204,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
@@ -241,7 +253,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
@@ -278,7 +292,9 @@ jobs:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+      - name: Checkout E2E code of Argo
+        uses: ./.github/actions/checkout-argo-e2e
         with:
           fetch-depth: 0
       - name: Restore node dependency cache
