@@ -28,8 +28,13 @@ func TestGetResourceEventPayload(t *testing.T) {
 		}
 		manifestResponse := apiclient.ManifestResponse{}
 		appTree := v1alpha1.ApplicationTree{}
+		revisionMetadata := v1alpha1.RevisionMetadata{
+			Author:  "demo usert",
+			Date:    metav1.Time{},
+			Message: "some message",
+		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil, &revisionMetadata)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -59,8 +64,13 @@ func TestGetResourceEventPayload(t *testing.T) {
 		}
 		manifestResponse := apiclient.ManifestResponse{}
 		appTree := v1alpha1.ApplicationTree{}
+		revisionMetadata := v1alpha1.RevisionMetadata{
+			Author:  "demo usert",
+			Date:    metav1.Time{},
+			Message: "some message",
+		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil, &revisionMetadata)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -73,7 +83,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 	})
 }
 
-func TestGetResourceRevision(t *testing.T) {
+func TestGetApplicationLatestRevision(t *testing.T) {
 	appRevision := "a-revision"
 	history1Revision := "history-revision-1"
 	history2Revision := "history-revision-2"
@@ -87,7 +97,7 @@ func TestGetResourceRevision(t *testing.T) {
 			},
 		}
 
-		revisionResult := getResourceRevision(&noStatusHistoryAppMock)
+		revisionResult := getApplicationLatestRevision(&noStatusHistoryAppMock)
 		assert.Equal(t, revisionResult, appRevision)
 
 		emptyStatusHistoryAppMock := v1alpha1.Application{
@@ -99,7 +109,7 @@ func TestGetResourceRevision(t *testing.T) {
 			},
 		}
 
-		revision2Result := getResourceRevision(&emptyStatusHistoryAppMock)
+		revision2Result := getApplicationLatestRevision(&emptyStatusHistoryAppMock)
 		assert.Equal(t, revision2Result, appRevision)
 	})
 
@@ -120,7 +130,7 @@ func TestGetResourceRevision(t *testing.T) {
 			},
 		}
 
-		revisionResult := getResourceRevision(&appMock)
+		revisionResult := getApplicationLatestRevision(&appMock)
 		assert.Equal(t, revisionResult, history2Revision)
 	})
 }

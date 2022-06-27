@@ -133,7 +133,12 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return err
 		}
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a)
+		revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
+
+		if err == nil {
+			s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata)
+		}
+
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -158,19 +163,35 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return err
 	}
 
-	// for each resource in the application get desired and actual state,
-	// then stream the event
-	for _, rs := range a.Status.Resources {
-		if isApp(rs) {
-			continue
+	revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
+	if err == nil {
+		// for each resource in the application get desired and actual state,
+		// then stream the event
+		for _, rs := range a.Status.Resources {
+			if isApp(rs) {
+				continue
+			}
+			s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata)
 		}
-		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil)
 	}
 
 	return nil
 }
 
-func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1.ResourceStatus, parentApplication *appv1.Application, logCtx *log.Entry, ts string, desiredManifests *apiclient.ManifestResponse, stream events.Eventing_StartEventSourceServer, appTree *appv1.ApplicationTree, es *events.EventSource, manifestGenErr bool, originalApplication *appv1.Application) {
+func (s *applicationEventReporter) processResource(
+	ctx context.Context,
+	rs appv1.ResourceStatus,
+	parentApplication *appv1.Application,
+	logCtx *log.Entry,
+	ts string,
+	desiredManifests *apiclient.ManifestResponse,
+	stream events.Eventing_StartEventSourceServer,
+	appTree *appv1.ApplicationTree,
+	es *events.EventSource,
+	manifestGenErr bool,
+	originalApplication *appv1.Application,
+	revisionMetadata *appv1.RevisionMetadata,
+) {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
@@ -219,7 +240,7 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 		}
 	}
 
-	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts, originalApplication)
+	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts, originalApplication, revisionMetadata)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return
@@ -302,7 +323,7 @@ func getLatestAppHistoryItem(a *appv1.Application) *appv1.RevisionHistory {
 	return nil
 }
 
-func getResourceRevision(a *appv1.Application) string {
+func getApplicationLatestRevision(a *appv1.Application) string {
 	revision := a.Status.Sync.Revision
 	lastHistory := getLatestAppHistoryItem(a)
 
@@ -311,6 +332,15 @@ func getResourceRevision(a *appv1.Application) string {
 	}
 
 	return revision
+}
+
+func (s *applicationEventReporter) getApplicationHistoryRevisionDetails(ctx context.Context, a *appv1.Application) (*appv1.RevisionMetadata, error) {
+	revision := getApplicationLatestRevision(a)
+
+	return s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
+		Name:     &a.Name,
+		Revision: &revision,
+	})
 }
 
 func getLatestAppHistoryId(a *appv1.Application) int64 {
@@ -335,6 +365,7 @@ func getResourceEventPayload(
 	manifestGenErr bool,
 	ts string,
 	originalApplication *appv1.Application,
+	revisionMetadata *appv1.RevisionMetadata,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -357,6 +388,7 @@ func getResourceEventPayload(
 			u.SetKind(rs.Kind)
 			u.SetName(rs.Name)
 			u.SetNamespace(rs.Namespace)
+			// TODO maybe we need to check if resource is an application, and then set commit details in label as for parent apps ??
 			object, err = u.MarshalJSON()
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
@@ -407,11 +439,11 @@ func getResourceEventPayload(
 		GitManifest:     desiredState.RawManifest,
 		RepoURL:         parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
-		Revision:        getResourceRevision(parentApplication),
+		Revision:        getApplicationLatestRevision(parentApplication),
 		HistoryId:       getLatestAppHistoryId(parentApplication),
-		CommitMessage:   manifestsResponse.CommitMessage,
-		CommitAuthor:    manifestsResponse.CommitAuthor,
-		CommitDate:      manifestsResponse.CommitDate,
+		CommitMessage:   revisionMetadata.Message,
+		CommitAuthor:    revisionMetadata.Author,
+		CommitDate:      &revisionMetadata.Date,
 		AppName:         parentApplication.Name,
 		AppLabels:       parentApplication.Labels,
 		SyncStatus:      string(rs.Status),
@@ -464,11 +496,9 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		syncFinished = a.Status.OperationState.FinishedAt
 	}
 
-	if a.Status.Sync.Revision != "" {
-		revisionMetadata, err := s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
-			Name:     &a.Name,
-			Revision: &a.Status.Sync.Revision,
-		})
+	if a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0) {
+		revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
+
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
 				return nil, fmt.Errorf("failed to get revision metadata: %w", err)
