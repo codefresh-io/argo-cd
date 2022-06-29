@@ -26,7 +26,6 @@ func TestGetResourceEventPayload(t *testing.T) {
 		desiredState := apiclient.Manifest{
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
 		}
-		manifestResponse := apiclient.ManifestResponse{}
 		appTree := v1alpha1.ApplicationTree{}
 		revisionMetadata := v1alpha1.RevisionMetadata{
 			Author:  "demo usert",
@@ -34,7 +33,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil, &revisionMetadata)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -62,7 +61,6 @@ func TestGetResourceEventPayload(t *testing.T) {
 		desiredState := apiclient.Manifest{
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
 		}
-		manifestResponse := apiclient.ManifestResponse{}
 		appTree := v1alpha1.ApplicationTree{}
 		revisionMetadata := v1alpha1.RevisionMetadata{
 			Author:  "demo usert",
@@ -70,7 +68,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil, &revisionMetadata)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload

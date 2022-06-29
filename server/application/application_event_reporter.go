@@ -223,24 +223,7 @@ func (s *applicationEventReporter) processResource(
 		actualState = &application.ApplicationResourceResponse{Manifest: ""}
 	}
 
-	var mr *apiclient.ManifestResponse = desiredManifests
-	if isApp(rs) {
-		app := &appv1.Application{}
-		if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
-			logWithAppStatus(parentApplication, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
-		}
-		resourceDesiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
-			Name:     &rs.Name,
-			Revision: app.Status.Sync.Revision,
-		})
-		if err != nil {
-			logWithAppStatus(parentApplication, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
-		} else {
-			mr = resourceDesiredManifests
-		}
-	}
-
-	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts, originalApplication, revisionMetadata)
+	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return
@@ -360,7 +343,6 @@ func getResourceEventPayload(
 	es *events.EventSource,
 	actualState *application.ApplicationResourceResponse,
 	desiredState *apiclient.Manifest,
-	manifestsResponse *apiclient.ManifestResponse,
 	apptree *appv1.ApplicationTree,
 	manifestGenErr bool,
 	ts string,
