@@ -143,26 +143,6 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 	return service
 }
 
-func TestGenerateYamlManifestInDir(t *testing.T) {
-	service := newService("../..")
-
-	src := argoappv1.ApplicationSource{Path: "manifests/base"}
-	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
-
-	// update this value if we add/remove manifests
-	const countOfManifests = 41
-
-	res1, err := service.GenerateManifest(context.Background(), &q)
-
-	assert.NoError(t, err)
-	assert.Equal(t, countOfManifests, len(res1.Manifests))
-
-	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 3, len(res2.Manifests))
-}
-
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 	testCases := []struct {
 		name                    string
@@ -231,51 +211,6 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
 	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, nil)
 	require.NoError(t, err)
-}
-
-func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
-	service := newService("../..")
-
-	src := argoappv1.ApplicationSource{Path: "manifests/base"}
-	q := apiclient.ManifestRequest{
-		KubeVersion: "v1.16.0",
-		Repo:        &argoappv1.Repository{}, ApplicationSource: &src,
-	}
-
-	cachedFakeResponse := &apiclient.ManifestResponse{
-		Manifests: []*apiclient.Manifest{
-			{CompiledManifest: "fake"},
-		},
-	}
-
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
-	assert.NoError(t, err)
-
-	res, err := service.GenerateManifest(context.Background(), &q)
-	assert.NoError(t, err)
-	assert.Equal(t, cachedFakeResponse, res)
-
-	q.KubeVersion = "v1.17.0"
-	res, err = service.GenerateManifest(context.Background(), &q)
-	assert.NoError(t, err)
-	assert.NotEqual(t, cachedFakeResponse, res)
-	assert.True(t, len(res.Manifests) > 1)
-}
-
-func TestGenerateManifests_EmptyCache(t *testing.T) {
-	service := newService("../..")
-
-	src := argoappv1.ApplicationSource{Path: "manifests/base"}
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
-	}
-
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
-	assert.NoError(t, err)
-
-	res, err := service.GenerateManifest(context.Background(), &q)
-	assert.NoError(t, err)
-	assert.True(t, len(res.Manifests) > 0)
 }
 
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
