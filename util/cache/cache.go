@@ -136,6 +136,7 @@ func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, 
 		if item == nil {
 			return fmt.Errorf("cannot set item to nil for key %s", key)
 		}
+		fmt.Printf("cache item key %s experation %b", key, expiration)
 		return c.client.Set(&Item{Object: item, Key: key, Expiration: expiration})
 	}
 }
