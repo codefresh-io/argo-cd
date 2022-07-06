@@ -68,8 +68,8 @@ const (
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
-	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
-	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
+	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 5, 0, math.MaxInt32))
+	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 5, 0, math.MaxInt32))
 )
 
 // Server provides a Application service
@@ -907,6 +907,13 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 	}
+
+	// logCtx.WithFields(log.Fields{
+	// 	"syncStatus":      a.Status.Sync.Status,
+	// 	"healthStatus":    a.Status.Health.Status,
+	// 	"resourceVersion": a.ResourceVersion,
+	// 	"ts":              ts,
+	// }).Info("send and cache the application to the client's streaming channel")
 
 	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 
