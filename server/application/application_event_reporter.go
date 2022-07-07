@@ -157,18 +157,15 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return err
 	}
 
-	revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
-	if err == nil {
-		// for each resource in the application get desired and actual state,
-		// then stream the event
-		for _, rs := range a.Status.Resources {
-			if isApp(rs) {
-				continue
-			}
-			s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata)
+	revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
+	// for each resource in the application get desired and actual state,
+	// then stream the event
+	for _, rs := range a.Status.Resources {
+		if isApp(rs) {
+			continue
 		}
+		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata)
 	}
-
 	return nil
 }
 
