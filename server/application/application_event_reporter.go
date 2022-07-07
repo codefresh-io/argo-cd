@@ -130,12 +130,9 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
-		revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
+		revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
 
-		if err == nil {
-			s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata)
-		}
-
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata)
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -424,15 +421,18 @@ func getResourceEventPayload(
 		Path:            desiredState.Path,
 		Revision:        getApplicationLatestRevision(parentApplication),
 		HistoryId:       getLatestAppHistoryId(parentApplication),
-		CommitMessage:   revisionMetadata.Message,
-		CommitAuthor:    revisionMetadata.Author,
-		CommitDate:      &revisionMetadata.Date,
 		AppName:         parentApplication.Name,
 		AppLabels:       parentApplication.Labels,
 		SyncStatus:      string(rs.Status),
 		SyncStartedAt:   syncStarted,
 		SyncFinishedAt:  syncFinished,
 		Cluster:         parentApplication.Spec.Destination.Server,
+	}
+
+	if revisionMetadata != nil {
+		source.CommitMessage = revisionMetadata.Message
+		source.CommitAuthor = revisionMetadata.Author
+		source.CommitDate = &revisionMetadata.Date
 	}
 
 	if rs.Health != nil {
