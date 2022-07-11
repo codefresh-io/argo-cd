@@ -3,14 +3,16 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/runtime"
+
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"google.golang.org/grpc"
-	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
-	"time"
 
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
