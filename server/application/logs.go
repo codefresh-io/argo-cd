@@ -154,6 +154,10 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 }
 
 func isChannelClosed(channel chan logEntry) bool {
-	_, ok := <-channel
+	ok := true
+	select {
+	case _, ok = <-channel:
+	default:
+	}
 	return !ok
 }
