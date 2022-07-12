@@ -87,7 +87,7 @@ func TestIsChannelClosed(t *testing.T) {
 }
 
 func TestIsSignalToCloseMergedChannel(t *testing.T) {
-	channel := make(chan struct{})
+	channel := make(chan logEntry)
 	ok := isSignalToCloseMergedChannel(channel)
 	assert.False(t, ok)
 	close(channel)
