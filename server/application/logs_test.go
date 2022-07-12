@@ -76,3 +76,13 @@ func TestMergeLogStreams(t *testing.T) {
 
 	assert.Equal(t, []string{"1", "2", "3", "4"}, lines)
 }
+
+func TestIsChannelClosed(t *testing.T) {
+	channel := make(chan struct{}, 1)
+	ok := isChannelClosed(channel)
+	assert.False(t, ok)
+	close(channel)
+	ok = isChannelClosed(channel)
+	assert.True(t, ok)
+}
+

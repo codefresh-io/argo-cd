@@ -59,6 +59,7 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	// buffer of received log entries for each stream
 	entriesPerStream := make([][]logEntry, len(streams))
 	process := make(chan struct{})
+	isMergedClosed := make(chan struct{}, 1)
 
 	var lock sync.Mutex
 	streamsCount := int32(len(streams))
@@ -111,6 +112,9 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 		}
 		lock.Unlock()
 		for i := range entries {
+			if isChannelClosed(isMergedClosed) {
+				break
+			}
 			merged <- entries[i]
 		}
 		return len(entries) > 0
@@ -144,10 +148,18 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 
 		_ = send(true)
 
-		ticker.Stop()
+		close(isMergedClosed)
 		close(merged)
+		ticker.Stop()
 	}()
 	return merged
 }
 
-
+func isChannelClosed(channel chan struct{}) bool {
+	ok := true
+	select {
+	case _, ok = <-channel:
+	default:
+	}
+	return !ok
+}
