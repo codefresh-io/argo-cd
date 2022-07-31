@@ -311,6 +311,14 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	return isWhiteListed && !isBlackListed
 }
 
+func (proj AppProject) IsApplicationSyncPermitted(name string) bool {
+	if len(proj.Spec.ClusterApplicationWhitelist) == 0 {
+		return true
+	}
+
+	return isApplicationInList(name, proj.Spec.ClusterApplicationWhitelist)
+}
+
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
 	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name})

@@ -1728,6 +1728,8 @@ type AppProjectSpec struct {
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
 	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
+	// ClusterApplicationWhitelist contains list of whitelisted applications
+	ClusterApplicationWhitelist []string `json:"clusterApplicationWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterApplicationWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
@@ -2380,6 +2382,15 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 			if ok && err == nil {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func isApplicationInList(appName string, list []string) bool {
+	for _, item := range list {
+		if appName == item {
+			return true
 		}
 	}
 	return false
