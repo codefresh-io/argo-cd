@@ -933,7 +933,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	}
 }
 
-func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) *application.ApplicationValidateResponse {
+func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationValidateResponse, error) {
 	app := requset.Application
 	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
@@ -943,13 +943,13 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 			return &application.ApplicationValidateResponse{
 				Error:  &errMsg,
 				Entity: &entity,
-			}
+			}, nil
 		}
 		errMsg := err.Error()
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
@@ -958,7 +958,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 
 	// If source is Kustomize add build options
@@ -969,7 +969,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
@@ -978,7 +978,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 	plugins, err := s.plugins()
 	if err != nil {
@@ -987,7 +987,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 
 	var conditions []appv1.ApplicationCondition
@@ -998,7 +998,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 	if len(conditions) > 0 {
 		entity := sourceEntity
@@ -1006,12 +1006,12 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
-		}
+		}, nil
 	}
 	return &application.ApplicationValidateResponse{
 		Error:  nil,
 		Entity: nil,
-	}
+	}, nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
