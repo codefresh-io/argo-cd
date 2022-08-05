@@ -1195,6 +1195,9 @@ message RevisionHistory {
 
   // DeployStartedAt holds the time the sync operation started
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
+
+  // DeployStartedAt holds the time the sync operation started
+  optional string status = 8;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository

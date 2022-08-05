@@ -603,18 +603,52 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	return &compRes
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {
+func (m *appStateManager) alreadyInProgress(app *v1alpha1.Application, revision string) bool {
+	if len(app.Status.History) == 0 {
+		return false
+	}
+	latestHistory := app.Status.History[len(app.Status.History)-1]
+	return latestHistory.Status == "in-progress" && latestHistory.Revision == revision
+}
+
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) (int64, error) {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History.LastRevisionHistory().ID + 1
 	}
 	app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
 		Revision:        revision,
-		DeployedAt:      metav1.NewTime(time.Now().UTC()),
+		DeployedAt:      startedAt,
 		DeployStartedAt: &startedAt,
 		ID:              nextID,
 		Source:          source,
+		Status:          "in-progress",
 	})
+
+	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
+
+	patch, err := json.Marshal(map[string]map[string][]v1alpha1.RevisionHistory{
+		"status": {
+			"history": app.Status.History,
+		},
+	})
+	if err != nil {
+		return nextID, err
+	}
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return nextID, err
+}
+
+func (m *appStateManager) updateRevisionHistoryDeployTime(app *v1alpha1.Application, historyId int64) error {
+	for i := 0; i < len(app.Status.History); i++ {
+		history := &app.Status.History[i]
+		if history.ID == historyId {
+			history.DeployedAt = metav1.NewTime(time.Now().UTC())
+			history.Status = "done"
+		}
+	}
+
+	app.Status.History = append(app.Status.History)
 
 	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
 

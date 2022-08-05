@@ -914,6 +914,9 @@ spec:
                       description: Revision holds the revision the sync was performed
                         against
                       type: string
+                    status:
+                      description: Status
+                      type: string
                     source:
                       description: Source is a reference to the application source
                         used for the sync operation

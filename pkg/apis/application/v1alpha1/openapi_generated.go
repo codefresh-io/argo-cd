@@ -4110,6 +4110,13 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeployStartedAt holds the time the sync operation started",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"revision", "deployedAt", "id"},
 			},

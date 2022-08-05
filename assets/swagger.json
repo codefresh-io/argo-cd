@@ -6650,6 +6650,10 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "status": {
+          "type": "string",
+          "title": "DeployStartedAt holds the time the sync operation started"
         }
       }
     },

@@ -950,6 +950,8 @@ type RevisionHistory struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
 	// DeployStartedAt holds the time the sync operation started
 	DeployStartedAt *metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
+	// DeployStartedAt holds the time the sync operation started
+	Status string `json:"status,omitempty" protobuf:"bytes,8,opt,name=status"`
 }
 
 // ApplicationWatchEvent contains information about application change.
