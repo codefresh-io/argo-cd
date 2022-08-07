@@ -814,7 +814,7 @@ spec:
                   createNamespaceLabels:
                     additionalProperties:
                       type: string
-                    type: object  
+                    type: object
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
