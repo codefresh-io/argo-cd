@@ -792,6 +792,12 @@ spec:
               syncPolicy:
                 description: SyncPolicy controls when and how a sync will be performed
                 properties:
+                  createNamespaceLabels:
+                    additionalProperties:
+                      type: string
+                    description: CommonLabels is a list of additional labels
+                      to add to rendered manifests
+                    type: object
                   automated:
                     description: Automated will keep an application synced to the
                       target revision
