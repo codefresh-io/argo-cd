@@ -792,10 +792,6 @@ spec:
               syncPolicy:
                 description: SyncPolicy controls when and how a sync will be performed
                 properties:
-                  createNamespaceLabels:
-                    additionalProperties:
-                      type: string
-                    type: object
                   automated:
                     description: Automated will keep an application synced to the
                       target revision
@@ -815,6 +811,10 @@ spec:
                           (default: false)'
                         type: boolean
                     type: object
+                  createNamespaceLabels:
+                    additionalProperties:
+                      type: string
+                    type: object  
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
