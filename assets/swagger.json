@@ -239,7 +239,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/applicationApplicationResponse"
+              "$ref": "#/definitions/applicationApplicationValidateResponse"
             }
           },
           "default": {
@@ -3591,6 +3591,17 @@
         }
       }
     },
+    "applicationApplicationValidateResponse": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
     "applicationLogEntry": {
       "type": "object",
       "properties": {
@@ -6769,6 +6780,12 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "createNamespaceLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy"

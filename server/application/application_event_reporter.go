@@ -34,11 +34,11 @@ func NewApplicationEventReporter(server *Server) *applicationEventReporter {
 }
 
 func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application, rs appv1.ResourceStatus) bool {
-	logCtx := log.WithFields(log.Fields{
+	logCtx := logWithResourceStatus(log.WithFields(log.Fields{
 		"app":      a.Name,
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
-	})
+	}), rs)
 
 	cachedRes, err := s.server.cache.GetLastResourceEvent(a, rs, getApplicationLatestRevision(a))
 	if err != nil {
@@ -66,13 +66,14 @@ func isChildApp(a *appv1.Application) bool {
 
 func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	return &appv1.ResourceStatus{
-		Name:      a.Name,
-		Namespace: a.Namespace,
-		Version:   "v1alpha1",
-		Kind:      "Application",
-		Group:     "argoproj.io",
-		Status:    a.Status.Sync.Status,
-		Health:    &a.Status.Health,
+		Name:            a.Name,
+		Namespace:       a.Namespace,
+		Version:         "v1alpha1",
+		Kind:            "Application",
+		Group:           "argoproj.io",
+		Status:          a.Status.Sync.Status,
+		Health:          &a.Status.Health,
+		RequiresPruning: a.DeletionTimestamp != nil,
 	}
 }
 
@@ -102,12 +103,13 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
 	ts string,
+	ignoreResourceCache bool,
 ) error {
 	var (
-		logCtx = log.WithField("application", a.Name)
+		logCtx = log.WithField("app", a.Name)
 	)
 
-	logCtx.Info("streaming application events")
+	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
 	appTree, err := s.server.getAppResources(ctx, a)
 	if err != nil {
@@ -116,7 +118,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		logCtx.WithError(err).Error("failed to get application tree")
 	}
 
-	if isChildApp(a) {
+	if isChildApp(a) && a.DeletionTimestamp == nil {
 		parentApp := a.Labels[common.LabelKeyAppInstance]
 
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
@@ -132,7 +134,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata)
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, false)
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -164,7 +166,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
-		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata)
+		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache)
 	}
 	return nil
 }
@@ -182,13 +184,23 @@ func (s *applicationEventReporter) processResource(
 	manifestGenErr bool,
 	originalApplication *appv1.Application,
 	revisionMetadata *appv1.RevisionMetadata,
+	ignoreResourceCache bool,
 ) {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 	})
 
-	if !s.shouldSendResourceEvent(parentApplication, rs) {
+	if rs.Health == nil && rs.Status == appv1.SyncStatusCodeSynced {
+		// for resources without health status we need to add 'Healthy' status
+		// when they are synced because we might have sent an event with 'Missing'
+		// status earlier and they would be stuck in it if we don't switch to 'Healthy'
+		rs.Health = &appv1.HealthStatus{
+			Status: health.HealthStatusHealthy,
+		}
+	}
+
+	if !ignoreResourceCache && !s.shouldSendResourceEvent(parentApplication, rs) {
 		return
 	}
 
@@ -224,11 +236,11 @@ func (s *applicationEventReporter) processResource(
 	if isApp(rs) && actualState.Manifest != "" && json.Unmarshal([]byte(actualState.Manifest), &appRes) == nil {
 		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
 	} else {
-		logCtx.Info("streaming resource event")
+		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
 	}
 
 	if err := stream.Send(ev); err != nil {
-		logCtx.WithError(err).Error("failed to send even")
+		logCtx.WithError(err).Error("failed to send event")
 		return
 	}
 
@@ -237,17 +249,17 @@ func (s *applicationEventReporter) processResource(
 	}
 }
 
-func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) bool {
-	logCtx := log.WithField("application", ae.Application.Name)
+func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool) {
+	logCtx := log.WithField("app", ae.Application.Name)
 
 	if ae.Type == watch.Deleted {
 		logCtx.Info("application deleted")
-		return true
+		return true, false
 	}
 
 	cachedApp, err := s.server.cache.GetLastApplicationEvent(&ae.Application)
 	if err != nil || cachedApp == nil {
-		return true
+		return true, false
 	}
 
 	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore those in the diff
@@ -259,22 +271,27 @@ func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.Applicat
 		ae.Application.Status.Conditions[i].LastTransitionTime = nil
 	}
 
+	// check if application changed to healthy status
+	if ae.Application.Status.Health.Status == health.HealthStatusHealthy && cachedApp.Status.Health.Status != health.HealthStatusHealthy {
+		return true, true
+	}
+
 	if !reflect.DeepEqual(ae.Application.Spec, cachedApp.Spec) {
 		logCtx.Info("application spec changed")
-		return true
+		return true, false
 	}
 
 	if !reflect.DeepEqual(ae.Application.Status, cachedApp.Status) {
 		logCtx.Info("application status changed")
-		return true
+		return true, false
 	}
 
 	if !reflect.DeepEqual(ae.Application.Operation, cachedApp.Operation) {
 		logCtx.Info("application operation changed")
-		return true
+		return true, false
 	}
 
-	return false
+	return false, false
 }
 
 func isApp(rs appv1.ResourceStatus) bool {
@@ -283,10 +300,21 @@ func isApp(rs appv1.ResourceStatus) bool {
 
 func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
 	return logCtx.WithFields(log.Fields{
-		"status":          a.Status.Sync.Status,
+		"sync":            a.Status.Sync.Status,
+		"health":          a.Status.Health.Status,
 		"resourceVersion": a.ResourceVersion,
 		"ts":              ts,
 	})
+
+}
+
+func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
+	logCtx = logCtx.WithField("sync", rs.Status)
+	if rs.Health != nil {
+		logCtx = logCtx.WithField("health", rs.Health.Status)
+	}
+
+	return logCtx
 }
 
 func getLatestAppHistoryItem(a *appv1.Application) *appv1.RevisionHistory {
@@ -381,7 +409,7 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
-	if parentApplication.ObjectMeta.DeletionTimestamp != nil {
+	if (originalApplication != nil && originalApplication.DeletionTimestamp != nil) || parentApplication.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		desiredState.CompiledManifest = ""
 		actualState.Manifest = ""
