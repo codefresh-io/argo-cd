@@ -421,6 +421,11 @@ func getResourceEventPayload(
 		errors = append(errors, parseResourceSyncResultErrors(rs, parentApplication.Status.OperationState)...)
 	}
 
+	// for primitive resources that are synced right away and don't require progression time (like configmap)
+	if rs.Status == appv1.SyncStatusCodeSynced && rs.Health != nil && rs.Health.Status == health.HealthStatusHealthy {
+		syncFinished = &syncStarted
+	}
+
 	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
 	if originalApplication != nil && originalApplication.Status.OperationState != nil {
 		errors = append(errors, parseApplicationSyncResultErrors(originalApplication.Status.OperationState)...)
