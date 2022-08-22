@@ -134,7 +134,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, false)
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -580,7 +580,6 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 		}
 
 		if u == nil {
-			logger.WithError(err).Warnf("no compiled manifest for: %s", m.Path)
 			continue
 		}
 
