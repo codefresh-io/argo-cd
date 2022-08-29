@@ -132,7 +132,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
-		revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
+		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
 
 		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, false)
 	} else {
@@ -159,7 +159,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return err
 	}
 
-	revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
+	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
@@ -336,9 +336,7 @@ func getApplicationLatestRevision(a *appv1.Application) string {
 	return revision
 }
 
-func (s *applicationEventReporter) getApplicationHistoryRevisionDetails(ctx context.Context, a *appv1.Application) (*appv1.RevisionMetadata, error) {
-	revision := getApplicationLatestRevision(a)
-
+func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
 	return s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 		Name:     &a.Name,
 		Revision: &revision,
@@ -506,7 +504,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 	}
 
 	if a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0) {
-		revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
+		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
 
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
