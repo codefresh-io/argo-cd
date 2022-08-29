@@ -233,27 +233,28 @@ func (m *EventPayload) GetErrors() []*ObjectError {
 //*
 // Holds information about the object source
 type ObjectSource struct {
-	DesiredManifest      string            `protobuf:"bytes,1,opt,name=desiredManifest" json:"desiredManifest"`
-	ActualManifest       string            `protobuf:"bytes,2,opt,name=actualManifest" json:"actualManifest"`
-	GitManifest          string            `protobuf:"bytes,3,opt,name=gitManifest" json:"gitManifest"`
-	RepoURL              string            `protobuf:"bytes,4,opt,name=repoURL" json:"repoURL"`
-	Path                 string            `protobuf:"bytes,5,opt,name=path" json:"path"`
-	Revision             string            `protobuf:"bytes,6,opt,name=revision" json:"revision"`
-	CommitMessage        string            `protobuf:"bytes,7,opt,name=commitMessage" json:"commitMessage"`
-	CommitAuthor         string            `protobuf:"bytes,8,opt,name=commitAuthor" json:"commitAuthor"`
-	CommitDate           *v1.Time          `protobuf:"bytes,9,opt,name=commitDate" json:"commitDate,omitempty"`
-	AppName              string            `protobuf:"bytes,10,opt,name=appName" json:"appName"`
-	AppLabels            map[string]string `protobuf:"bytes,11,rep,name=appLabels" json:"appLabels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SyncStatus           string            `protobuf:"bytes,12,opt,name=syncStatus" json:"syncStatus"`
-	SyncStartedAt        v1.Time           `protobuf:"bytes,13,opt,name=syncStartedAt" json:"syncStartedAt"`
-	SyncFinishedAt       *v1.Time          `protobuf:"bytes,14,opt,name=syncFinishedAt" json:"syncFinishedAt,omitempty"`
-	HealthStatus         *string           `protobuf:"bytes,15,opt,name=healthStatus" json:"healthStatus,omitempty"`
-	HealthMessage        *string           `protobuf:"bytes,16,opt,name=healthMessage" json:"healthMessage,omitempty"`
-	Cluster              string            `protobuf:"bytes,17,opt,name=cluster" json:"cluster"`
-	HistoryId            int64             `protobuf:"varint,18,opt,name=historyId" json:"historyId"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	DesiredManifest       string            `protobuf:"bytes,1,opt,name=desiredManifest" json:"desiredManifest"`
+	ActualManifest        string            `protobuf:"bytes,2,opt,name=actualManifest" json:"actualManifest"`
+	GitManifest           string            `protobuf:"bytes,3,opt,name=gitManifest" json:"gitManifest"`
+	RepoURL               string            `protobuf:"bytes,4,opt,name=repoURL" json:"repoURL"`
+	Path                  string            `protobuf:"bytes,5,opt,name=path" json:"path"`
+	Revision              string            `protobuf:"bytes,6,opt,name=revision" json:"revision"`
+	CommitMessage         string            `protobuf:"bytes,7,opt,name=commitMessage" json:"commitMessage"`
+	CommitAuthor          string            `protobuf:"bytes,8,opt,name=commitAuthor" json:"commitAuthor"`
+	CommitDate            *v1.Time          `protobuf:"bytes,9,opt,name=commitDate" json:"commitDate,omitempty"`
+	AppName               string            `protobuf:"bytes,10,opt,name=appName" json:"appName"`
+	AppLabels             map[string]string `protobuf:"bytes,11,rep,name=appLabels" json:"appLabels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SyncStatus            string            `protobuf:"bytes,12,opt,name=syncStatus" json:"syncStatus"`
+	SyncStartedAt         v1.Time           `protobuf:"bytes,13,opt,name=syncStartedAt" json:"syncStartedAt"`
+	SyncFinishedAt        *v1.Time          `protobuf:"bytes,14,opt,name=syncFinishedAt" json:"syncFinishedAt,omitempty"`
+	HealthStatus          *string           `protobuf:"bytes,15,opt,name=healthStatus" json:"healthStatus,omitempty"`
+	HealthMessage         *string           `protobuf:"bytes,16,opt,name=healthMessage" json:"healthMessage,omitempty"`
+	Cluster               string            `protobuf:"bytes,17,opt,name=cluster" json:"cluster"`
+	HistoryId             int64             `protobuf:"varint,18,opt,name=historyId" json:"historyId"`
+	OperationSyncRevision string            `protobuf:"bytes,19,opt,name=operationSyncRevision" json:"operationSyncRevision"`
+	XXX_NoUnkeyedLiteral  struct{}          `json:"-"`
+	XXX_unrecognized      []byte            `json:"-"`
+	XXX_sizecache         int32             `json:"-"`
 }
 
 func (m *ObjectSource) Reset()         { *m = ObjectSource{} }

@@ -439,19 +439,20 @@ func getResourceEventPayload(
 	}
 
 	source := events.ObjectSource{
-		DesiredManifest: desiredState.CompiledManifest,
-		ActualManifest:  actualState.Manifest,
-		GitManifest:     desiredState.RawManifest,
-		RepoURL:         parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
-		Path:            desiredState.Path,
-		Revision:        getApplicationLatestRevision(parentApplication),
-		HistoryId:       getLatestAppHistoryId(parentApplication),
-		AppName:         parentApplication.Name,
-		AppLabels:       parentApplication.Labels,
-		SyncStatus:      string(rs.Status),
-		SyncStartedAt:   syncStarted,
-		SyncFinishedAt:  syncFinished,
-		Cluster:         parentApplication.Spec.Destination.Server,
+		DesiredManifest:       desiredState.CompiledManifest,
+		ActualManifest:        actualState.Manifest,
+		GitManifest:           desiredState.RawManifest,
+		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
+		Path:                  desiredState.Path,
+		Revision:              getApplicationLatestRevision(parentApplication),
+		OperationSyncRevision: parentApplication.Status.OperationState.Operation.Sync.Revision,
+		HistoryId:             getLatestAppHistoryId(parentApplication),
+		AppName:               parentApplication.Name,
+		AppLabels:             parentApplication.Labels,
+		SyncStatus:            string(rs.Status),
+		SyncStartedAt:         syncStarted,
+		SyncFinishedAt:        syncFinished,
+		Cluster:               parentApplication.Spec.Destination.Server,
 	}
 
 	if revisionMetadata != nil {
