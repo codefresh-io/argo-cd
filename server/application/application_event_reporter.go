@@ -336,6 +336,16 @@ func getApplicationLatestRevision(a *appv1.Application) string {
 	return revision
 }
 
+func getOperationRevision(a *appv1.Application) string {
+	revision := ""
+
+	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
+		revision = a.Status.OperationState.Operation.Sync.Revision
+	}
+
+	return revision
+}
+
 func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
 	return s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 		Name:     &a.Name,
@@ -443,7 +453,7 @@ func getResourceEventPayload(
 		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:                  desiredState.Path,
 		Revision:              getApplicationLatestRevision(parentApplication),
-		OperationSyncRevision: parentApplication.Status.OperationState.Operation.Sync.Revision,
+		OperationSyncRevision: getOperationRevision(parentApplication),
 		HistoryId:             getLatestAppHistoryId(parentApplication),
 		AppName:               parentApplication.Name,
 		AppLabels:             parentApplication.Labels,
