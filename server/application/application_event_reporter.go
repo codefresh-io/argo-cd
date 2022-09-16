@@ -341,7 +341,8 @@ func getApplicationLatestRevision(a *appv1.Application) string {
 }
 
 func getOperationRevision(a *appv1.Application) string {
-	revision := ""
+	// this value will be used in case if application hasnt resources , like gitsource
+	revision := a.Status.Sync.Revision
 
 	if a != nil {
 		if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil && a.Status.OperationState.Operation.Sync.Revision != "" {
