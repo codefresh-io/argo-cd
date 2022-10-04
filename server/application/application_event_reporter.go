@@ -134,7 +134,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
-		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
+		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, parentApplicationEntity, getOperationRevision(parentApplicationEntity))
 
 		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
 	} else {
@@ -468,6 +468,7 @@ func getResourceEventPayload(
 		OperationSyncRevision: getOperationRevision(parentApplication),
 		HistoryId:             getLatestAppHistoryId(parentApplication),
 		AppName:               parentApplication.Name,
+		AppUID:                string(parentApplication.ObjectMeta.UID),
 		AppLabels:             parentApplication.Labels,
 		SyncStatus:            string(rs.Status),
 		SyncStartedAt:         syncStarted,
@@ -569,6 +570,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		OperationSyncRevision: "",
 		HistoryId:             0,
 		AppName:               "",
+		AppUID:                "",
 		AppLabels:             map[string]string{},
 		SyncStatus:            string(a.Status.Sync.Status),
 		SyncStartedAt:         syncStarted,
