@@ -7,7 +7,7 @@ if obj.status ~= nil and obj.status.pauseConditions ~= nil then
 elseif obj.spec.paused ~= nil then
     paused = obj.spec.paused
 end
-actions["resume"] = {["disabled"] = not(paused)}
+actions["resume"] = {["disabled"] = obj.spec.paused ~= nil and obj.spec.paused}
 
 fullyPromoted = obj.status.currentPodHash == obj.status.stableRS
 actions["abort"] = {["disabled"] = fullyPromoted or obj.status.abort}
