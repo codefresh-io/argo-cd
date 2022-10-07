@@ -7,12 +7,13 @@ if obj.status ~= nil and obj.status.pauseConditions ~= nil then
 elseif obj.spec.paused ~= nil then
     paused = obj.spec.paused
 end
-actions["resume"] = {["disabled"] = obj.spec.paused ~= nil and obj.spec.paused}
+actions["resume"] = {["disabled"] = not(paused)}
 
 fullyPromoted = obj.status.currentPodHash == obj.status.stableRS
 actions["abort"] = {["disabled"] = fullyPromoted or obj.status.abort}
 actions["retry"] = {["disabled"] = fullyPromoted or not(obj.status.abort)}
-actions["pause"] = {["disabled"] = fullyPromoted or paused}
+
+actions["pause"] = {["disabled"] = fullyPromoted or obj.spec.paused == true}
 actions["skip-current-step"] = {["disabled"] = obj.spec.strategy.canary == nil or obj.spec.strategy.canary.steps == nil or obj.status.currentStepIndex == table.getn(obj.spec.strategy.canary.steps)}
 
 actions["promote-full"] = {["disabled"] = true}
