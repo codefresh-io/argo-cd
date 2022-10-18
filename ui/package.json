@@ -41,7 +41,7 @@
     "jest-junit": "^6.4.0",
     "js-yaml": "^3.13.1",
     "json-merge-patch": "^0.2.3",
-    "minimatch": "^3.0.4",
+    "minimatch": "^3.0.5",
     "moment": "^2.24.0",
     "monaco-editor": "^0.15.6",
     "monaco-editor-webpack-plugin": "^1.7.0",
