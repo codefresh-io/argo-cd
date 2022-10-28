@@ -27,9 +27,14 @@ func parseApplicationSyncResultErrors(os *appv1.OperationState) []*events.Object
 	return errors
 }
 
-func parseApplicationSyncResultErrorsFromConditions(conditions []appv1.ApplicationCondition) []*events.ObjectError {
+var syncFailedErrorMessage = "one or more synchronization tasks completed unsuccessfully"
+
+func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStatus) []*events.ObjectError {
 	var errs []*events.ObjectError
-	for _, cnd := range conditions {
+	if status.Conditions == nil {
+		return errs
+	}
+	for _, cnd := range status.Conditions {
 		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
 			continue
 		}
@@ -39,12 +44,20 @@ func parseApplicationSyncResultErrorsFromConditions(conditions []appv1.Applicati
 			lastSeen = *cnd.LastTransitionTime
 		}
 
-		errs = append(errs, &events.ObjectError{
-			Type:     "sync",
-			Level:    "error",
-			Message:  cnd.Message,
-			LastSeen: lastSeen,
-		})
+		if strings.Contains(cnd.Message, syncFailedErrorMessage) == true && status.OperationState != nil && status.OperationState.SyncResult != nil && status.OperationState.SyncResult.Resources != nil {
+			resourcesSyncErrors := parseAggregativeResourcesSyncErrors(status.OperationState.SyncResult.Resources)
+
+			for _, rse := range resourcesSyncErrors {
+				errs = append(errs, rse)
+			}
+		} else {
+			errs = append(errs, &events.ObjectError{
+				Type:     "sync",
+				Level:    "error",
+				Message:  cnd.Message,
+				LastSeen: lastSeen,
+			})
+		}
 	}
 	return errs
 }
@@ -99,6 +112,39 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 				Message:  cn.Health.Message,
 				LastSeen: *cn.CreatedAt,
 			})
+		}
+	}
+
+	return errs
+}
+
+func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) []*events.ObjectError {
+	lastSeen := metav1.Now()
+	errs := make([]*events.ObjectError, 0)
+
+	if resourceResults == nil {
+		return errs
+	}
+
+	for _, rr := range resourceResults {
+		if rr.Message != "" {
+			message := "Resource " + rr.Kind + "(" + rr.Name + "): \n" + rr.Message
+			if rr.Status == common.ResultCodeSyncFailed {
+				errs = append(errs, &events.ObjectError{
+					Type:     "sync",
+					Level:    "error",
+					Message:  message,
+					LastSeen: lastSeen,
+				})
+			}
+			if rr.HookPhase == common.OperationFailed || rr.HookPhase == common.OperationError {
+				errs = append(errs, &events.ObjectError{
+					Type:     "sync",
+					Level:    "error",
+					Message:  message,
+					LastSeen: lastSeen,
+				})
+			}
 		}
 	}
 
