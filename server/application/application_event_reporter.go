@@ -447,7 +447,7 @@ func getResourceEventPayload(
 	}
 
 	if originalApplication != nil && originalApplication.Status.Conditions != nil {
-		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status.Conditions)...)
+		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status)...)
 	}
 
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
@@ -584,7 +584,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		Timestamp: ts,
 		Object:    object,
 		Source:    source,
-		Errors:    parseApplicationSyncResultErrorsFromConditions(a.Status.Conditions),
+		Errors:    parseApplicationSyncResultErrorsFromConditions(a.Status),
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
