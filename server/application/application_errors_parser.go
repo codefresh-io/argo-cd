@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,12 +45,10 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 			lastSeen = *cnd.LastTransitionTime
 		}
 
-		if strings.Contains(cnd.Message, syncFailedErrorMessage) == true && status.OperationState != nil && status.OperationState.SyncResult != nil && status.OperationState.SyncResult.Resources != nil {
+		if strings.Contains(cnd.Message, syncFailedErrorMessage) && status.OperationState != nil && status.OperationState.SyncResult != nil && status.OperationState.SyncResult.Resources != nil {
 			resourcesSyncErrors := parseAggregativeResourcesSyncErrors(status.OperationState.SyncResult.Resources)
 
-			for _, rse := range resourcesSyncErrors {
-				errs = append(errs, rse)
-			}
+			errs = append(errs, resourcesSyncErrors...)
 		} else {
 			errs = append(errs, &events.ObjectError{
 				Type:     "sync",
@@ -119,8 +118,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 }
 
 func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) []*events.ObjectError {
-	lastSeen := metav1.Now()
-	errs := make([]*events.ObjectError, 0)
+	var errs []*events.ObjectError
 
 	if resourceResults == nil {
 		return errs
@@ -128,23 +126,19 @@ func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) 
 
 	for _, rr := range resourceResults {
 		if rr.Message != "" {
-			message := "Resource " + rr.Kind + "(" + rr.Name + "): \n" + rr.Message
+			objectError := events.ObjectError{
+				Type:     "sync",
+				Level:    "error",
+				LastSeen: metav1.Now(),
+				Message:  fmt.Sprintf("Resource %s(%s): \n %s", rr.Kind, rr.Name, rr.Message),
+			}
 			if rr.Status == common.ResultCodeSyncFailed {
-				errs = append(errs, &events.ObjectError{
-					Type:     "sync",
-					Level:    "error",
-					Message:  message,
-					LastSeen: lastSeen,
-				})
+				errs = append(errs, &objectError)
 			}
 			if rr.HookPhase == common.OperationFailed || rr.HookPhase == common.OperationError {
-				errs = append(errs, &events.ObjectError{
-					Type:     "sync",
-					Level:    "error",
-					Message:  message,
-					LastSeen: lastSeen,
-				})
+				errs = append(errs, &objectError)
 			}
+
 		}
 	}
 
