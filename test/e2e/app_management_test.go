@@ -595,30 +595,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
-func assetSecretDataHidden(t *testing.T, manifest string) {
-	secret, err := UnmarshalToUnstructured(manifest)
-	assert.NoError(t, err)
-
-	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
-	assert.NoError(t, err)
-	assert.False(t, hasStringData)
-
-	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
-	assert.NoError(t, err)
-	assert.True(t, hasData)
-	for _, v := range secretData {
-		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
-	}
-	var lastAppliedConfigAnnotation string
-	annotations := secret.GetAnnotations()
-	if annotations != nil {
-		lastAppliedConfigAnnotation = annotations[v1.LastAppliedConfigAnnotation]
-	}
-	if lastAppliedConfigAnnotation != "" {
-		assetSecretDataHidden(t, lastAppliedConfigAnnotation)
-	}
-}
-
 func TestResourceDiffing(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
