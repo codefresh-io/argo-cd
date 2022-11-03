@@ -53,7 +53,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -89,7 +89,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -365,7 +365,7 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil)
+	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil)
 	assert.NoError(t, err)
 
 }
