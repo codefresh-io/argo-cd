@@ -228,7 +228,14 @@ func (s *applicationEventReporter) processResource(
 		actualState = &application.ApplicationResourceResponse{Manifest: ""}
 	}
 
-	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata)
+	var originalAppRevisionMetadata = &appv1.RevisionMetadata{}
+	if originalApplication == nil {
+		originalAppRevisionMetadata = nil
+	} else {
+		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
+	}
+
+	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata, originalAppRevisionMetadata)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return
@@ -380,8 +387,9 @@ func getResourceEventPayload(
 	apptree *appv1.ApplicationTree,
 	manifestGenErr bool,
 	ts string,
-	originalApplication *appv1.Application,
+	originalApplication *appv1.Application, // passed when rs is application
 	revisionMetadata *appv1.RevisionMetadata,
+	originalAppRevisionMetadata *appv1.RevisionMetadata, // passed when rs is application
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -391,6 +399,15 @@ func getResourceEventPayload(
 	)
 
 	object := []byte(actualState.Manifest)
+
+	if originalAppRevisionMetadata != nil && len(object) != 0 {
+		actualObject, err := appv1.UnmarshalToUnstructured(actualState.Manifest)
+
+		if err == nil {
+			actualObject, _ = addCommitDetailsToLabels(actualObject, originalAppRevisionMetadata)
+			object, err = actualObject.MarshalJSON()
+		}
+	}
 	if len(object) == 0 {
 		if len(desiredState.CompiledManifest) == 0 {
 			// no actual or desired state, don't send event
@@ -404,19 +421,25 @@ func getResourceEventPayload(
 			u.SetKind(rs.Kind)
 			u.SetName(rs.Name)
 			u.SetNamespace(rs.Namespace)
-			// TODO maybe we need to check if resource is an application, and then set commit details in label as for parent apps ??
+			if originalAppRevisionMetadata != nil {
+				u, _ = addCommitDetailsToLabels(u, originalAppRevisionMetadata)
+			}
+
 			object, err = u.MarshalJSON()
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
 			}
 		} else {
 			// no actual state, use desired state as event object
-			manifestWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
+			unstructuredWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
 			}
+			if originalAppRevisionMetadata != nil {
+				unstructuredWithNamespace, _ = addCommitDetailsToLabels(unstructuredWithNamespace, originalAppRevisionMetadata)
+			}
 
-			object = manifestWithNamespace
+			object, _ = unstructuredWithNamespace.MarshalJSON()
 		}
 	} else if rs.RequiresPruning && !manifestGenErr {
 		// resource should be deleted
@@ -625,18 +648,34 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 	return &apiclient.Manifest{}
 }
 
-func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) ([]byte, error) {
+func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) (*unstructured.Unstructured, error) {
 	u, err := appv1.UnmarshalToUnstructured(string(resourceManifest))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
 
 	if u.GetNamespace() == rs.Namespace {
-		return resourceManifest, nil
+		return u, nil
 	}
 
 	// need to change namespace
 	u.SetNamespace(rs.Namespace)
 
-	return u.MarshalJSON()
+	return u, nil
+}
+
+func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *appv1.RevisionMetadata) (*unstructured.Unstructured, error) {
+	if revisionMetadata == nil || u == nil {
+		return u, nil
+	}
+
+	if field, _, _ := unstructured.NestedFieldCopy(u.Object, "metadata", "labels"); field == nil {
+		_ = unstructured.SetNestedField(u.Object, map[string]string{}, "metadata", "labels")
+	}
+
+	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z"), "metadata", "labels", "app.meta.commit-date")
+	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Author, "metadata", "labels", "app.meta.commit-author")
+	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Message, "metadata", "labels", "app.meta.commit-message")
+
+	return u, nil
 }
