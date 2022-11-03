@@ -228,10 +228,9 @@ func (s *applicationEventReporter) processResource(
 		actualState = &application.ApplicationResourceResponse{Manifest: ""}
 	}
 
-	var originalAppRevisionMetadata = &appv1.RevisionMetadata{}
-	if originalApplication == nil {
-		originalAppRevisionMetadata = nil
-	} else {
+	var originalAppRevisionMetadata *appv1.RevisionMetadata = nil
+
+	if originalApplication != nil {
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
@@ -404,8 +403,11 @@ func getResourceEventPayload(
 		actualObject, err := appv1.UnmarshalToUnstructured(actualState.Manifest)
 
 		if err == nil {
-			actualObject, _ = addCommitDetailsToLabels(actualObject, originalAppRevisionMetadata)
+			actualObject = addCommitDetailsToLabels(actualObject, originalAppRevisionMetadata)
 			object, err = actualObject.MarshalJSON()
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
+			}
 		}
 	}
 	if len(object) == 0 {
@@ -422,7 +424,7 @@ func getResourceEventPayload(
 			u.SetName(rs.Name)
 			u.SetNamespace(rs.Namespace)
 			if originalAppRevisionMetadata != nil {
-				u, _ = addCommitDetailsToLabels(u, originalAppRevisionMetadata)
+				u = addCommitDetailsToLabels(u, originalAppRevisionMetadata)
 			}
 
 			object, err = u.MarshalJSON()
@@ -436,7 +438,7 @@ func getResourceEventPayload(
 				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
 			}
 			if originalAppRevisionMetadata != nil {
-				unstructuredWithNamespace, _ = addCommitDetailsToLabels(unstructuredWithNamespace, originalAppRevisionMetadata)
+				unstructuredWithNamespace = addCommitDetailsToLabels(unstructuredWithNamespace, originalAppRevisionMetadata)
 			}
 
 			object, _ = unstructuredWithNamespace.MarshalJSON()
@@ -664,9 +666,9 @@ func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatu
 	return u, nil
 }
 
-func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *appv1.RevisionMetadata) (*unstructured.Unstructured, error) {
+func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *appv1.RevisionMetadata) *unstructured.Unstructured {
 	if revisionMetadata == nil || u == nil {
-		return u, nil
+		return u
 	}
 
 	if field, _, _ := unstructured.NestedFieldCopy(u.Object, "metadata", "labels"); field == nil {
@@ -677,5 +679,5 @@ func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *ap
 	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Author, "metadata", "labels", "app.meta.commit-author")
 	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Message, "metadata", "labels", "app.meta.commit-message")
 
-	return u, nil
+	return u
 }
