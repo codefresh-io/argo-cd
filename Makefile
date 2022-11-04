@@ -195,7 +195,7 @@ clientgen: ensure-gopath
 	./hack/update-codegen.sh
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local protogen
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
