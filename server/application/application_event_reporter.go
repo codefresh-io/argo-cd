@@ -467,7 +467,7 @@ func getResourceEventPayload(
 		ActualManifest:        *actualState.Manifest,
 		GitManifest:           desiredState.RawManifest,
 		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
-		Path:                  desiredState.Path,
+		Path:                  parentApplication.Spec.Source.Path,
 		Revision:              getApplicationLatestRevision(parentApplication),
 		OperationSyncRevision: getOperationRevision(parentApplication),
 		HistoryId:             getLatestAppHistoryId(parentApplication),
