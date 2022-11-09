@@ -28,7 +28,8 @@ func parseApplicationSyncResultErrors(os *appv1.OperationState) []*events.Object
 	return errors
 }
 
-var syncFailedErrorMessage = "one or more synchronization tasks completed unsuccessfully"
+var syncTaskUnsuccessfullErrorMessage = "one or more synchronization tasks completed unsuccessfully"
+var syncTaskNotValidErrorMessage = "one or more synchronization tasks are not valid"
 
 func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStatus) []*events.ObjectError {
 	var errs []*events.ObjectError
@@ -45,7 +46,7 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 			lastSeen = *cnd.LastTransitionTime
 		}
 
-		if strings.Contains(cnd.Message, syncFailedErrorMessage) && status.OperationState != nil && status.OperationState.SyncResult != nil && status.OperationState.SyncResult.Resources != nil {
+		if (strings.Contains(cnd.Message, syncTaskUnsuccessfullErrorMessage) || strings.Contains(cnd.Message, syncTaskNotValidErrorMessage)) && status.OperationState != nil && status.OperationState.SyncResult != nil && status.OperationState.SyncResult.Resources != nil {
 			resourcesSyncErrors := parseAggregativeResourcesSyncErrors(status.OperationState.SyncResult.Resources)
 
 			errs = append(errs, resourcesSyncErrors...)
