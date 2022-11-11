@@ -155,7 +155,7 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 			Conditions: []v1alpha1.ApplicationCondition{
 				{
 					Type:    "error",
-					Message: syncFailedErrorMessage,
+					Message: syncTaskUnsuccessfullErrorMessage,
 				},
 			},
 			OperationState: &v1alpha1.OperationState{
