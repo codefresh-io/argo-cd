@@ -212,9 +212,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 			// add components
 			args := []string{"edit", "add", "component"}
-			for _, component := range opts.Components {
-				args = append(args, component)
-			}
+			args = append(args, opts.Components...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
