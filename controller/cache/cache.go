@@ -7,8 +7,10 @@ import (
 	"math"
 	"net"
 	"net/url"
+	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -76,11 +78,11 @@ var (
 	clusterSyncRetryTimeoutDuration = 10 * time.Second
 
 	// The default limit of 50 is chosen based on experiments.
-	clusterCacheListSemaphoreSize int64 = 50
+	clusterCacheListSemaphoreSize, _ = strconv.ParseInt(os.Getenv("CACHE_LIST_SEMAPHORE_SIZE"), 10, 64)
 
 	// clusterCacheListPageSize is the page size when performing K8s list requests.
 	// 500 is equal to kubectl's size
-	clusterCacheListPageSize int64 = 500
+	clusterCacheListPageSize, _ = strconv.ParseInt(os.Getenv("CACHE_LIST_PAGE_SIZE"), 10, 64)
 
 	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
 	// If set to 1, retries are disabled.
