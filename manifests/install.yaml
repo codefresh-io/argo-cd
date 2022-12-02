@@ -9373,6 +9373,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - appprojects
   - applicationsets
   - applicationsets/finalizers
   verbs:
@@ -9383,12 +9384,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - argoproj.io
-  resources:
-  - appprojects
-  verbs:
-  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -9879,13 +9874,13 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - argocd-applicationset-controller
+        - applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/applicationset:v0.4.2-CR-13254-remove-private-logs
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
