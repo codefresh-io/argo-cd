@@ -35,6 +35,7 @@ func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.
 
 	currentRolloutRevision := resource.GetRevision(liveRolloutObj)
 	targetRolloutRevision := q.GetRolloutRevision()
+	newRolloutRevision := currentRolloutRevision + 1
 	if targetRolloutRevision == currentRolloutRevision {
 		return nil, fmt.Errorf("revisions are equal, rollback is redundant: %w", err)
 	}
@@ -59,7 +60,7 @@ func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.
 
 	return &application.ApplicationRolloutRollbackResponse{
 		Rollout:     q.RolloutName,
-		NewRevision: &targetRolloutRevision,
+		NewRevision: &newRolloutRevision,
 	}, nil
 }
 
