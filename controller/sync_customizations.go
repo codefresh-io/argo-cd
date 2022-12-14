@@ -24,7 +24,7 @@ func (m *appStateManager) FixWrongKubectlMessage(resState []common.ResourceSyncR
 		unchanged := "unchanged"
 
 		if message != "" {
-			if strings.HasSuffix(message, configured) && resDiff.Modified == false {
+			if strings.HasSuffix(message, configured) && !resDiff.Modified {
 				message = strings.TrimSuffix(message, configured)
 				message += unchanged
 			}
