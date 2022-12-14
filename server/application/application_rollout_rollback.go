@@ -30,7 +30,7 @@ func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.
 
 	liveRolloutObj, err := s.kubectl.GetResource(ctx, config, getRolloutGVK(), q.GetRolloutName(), q.GetRolloutNamespace())
 	if err != nil {
-		return nil, fmt.Errorf("error getting live state of rollout(%s): %w", q.GetRolloutName, err)
+		return nil, fmt.Errorf("error getting live state of rollout(%s): %w", q.GetRolloutName(), err)
 	}
 
 	currentRolloutRevision := resource.GetRevision(liveRolloutObj)
@@ -109,7 +109,7 @@ func (s *Server) getRsOfSpecificRevision(ctx context.Context, config *rest.Confi
 
 func (s *Server) getNewRolloutObjForRollbackPatch(liveRolloutObj *unstructured.Unstructured, rs *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	rsSpecTemplate, found, err := unstructured.NestedFieldCopy(rs.Object, "spec", "template")
-	if found == false {
+	if !found {
 		return nil, fmt.Errorf("failed to found replicaset %s - spec/template: %w", rs.GetName(), err)
 	}
 	if err != nil {
