@@ -2,7 +2,7 @@ health_status = {}
 
 if obj.status ~= nil then
   if obj.status.healthy ~= nil then
-    if obj.status.healthy == true {
+    if obj.status.healthy == true
       health_status.status = "Healthy"
       health_status.message = "Application is healthy according to amiok.com condition check"
     else
