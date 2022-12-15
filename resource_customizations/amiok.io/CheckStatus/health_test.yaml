@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Application is healthy according to amiok.com condition check"
+    inputPath: testdata/healthyApp.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Application is degraded according to amiok.com condition check"
+    inputPath: testdata/unhealthyApp.yaml
+  - healthStatus:
+      status: Unknown
+      message: "Application health is unknown according to amiok.com condition check"
+    inputPath: testdata/unknownApp.yaml
+  - healthStatus:
+      status: Progressing
+      message: "waiting for amiok.com condition check on Application"
+    inputPath: testdata/progressingApp.yaml

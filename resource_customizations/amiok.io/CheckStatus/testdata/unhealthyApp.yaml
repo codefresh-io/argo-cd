@@ -1,0 +1,9 @@
+apiVersion: amiok.io/v1alpha1
+kind: CheckStatus
+metadata:
+  name: check-3
+  namespace: amiok
+spec:
+  checkDefinitionRef: check
+status:
+  healthy: "unhealthy"
