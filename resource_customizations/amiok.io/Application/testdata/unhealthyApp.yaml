@@ -1,9 +1,0 @@
-apiVersion: amiok.io/v1alpha1
-kind: Application
-metadata:
-  name: unhealthyApp
-  namespace: statuscheck
-spec:
-  version: 7.12.0
-status:
-  healthy: false
