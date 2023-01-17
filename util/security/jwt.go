@@ -25,10 +25,28 @@ func parseJWT(p string) ([]byte, error) {
 	return payload, nil
 }
 
+type audience []string
+
+// UnmarshalJSON allows us to unmarshal either a single audience or a list of audiences.
+// Taken from: https://github.com/coreos/go-oidc/blob/a8ceb9a2043fca2e43518633920db746808b1138/oidc/oidc.go#L475
+func (a *audience) UnmarshalJSON(b []byte) error {
+	var s string
+	if json.Unmarshal(b, &s) == nil {
+		*a = audience{s}
+		return nil
+	}
+	var auds []string
+	if err := json.Unmarshal(b, &auds); err != nil {
+		return err
+	}
+	*a = auds
+	return nil
+}
+
 // jwtWithOnlyAudClaim represents a jwt where only the "aud" claim is present. This struct allows us to unmarshal a jwt
 // and be confident that the only information retrieved from that jwt is the "aud" claim.
 type jwtWithOnlyAudClaim struct {
-	Aud []string `json:"aud"`
+	Aud audience `json:"aud"`
 }
 
 // getUnverifiedAudClaim gets the "aud" claim from a jwt.

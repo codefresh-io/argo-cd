@@ -567,6 +567,9 @@ connectors:
 }
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
+	jwt.MarshalSingleStringAsArray = false
+
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
