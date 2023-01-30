@@ -989,6 +989,33 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		selector labels.Selector
 		err      error
 	)
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		for {
+			select {
+			case <-stream.Context().Done():
+				ticker.Stop()
+				break
+			case <-ticker.C:
+				var err error
+				ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+				payload := events.EventPayload{Timestamp: ts}
+				payloadBytes, err := json.Marshal(&payload)
+				if err != nil {
+					log.Errorf("failed to marshal payload for heartbeat: %s", err.Error())
+					break
+				}
+
+				ev := &events.Event{Payload: payloadBytes, Name: es.Name}
+				if err = stream.Send(ev); err != nil {
+					log.Errorf("failed to send heartbeat: %s", err.Error())
+					break
+				}
+			}
+		}
+	}()
+
 	q := application.ApplicationQuery{}
 	if err := yaml.Unmarshal(es.Config, &q); err != nil {
 		logCtx.WithError(err).Error("failed to unmarshal event-source config")
