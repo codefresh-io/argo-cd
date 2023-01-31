@@ -989,7 +989,6 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		selector labels.Selector
 		err      error
 	)
-
 	q := application.ApplicationQuery{}
 	if err := yaml.Unmarshal(es.Config, &q); err != nil {
 		logCtx.WithError(err).Error("failed to unmarshal event-source config")
