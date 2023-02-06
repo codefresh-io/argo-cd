@@ -150,17 +150,6 @@ func (e Env) Envsubst(s string) string {
 	})
 }
 
-// QualifiedName returns the full qualified name of the application, including
-// the name of the namespace it is created in delimited by a forward slash,
-// i.e. <namespace>/<appname>
-func (a *Application) QualifiedName() string {
-	if a.Namespace == "" {
-		return a.Name
-	} else {
-		return a.Namespace + "/" + a.Name
-	}
-}
-
 // ApplicationSource contains all required information about the source of an application
 type ApplicationSource struct {
 	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
@@ -532,6 +521,13 @@ type ApplicationDestination struct {
 	isServerInferred bool `json:"-"`
 }
 
+type ResourceHealthLocation string
+
+var (
+	ResourceHealthLocationInline  ResourceHealthLocation = ""
+	ResourceHealthLocationAppTree ResourceHealthLocation = "appTree"
+)
+
 // ApplicationStatus contains status information for the application
 type ApplicationStatus struct {
 	// Resources is a list of Kubernetes resources managed by this application
@@ -555,6 +551,8 @@ type ApplicationStatus struct {
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	// Summary contains a list of URLs and container images used by this application
 	Summary ApplicationSummary `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	// ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
+	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
 }
 
 // JWTTokens represents a list of JWT tokens
@@ -714,8 +712,7 @@ type SyncPolicy struct {
 	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 	// Retry controls failed sync retry behavior
-	Retry                 *RetryStrategy    `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
-	CreateNamespaceLabels map[string]string `json:"createNamespaceLabels,omitempty" protobuf:"bytes,4,opt,name=createNamespaceLabels"`
+	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 }
 
 // IsZero returns true if the sync policy is empty
@@ -968,7 +965,7 @@ const (
 	SyncStatusCodeUnknown SyncStatusCode = "Unknown"
 	// SyncStatusCodeOutOfSync indicates that desired and live states match
 	SyncStatusCodeSynced SyncStatusCode = "Synced"
-	// SyncStatusCodeOutOfSync indicates that there is a drift beween desired and live states
+	// SyncStatusCodeOutOfSync indicates that there is a drift between desired and live states
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
 )
 
@@ -1244,6 +1241,7 @@ type ResourceStatus struct {
 	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 	RequiresPruning bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
+	SyncWave        int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 }
 
 // GroupKindVersion returns the GVK schema type for given resource status
@@ -1737,6 +1735,10 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// SourceNamespaces defines the namespaces application resources are allowed to be created in
+	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
+	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
+	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -1904,7 +1906,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 		for _, w := range *w {
 			if len(w.Applications) > 0 {
 				for _, a := range w.Applications {
-					if globMatch(a, app.Name) {
+					if globMatch(a, app.Name, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -1913,8 +1915,8 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
 					dst := app.Spec.Destination
-					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
-					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name, false)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server, false)
 					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
@@ -1923,7 +1925,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Namespaces) > 0 {
 				for _, n := range w.Namespaces {
-					if globMatch(n, app.Spec.Destination.Namespace) {
+					if globMatch(n, app.Spec.Destination.Namespace, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -2589,16 +2591,6 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
 
-// RBACName returns the full qualified RBAC resource name for the application
-// in a backwards-compatible way.
-func (a *Application) RBACName(defaultNS string) string {
-	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
-		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
-	} else {
-		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
-	}
-}
-
 // InstanceName returns the name of the application as used in the instance
 // tracking values, i.e. in the format <namespace>_<name>. When the namespace
 // of the application is similar to the value of defaultNs, only the name of
@@ -2610,4 +2602,25 @@ func (a *Application) InstanceName(defaultNs string) string {
 		return a.Name
 	}
 	return a.Namespace + "_" + a.Name
+}
+
+// QualifiedName returns the full qualified name of the application, including
+// the name of the namespace it is created in delimited by a forward slash,
+// i.e. <namespace>/<appname>
+func (a *Application) QualifiedName() string {
+	if a.Namespace == "" {
+		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
+	}
+}
+
+// RBACName returns the full qualified RBAC resource name for the application
+// in a backwards-compatible way.
+func (a *Application) RBACName(defaultNS string) string {
+	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
+		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
+	} else {
+		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
+	}
 }

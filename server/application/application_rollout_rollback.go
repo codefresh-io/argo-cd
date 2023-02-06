@@ -18,7 +18,7 @@ import (
 )
 
 func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.ApplicationRolloutRollbackRequest) (*application.ApplicationRolloutRollbackResponse, error) {
-	a, err := s.appLister.Get(q.GetName())
+	a, err := s.appLister.Applications(*q.RolloutNamespace).Get(q.GetName())
 	if err != nil {
 		return nil, fmt.Errorf("error getting application by name: %w", err)
 	}
@@ -129,7 +129,7 @@ func (s *Server) getNewRolloutObjForRollbackPatch(liveRolloutObj *unstructured.U
 }
 
 func (s *Server) getReplicaSetForRolloutRollack(ctx context.Context, config *rest.Config, q *application.ApplicationRolloutRollbackRequest, a *v1alpha1.Application) (*unstructured.Unstructured, error) {
-	tree, err := s.GetAppResources(ctx, a)
+	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app resources: %w", err)
 	}
