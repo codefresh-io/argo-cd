@@ -11,8 +11,10 @@ set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
+GOPATH=$(go env GOPATH)
 
 # output tool versions
+go version
 protoc --version
 swagger version
 jq --version
@@ -33,6 +35,7 @@ APIMACHINERY_PKGS=(
     +k8s.io/apimachinery/pkg/runtime
     k8s.io/apimachinery/pkg/apis/meta/v1
     k8s.io/api/core/v1
+    k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
 )
 
 export GO111MODULE=on
@@ -108,10 +111,14 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    echo ${SWAGGER_ROOT}
+    echo ${PRIMARY_SWAGGER}
+    echo ${COMBINED_SWAGGER}
+
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
     jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
 
-    /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
+    #/bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
 
 # clean up generated swagger files (should come after collect_swagger)
@@ -121,9 +128,9 @@ clean_swagger() {
 }
 
 echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=65
-collect_swagger server ${EXPECTED_COLLISION_COUNT}
-clean_swagger server
-clean_swagger reposerver
-clean_swagger controller
-clean_swagger cmpserver
+EXPECTED_COLLISION_COUNT=91
+#collect_swagger server ${EXPECTED_COLLISION_COUNT}
+#clean_swagger server
+#clean_swagger reposerver
+#clean_swagger controller
+#clean_swagger cmpserver
