@@ -3,8 +3,12 @@ package session
 import (
 	"context"
 	"encoding/pem"
+	stderrors "errors"
 	"fmt"
+	"io"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -219,6 +223,136 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 
 		assert.Contains(t, err.Error(), "does not exist in project 'default'")
 	})
+}
+
+type claimsMock struct {
+	err error
+}
+
+func (cm *claimsMock) Valid() error {
+	return cm.err
+}
+
+type tokenVerifierMock struct {
+	claims *claimsMock
+	err    error
+}
+
+func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
+	if tm.claims == nil {
+		return nil, "", tm.err
+	}
+	return tm.claims, "", tm.err
+}
+
+func strPointer(str string) *string {
+	return &str
+}
+
+func TestSessionManager_WithAuthMiddleware(t *testing.T) {
+	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
+			t.Helper()
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/text")
+			_, err := w.Write([]byte("Ok"))
+			if err != nil {
+				t.Fatalf("error writing response: %s", err)
+			}
+		}
+	}
+	type testCase struct {
+		name                 string
+		authDisabled         bool
+		cookieHeader         bool
+		verifiedClaims       *claimsMock
+		verifyTokenErr       error
+		expectedStatusCode   int
+		expectedResponseBody *string
+	}
+
+	cases := []testCase{
+		{
+			name:                 "will authenticate successfully",
+			authDisabled:         false,
+			cookieHeader:         true,
+			verifiedClaims:       &claimsMock{},
+			verifyTokenErr:       nil,
+			expectedStatusCode:   200,
+			expectedResponseBody: strPointer("Ok"),
+		},
+		{
+			name:                 "will be noop if auth is disabled",
+			authDisabled:         true,
+			cookieHeader:         false,
+			verifiedClaims:       nil,
+			verifyTokenErr:       nil,
+			expectedStatusCode:   200,
+			expectedResponseBody: strPointer("Ok"),
+		},
+		{
+			name:                 "will return 400 if no cookie header",
+			authDisabled:         false,
+			cookieHeader:         false,
+			verifiedClaims:       &claimsMock{},
+			verifyTokenErr:       nil,
+			expectedStatusCode:   400,
+			expectedResponseBody: nil,
+		},
+		{
+			name:                 "will return 401 verify token fails",
+			authDisabled:         false,
+			cookieHeader:         true,
+			verifiedClaims:       &claimsMock{},
+			verifyTokenErr:       stderrors.New("token error"),
+			expectedStatusCode:   401,
+			expectedResponseBody: nil,
+		},
+		{
+			name:                 "will return 200 if claims are nil",
+			authDisabled:         false,
+			cookieHeader:         true,
+			verifiedClaims:       nil,
+			verifyTokenErr:       nil,
+			expectedStatusCode:   200,
+			expectedResponseBody: strPointer("Ok"),
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			mux := http.NewServeMux()
+			mux.HandleFunc("/", handlerFunc())
+			tm := &tokenVerifierMock{
+				claims: tc.verifiedClaims,
+				err:    tc.verifyTokenErr,
+			}
+			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
+			defer ts.Close()
+			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+			if err != nil {
+				t.Fatalf("error creating request: %s", err)
+			}
+			if tc.cookieHeader {
+				req.Header.Add("Cookie", "argocd.token=123456")
+			}
+
+			// when
+			resp, err := http.DefaultClient.Do(req)
+
+			// then
+			assert.NoError(t, err)
+			assert.NotNil(t, resp)
+			assert.Equal(t, tc.expectedStatusCode, resp.StatusCode)
+			if tc.expectedResponseBody != nil {
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				actual := strings.TrimSuffix(string(body), "\n")
+				assert.Contains(t, actual, *tc.expectedResponseBody)
+			}
+		})
+	}
 }
 
 var loggedOutContext = context.Background()
@@ -747,7 +881,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -759,7 +893,43 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
+		assert.Error(t, err)
+	})
+
+	t.Run("OIDC provider is external, audience is not specified, absent audience is allowed", func(t *testing.T) {
+		config := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		assert.NoError(t, err)
 	})
 
 	t.Run("OIDC provider is external, audience is not specified but is required", func(t *testing.T) {
@@ -783,7 +953,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -819,7 +989,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"xxx"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -856,7 +1026,7 @@ allowedAudiences:
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -893,7 +1063,7 @@ allowedAudiences:
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -929,7 +1099,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -966,7 +1136,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1002,7 +1172,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
