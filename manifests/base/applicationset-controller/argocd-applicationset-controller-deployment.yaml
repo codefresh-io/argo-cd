@@ -18,8 +18,8 @@ spec:
       containers:
         - command:
             - entrypoint.sh
-            - applicationset-controller
-          image: quay.io/codefresh/applicationset:latest
+            - argocd-applicationset-controller
+          image: quay.io/codefresh/argocd:latest
           imagePullPolicy: Always
           name: argocd-applicationset-controller
           ports:
