@@ -16104,7 +16104,7 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - argocd-applicationset-controller
+        - applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -16170,7 +16170,7 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
