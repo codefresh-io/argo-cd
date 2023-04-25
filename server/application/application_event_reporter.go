@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"reflect"
 	"strings"
-
-	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -57,11 +56,15 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func isChildApp(a *appv1.Application) bool {
-	if a.Labels != nil {
-		return a.Labels[common.LabelKeyAppInstance] != ""
-	}
-	return false
+func getAppInstanceValue(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) *argo.AppInstanceValue {
+	resourceTracking := argo.NewResourceTracking()
+	unApp := kube.MustToUnstructured(&a)
+
+	return resourceTracking.GetAppInstance(unApp, appInstanceLabelKey, trackingMethod)
+}
+
+func isChildApp(aIV *argo.AppInstanceValue) bool {
+	return aIV.ApplicationName != ""
 }
 
 func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
@@ -104,6 +107,8 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	stream events.Eventing_StartEventSourceServer,
 	ts string,
 	ignoreResourceCache bool,
+	appInstanceLabelKey string,
+	trackingMethod appv1.TrackingMethod,
 ) error {
 	var (
 		logCtx = log.WithField("app", a.Name)
@@ -121,11 +126,11 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		logCtx.WithError(err).Error("failed to get application tree")
 	}
 
-	if isChildApp(a) {
-		parentApp := a.Labels[common.LabelKeyAppInstance]
+	parentAppInstance := getAppInstanceValue(a, appInstanceLabelKey, trackingMethod)
 
+	if isChildApp(parentAppInstance) {
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
-			Name: &parentApp,
+			Name: &parentAppInstance.ApplicationName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -139,14 +144,14 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		// TODO: add check if it helm application
 		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, parentApplicationEntity, getOperationRevision(parentApplicationEntity))
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return err
 		}
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
@@ -174,7 +179,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return err
 		}
@@ -196,6 +201,8 @@ func (s *applicationEventReporter) processResource(
 	originalApplication *appv1.Application,
 	revisionMetadata *appv1.RevisionMetadata,
 	ignoreResourceCache bool,
+	appInstanceLabelKey string,
+	trackingMethod appv1.TrackingMethod,
 ) error {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
@@ -249,7 +256,7 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
-	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata, originalAppRevisionMetadata)
+	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return nil
@@ -408,6 +415,8 @@ func getResourceEventPayload(
 	originalApplication *appv1.Application, // passed when rs is application
 	revisionMetadata *appv1.RevisionMetadata,
 	originalAppRevisionMetadata *appv1.RevisionMetadata, // passed when rs is application
+	appInstanceLabelKey string,
+	trackingMethod appv1.TrackingMethod,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -521,6 +530,8 @@ func getResourceEventPayload(
 		SyncStartedAt:         syncStarted,
 		SyncFinishedAt:        syncFinished,
 		Cluster:               parentApplication.Spec.Destination.Server,
+		AppInstanceLabelKey:   appInstanceLabelKey,
+		TrackingMethod:        string(trackingMethod),
 	}
 
 	if revisionMetadata != nil {
@@ -552,7 +563,14 @@ func getResourceEventPayload(
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
 }
 
-func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource, ts string) (*events.Event, error) {
+func (s *applicationEventReporter) getApplicationEventPayload(
+	ctx context.Context,
+	a *appv1.Application,
+	es *events.EventSource,
+	ts string,
+	appInstanceLabelKey string,
+	trackingMethod appv1.TrackingMethod,
+) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
@@ -626,6 +644,8 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		HealthStatus:          &hs,
 		HealthMessage:         &a.Status.Health.Message,
 		Cluster:               a.Spec.Destination.Server,
+		AppInstanceLabelKey:   appInstanceLabelKey,
+		TrackingMethod:        string(trackingMethod),
 	}
 
 	payload := events.EventPayload{
