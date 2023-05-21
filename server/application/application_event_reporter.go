@@ -121,6 +121,11 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		logCtx.WithError(err).Error("failed to get application tree")
 	}
 
+	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
+	if err != nil {
+		return err
+	}
+
 	if isChildApp(a) {
 		parentApp := a.Labels[common.LabelKeyAppInstance]
 
@@ -133,13 +138,13 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		rs := getAppAsResource(a)
 
-		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
+		parentDesiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
 		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, parentApplicationEntity, getOperationRevision(parentApplicationEntity))
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
 		if err != nil {
 			return err
 		}
@@ -160,11 +165,6 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if err := stream.Send(appEvent); err != nil {
 			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 		}
-	}
-
-	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
-	if err != nil {
-		return err
 	}
 
 	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
