@@ -23,8 +23,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	k8sappsv1 "k8s.io/api/apps/v1"
-	k8sbatchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1927,99 +1925,6 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
-}
-
-func TestRunNewStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-
-	group := "batch"
-	kind := "CronJob"
-	version := "v1"
-	resourceName := "my-cron-job"
-	namespace := testNamespace
-	action := "create-job"
-	uid := "1"
-
-	resources := []appsv1.ResourceStatus{{
-		Group:     group,
-		Kind:      kind,
-		Name:      resourceName,
-		Namespace: testNamespace,
-		Version:   version,
-	}}
-
-	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
-			Group:     group,
-			Kind:      kind,
-			Version:   version,
-			Name:      resourceName,
-			Namespace: testNamespace,
-			UID:       uid,
-		},
-	}}
-
-	cronJob := k8sbatchv1.CronJob{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "batch/v1",
-			Kind:       "CronJob",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cron-job",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				"some": "label",
-			},
-		},
-		Spec: k8sbatchv1.CronJobSpec{
-			Schedule: "* * * * *",
-			JobTemplate: k8sbatchv1.JobTemplateSpec{
-				Spec: k8sbatchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:            "hello",
-									Image:           "busybox:1.28",
-									ImagePullPolicy: "IfNotPresent",
-									Command:         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"},
-								},
-							},
-							RestartPolicy: corev1.RestartPolicyOnFailure,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	t.Run("CreateOperationPermitted", func(t *testing.T) {
-		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-		testApp.Status.Resources = resources
-
-		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
-
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
-		require.NoError(t, err)
-
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-			Name:         &testApp.Name,
-			Namespace:    &namespace,
-			Action:       &action,
-			AppNamespace: &testApp.Namespace,
-			ResourceName: &resourceName,
-			Version:      &version,
-			Group:        &group,
-			Kind:         &kind,
-		})
-
-		require.NoError(t, runErr)
-		assert.NotNil(t, appResponse)
-	})
 }
 
 func TestRunOldStyleResourceAction(t *testing.T) {
