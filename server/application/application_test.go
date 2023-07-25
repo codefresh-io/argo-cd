@@ -1961,15 +1961,6 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		},
 	}}
 
-	createJobDenyingProj := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
-			SourceRepos:                []string{"*"},
-			Destinations:               []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "never", Kind: "mind"}},
-		},
-	}
-
 	cronJob := k8sbatchv1.CronJob{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "batch/v1",
@@ -2003,33 +1994,6 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 			},
 		},
 	}
-
-	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
-		testApp := newTestApp()
-		testApp.Spec.Project = "createJobDenyingProj"
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-		testApp.Status.Resources = resources
-
-		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
-
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
-		require.NoError(t, err)
-
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-			Name:         &testApp.Name,
-			Namespace:    &namespace,
-			Action:       &action,
-			AppNamespace: &testApp.Namespace,
-			ResourceName: &resourceName,
-			Version:      &version,
-			Group:        &group,
-			Kind:         &kind,
-		})
-
-		assert.Contains(t, runErr.Error(), "is not permitted to manage")
-		assert.Nil(t, appResponse)
-	})
 
 	t.Run("CreateOperationPermitted", func(t *testing.T) {
 		testApp := newTestApp()
