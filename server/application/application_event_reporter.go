@@ -567,6 +567,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
 		logCtx       = log.WithField("application", a.Name)
+		errors       = []*events.ObjectError{}
 	)
 
 	obj := appv1.Application{}
@@ -638,11 +639,18 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		Cluster:               a.Spec.Destination.Server,
 	}
 
+	if a.Status.Conditions != nil {
+		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(a.Status)...)
+	}
+	if a.Status.Resources != nil {
+		errors = append(errors, parseApplicationResourcesControllerSyncErrors(a)...)
+	}
+
 	payload := events.EventPayload{
 		Timestamp: ts,
 		Object:    object,
 		Source:    source,
-		Errors:    parseApplicationSyncResultErrorsFromConditions(a.Status),
+		Errors:    errors,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)

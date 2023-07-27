@@ -62,6 +62,30 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 	return errs
 }
 
+func parseApplicationResourcesControllerSyncErrors(app *appv1.Application) []*events.ObjectError {
+	var errs []*events.ObjectError
+	if app.Status.Resources == nil {
+		return errs
+	}
+	for _, rs := range app.Status.Resources {
+		if rs.GroupVersionKind().String() != appv1.ApplicationSchemaGroupVersionKind.String() && strings.ToLower(rs.GroupVersionKind().String()) != strings.ToLower(appv1.ApplicationSetSchemaGroupVersionKind.String()) {
+			continue
+		}
+
+		if app.Namespace == rs.Namespace {
+			continue
+		}
+
+		errs = append(errs, &events.ObjectError{
+			Type:     "sync",
+			Level:    "error",
+			Message:  rs.GroupVersionKind().String() + " resource(" + rs.Name + ") " + " located out of controller's namespace",
+			LastSeen: metav1.Now(),
+		})
+	}
+	return errs
+}
+
 func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
 	errors := []*events.ObjectError{}
 	if os.SyncResult == nil {
