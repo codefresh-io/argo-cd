@@ -2,3 +2,4 @@ mkdocs==1.1.2
 mkdocs-material==7.1.7
 markdown_include==0.6.0
 pygments==2.7.4
+tornado>=6.3.3 # not directly required, pinned by Snyk to avoid a vulnerability
