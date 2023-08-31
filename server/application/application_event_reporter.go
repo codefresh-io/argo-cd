@@ -190,7 +190,19 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			continue
 		}
 
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		appToReport := a
+		revisionMetadataToReport := revisionMetadata
+
+		if rs.Kind == "Rollout" { // for rollout it's crucial to report always correct operationSyncRevision
+			latestAppStatus, err := s.server.appLister.Applications(a.Namespace).Get(a.Name)
+
+			if err == nil {
+				appToReport = latestAppStatus
+				revisionMetadataToReport, _ = s.getApplicationRevisionDetails(ctx, latestAppStatus, getOperationRevision(latestAppStatus))
+			}
+		}
+
+		err := s.processResource(ctx, rs, appToReport, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadataToReport, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return err
 		}
