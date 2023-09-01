@@ -190,24 +190,33 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			continue
 		}
 
-		appToReport := a
-		revisionMetadataToReport := revisionMetadata
-
-		if rs.Kind == "Rollout" { // for rollout it's crucial to report always correct operationSyncRevision
-			latestAppStatus, err := s.server.appLister.Applications(a.Namespace).Get(a.Name)
-
-			if err == nil {
-				appToReport = latestAppStatus
-				revisionMetadataToReport, _ = s.getApplicationRevisionDetails(ctx, latestAppStatus, getOperationRevision(latestAppStatus))
-			}
-		}
-
-		err := s.processResource(ctx, rs, appToReport, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadataToReport, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *applicationEventReporter) getAppForResourceReporting(
+	rs appv1.ResourceStatus,
+	ctx context.Context,
+	a *appv1.Application,
+	revisionMetadata *appv1.RevisionMetadata,
+) (*appv1.Application, *appv1.RevisionMetadata) {
+	appToReport := a
+	revisionMetadataToReport := revisionMetadata
+
+	if rs.Kind == "Rollout" { // for rollout it's crucial to report always correct operationSyncRevision
+		latestAppStatus, err := s.server.appLister.Applications(a.Namespace).Get(a.Name)
+
+		if err == nil {
+			appToReport = latestAppStatus
+			revisionMetadataToReport, _ = s.getApplicationRevisionDetails(ctx, latestAppStatus, getOperationRevision(latestAppStatus))
+		}
+	}
+
+	return appToReport, revisionMetadataToReport
 }
 
 func (s *applicationEventReporter) processResource(
@@ -275,13 +284,15 @@ func (s *applicationEventReporter) processResource(
 		actualState = &application.ApplicationResourceResponse{Manifest: &manifest}
 	}
 
+	parentApplicationToReport, revisionMetadataToReport := s.getAppForResourceReporting(rs, ctx, parentApplication, revisionMetadata)
+
 	var originalAppRevisionMetadata *appv1.RevisionMetadata = nil
 
 	if originalApplication != nil {
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
-	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod)
+	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
@@ -303,7 +314,7 @@ func (s *applicationEventReporter) processResource(
 		return nil
 	}
 
-	if err := s.server.cache.SetLastResourceEvent(parentApplication, rs, resourceEventCacheExpiration, getApplicationLatestRevision(parentApplication)); err != nil {
+	if err := s.server.cache.SetLastResourceEvent(parentApplicationToReport, rs, resourceEventCacheExpiration, getApplicationLatestRevision(parentApplicationToReport)); err != nil {
 		logCtx.WithError(err).Warn("failed to cache resource event")
 	}
 
