@@ -204,19 +204,23 @@ func (s *applicationEventReporter) getAppForResourceReporting(
 	a *appv1.Application,
 	revisionMetadata *appv1.RevisionMetadata,
 ) (*appv1.Application, *appv1.RevisionMetadata) {
-	appToReport := a
-	revisionMetadataToReport := revisionMetadata
-
-	if rs.Kind == "Rollout" { // for rollout it's crucial to report always correct operationSyncRevision
-		latestAppStatus, err := s.server.appLister.Applications(a.Namespace).Get(a.Name)
-
-		if err == nil {
-			appToReport = latestAppStatus
-			revisionMetadataToReport, _ = s.getApplicationRevisionDetails(ctx, latestAppStatus, getOperationRevision(latestAppStatus))
-		}
+	if rs.Kind != "Rollout" { // for rollout it's crucial to report always correct operationSyncRevision
+		return a, revisionMetadata
 	}
 
-	return appToReport, revisionMetadataToReport
+	latestAppStatus, err := s.server.appLister.Applications(a.Namespace).Get(a.Name)
+
+	if err != nil {
+		return a, revisionMetadata
+	}
+
+	revisionMetadataToReport, err := s.getApplicationRevisionDetails(ctx, latestAppStatus, getOperationRevision(latestAppStatus))
+
+	if err != nil {
+		return a, revisionMetadata
+	}
+
+	return latestAppStatus, revisionMetadataToReport
 }
 
 func (s *applicationEventReporter) processResource(
