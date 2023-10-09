@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
@@ -104,6 +105,26 @@ type appStateManager struct {
 	statusRefreshTimeout  time.Duration
 	resourceTracking      argo.ResourceTracking
 	persistResourceHealth bool
+}
+
+func getVersionConfig() *apiclient.VersionConfig {
+	versionConfigManager, err := version_config_manager.NewVersionConfigManager("ConfigMap", "some-product-cm")
+	if err != nil {
+		log.Fatalf("Failed to create VersionConfigManager: %v", err)
+		return nil
+	}
+
+	versionConfig, err := versionConfigManager.ObtainConfig()
+	if err != nil {
+		log.Fatalf("Failed to obtain config: %v", err)
+		return nil
+	}
+
+	return &apiclient.VersionConfig{
+		ProductLabel: versionConfig.ProductLabel,
+		ResourceName: versionConfig.ResourceName,
+		JsonPath:     versionConfig.JsonPath,
+	}
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
@@ -200,6 +221,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
+			VersionConfig:      getVersionConfig(),
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)

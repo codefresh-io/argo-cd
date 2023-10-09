@@ -5013,6 +5013,15 @@
         }
       }
     },
+    "repositoryApplicationVersions": {
+      "type": "object",
+      "properties": {
+        "appVersion": {
+          "type": "string",
+          "title": "Application version presented by single value"
+        }
+      }
+    },
     "repositoryDirectoryAppSpec": {
       "type": "object",
       "title": "DirectoryAppSpec contains directory"
@@ -5113,6 +5122,9 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "applicationVersions": {
+          "$ref": "#/definitions/repositoryApplicationVersions"
+        },
         "commitAuthor": {
           "type": "string"
         },

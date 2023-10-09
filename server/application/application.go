@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	"gopkg.in/yaml.v2"
 	"math"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	"gopkg.in/yaml.v2"
 
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -60,6 +61,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	applicationType "github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
@@ -437,6 +439,26 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
 }
 
+func getVersionConfig() *apiclient.VersionConfig {
+	versionConfigManager, err := version_config_manager.NewVersionConfigManager("ConfigMap", "some-product-cm")
+	if err != nil {
+		log.Fatalf("Failed to create VersionConfigManager: %v", err)
+		return nil
+	}
+
+	versionConfig, err := versionConfigManager.ObtainConfig()
+	if err != nil {
+		log.Fatalf("Failed to obtain config: %v", err)
+		return nil
+	}
+
+	return &apiclient.VersionConfig{
+		ProductLabel: versionConfig.ProductLabel,
+		ResourceName: versionConfig.ResourceName,
+		JsonPath:     versionConfig.JsonPath,
+	}
+}
+
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	if q.Name == nil || *q.Name == "" {
@@ -495,6 +517,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
+			VersionConfig:      getVersionConfig(),
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
