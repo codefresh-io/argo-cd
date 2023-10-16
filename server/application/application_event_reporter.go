@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"reflect"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -165,6 +166,13 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return err
 		}
 	} else {
+		appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
+		if err == nil {
+			if a.Annotations == nil {
+				a.Annotations = make(map[string]string)
+			}
+			a.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
+		}
 		// will get here only for root applications (not managed as a resource by another application)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod)
 		if err != nil {
@@ -294,6 +302,14 @@ func (s *applicationEventReporter) processResource(
 
 	if originalApplication != nil {
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
+
+		appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
+		if err == nil {
+			if parentApplicationToReport.Annotations == nil {
+				parentApplicationToReport.Annotations = make(map[string]string)
+			}
+			parentApplicationToReport.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
+		}
 	}
 
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod)
@@ -687,6 +703,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		Cluster:               a.Spec.Destination.Server,
 		AppInstanceLabelKey:   appInstanceLabelKey,
 		TrackingMethod:        string(trackingMethod),
+		AppVersions:           nil,
 	}
 
 	payload := events.EventPayload{

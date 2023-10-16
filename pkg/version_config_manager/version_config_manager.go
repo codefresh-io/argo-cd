@@ -2,6 +2,7 @@ package version_config_manager
 
 import (
 	"errors"
+	log "github.com/sirupsen/logrus"
 )
 
 type VersionConfig struct {
@@ -61,4 +62,20 @@ func NewVersionConfigManager(providerType string, source string) (*VersionConfig
 
 func (v *VersionConfigManager) ObtainConfig() (*VersionConfig, error) {
 	return v.provider.GetConfig()
+}
+
+func GetVersionConfig() *VersionConfig {
+	versionConfigManager, err := NewVersionConfigManager("ConfigMap", "some-product-cm")
+	if err != nil {
+		log.Printf("ERROR: Failed to create VersionConfigManager: %v", err)
+		return nil
+	}
+
+	versionConfig, err := versionConfigManager.ObtainConfig()
+	if err != nil {
+		log.Printf("ERROR: Failed to obtain config: %v", err)
+		return nil
+	}
+
+	return versionConfig
 }

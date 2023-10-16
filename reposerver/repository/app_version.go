@@ -10,25 +10,22 @@ import (
 )
 
 func getValueFromYAMLByJSONPath(appPath, jsonPathExpression string) (*string, error) {
-	// Чтение файла YAML
 	content, err := os.ReadFile(appPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// Разбор YAML-файла
 	var obj interface{}
 	if err := yaml.Unmarshal(content, &obj); err != nil {
 		return nil, err
 	}
 
-	// Преобразование YAML в Map[interface{}]interface{} для работы jsonpath
+	// Convert YAML to Map[interface{}]interface{}
 	jsonObj, err := convertToJSONCompatible(obj)
 	if err != nil {
 		return nil, err
 	}
 
-	// Использование jsonpath для получения значения
 	jp := jsonpath.New("jsonpathParser")
 	jp.AllowMissingKeys(true)
 	if err := jp.Parse(jsonPathExpression); err != nil {
@@ -58,15 +55,12 @@ func convertToJSONCompatible(i interface{}) (interface{}, error) {
 }
 
 func getAppVersion(appPath string, resourceName string, jsonPathExpression string) (*string, error) {
-	// appPath = "example.yaml"
-	// jsonPathExpression = "{.some.json.path}"
-
 	value, err := getValueFromYAMLByJSONPath(appPath+"/"+resourceName, jsonPathExpression)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("Value: %v\n", *value)
+	fmt.Printf("appVersion value: %v\n", *value)
 
 	return value, nil
 }

@@ -52,6 +52,13 @@ message EventPayload {
 }
 
 /**
+* Application versions
+*/
+message AppVersions {
+    optional string appVersion = 1 [(gogoproto.nullable) = false];
+}
+
+/**
 * Holds information about the object source
 */
 message ObjectSource {
@@ -78,6 +85,7 @@ message ObjectSource {
     optional string appNamespace = 21 [(gogoproto.nullable) = false];
     optional string appInstanceLabelKey = 22 [(gogoproto.nullable) = false];
     optional string trackingMethod = 23 [(gogoproto.nullable) = false];
+    optional AppVersions appVersions = 24;
 }
 
 /**
