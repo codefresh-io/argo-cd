@@ -1416,12 +1416,17 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		SourceType: string(appSourceType),
 	}
 
-	appVersion, err := getAppVersion(appPath, q.VersionConfig.ResourceName, q.VersionConfig.JsonPath)
+	appVersions, err := getAppVersions(appPath, q.VersionConfig.ResourceName, q.VersionConfig.JsonPath)
 	if err != nil {
 		log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
 	} else {
 		res.ApplicationVersions = &apiclient.ApplicationVersions{
-			AppVersion: *appVersion,
+			AppVersion: appVersions.AppVersion,
+			Dependencies: &apiclient.Dependencies{
+				Lock:         appVersions.Dependencies.Lock,
+				Deps:         appVersions.Dependencies.Deps,
+				Requirements: appVersions.Dependencies.Requirements,
+			},
 		}
 	}
 

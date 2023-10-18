@@ -5019,6 +5019,23 @@
         "appVersion": {
           "type": "string",
           "title": "Application version presented by single value"
+        },
+        "dependencies": {
+          "$ref": "#/definitions/repositoryDependencies"
+        }
+      }
+    },
+    "repositoryDependencies": {
+      "type": "object",
+      "properties": {
+        "Deps": {
+          "type": "string"
+        },
+        "Lock": {
+          "type": "string"
+        },
+        "Requirements": {
+          "type": "string"
         }
       }
     },

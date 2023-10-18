@@ -703,7 +703,6 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		Cluster:               a.Spec.Destination.Server,
 		AppInstanceLabelKey:   appInstanceLabelKey,
 		TrackingMethod:        string(trackingMethod),
-		AppVersions:           nil,
 	}
 
 	payload := events.EventPayload{

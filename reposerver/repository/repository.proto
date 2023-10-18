@@ -99,9 +99,16 @@ message Manifest {
     int32 line = 4;
 }
 
+message Dependencies {
+	string Lock = 1;
+	string Deps = 2;
+	string Requirements = 3;
+}
+
 message ApplicationVersions {
     // Application version presented by single value
     string appVersion = 1;
+    Dependencies dependencies = 2;
 }
 
 message ManifestResponse {
