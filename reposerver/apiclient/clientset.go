@@ -22,7 +22,7 @@ import (
 
 const (
 	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = 100 * 1024 * 1024
+	MaxGRPCMessageSize = 200 * 1024 * 1024
 )
 
 // TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
