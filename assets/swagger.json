@@ -5028,13 +5028,13 @@
     "repositoryDependencies": {
       "type": "object",
       "properties": {
-        "Deps": {
+        "deps": {
           "type": "string"
         },
-        "Lock": {
+        "lock": {
           "type": "string"
         },
-        "Requirements": {
+        "requirements": {
           "type": "string"
         }
       }

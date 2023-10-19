@@ -32,11 +32,15 @@ func getDependenciesFromChart(appPath string) (*string, error) {
 		return nil, err
 	}
 
-	dependencies, err := yaml.Marshal(&map[interface{}]interface{}{"dependencies": obj["dependencies"]})
-	if err != nil {
-		return nil, err
+	var dependenciesStr string
+	if obj["dependencies"] != nil {
+		dependencies, err := yaml.Marshal(&map[interface{}]interface{}{"dependencies": obj["dependencies"]})
+		if err != nil {
+			return nil, err
+		}
+		dependenciesStr = string(dependencies)
 	}
-	dependenciesStr := string(dependencies)
+
 	return &dependenciesStr, nil
 }
 
@@ -86,6 +90,9 @@ func convertToJSONCompatible(i interface{}) (interface{}, error) {
 }
 
 func getAppVersions(appPath string, resourceName string, jsonPathExpression string) (*Result, error) {
+	// TODO: remove mock
+	// appPath = "/home/andrii/projects/codefresh/test-chart"
+
 	// Defaults
 	if resourceName == "" {
 		resourceName = "Chart.yaml"

@@ -100,9 +100,9 @@ message Manifest {
 }
 
 message Dependencies {
-	string Lock = 1;
-	string Deps = 2;
-	string Requirements = 3;
+	string lock = 1;
+	string deps = 2;
+	string requirements = 3;
 }
 
 message ApplicationVersions {

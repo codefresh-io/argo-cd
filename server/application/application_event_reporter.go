@@ -166,15 +166,15 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return err
 		}
 	} else {
-		appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
-		if err == nil {
-			if a.Annotations == nil {
-				a.Annotations = make(map[string]string)
-			}
-			a.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
-		}
+		// appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
+		// if err == nil {
+		// 	if a.Annotations == nil {
+		// 		a.Annotations = make(map[string]string)
+		// 	}
+		// 	a.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
+		// }
 		// will get here only for root applications (not managed as a resource by another application)
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
@@ -303,16 +303,16 @@ func (s *applicationEventReporter) processResource(
 	if originalApplication != nil {
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 
-		appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
-		if err == nil {
-			if parentApplicationToReport.Annotations == nil {
-				parentApplicationToReport.Annotations = make(map[string]string)
-			}
-			parentApplicationToReport.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
-		}
+		// appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
+		// if err == nil {
+		// 	if parentApplicationToReport.Annotations == nil {
+		// 		parentApplicationToReport.Annotations = make(map[string]string)
+		// 	}
+		// 	parentApplicationToReport.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
+		// }
 	}
 
-	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod)
+	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
@@ -474,6 +474,7 @@ func getResourceEventPayload(
 	originalAppRevisionMetadata *appv1.RevisionMetadata, // passed when rs is application
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -570,6 +571,10 @@ func getResourceEventPayload(
 		}
 	}
 
+	applicationVersionsEvents := &events.ApplicationVersions{}
+	applicationVersionsData, _ := json.Marshal(applicationVersions)
+	json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+
 	source := events.ObjectSource{
 		DesiredManifest:       desiredState.CompiledManifest,
 		ActualManifest:        *actualState.Manifest,
@@ -589,6 +594,7 @@ func getResourceEventPayload(
 		Cluster:               parentApplication.Spec.Destination.Server,
 		AppInstanceLabelKey:   appInstanceLabelKey,
 		TrackingMethod:        string(trackingMethod),
+		AppVersions:           applicationVersionsEvents,
 	}
 
 	if revisionMetadata != nil {
@@ -627,6 +633,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	ts string,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
@@ -680,6 +687,10 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		logCtx.Info("reporting application deletion event")
 	}
 
+	applicationVersionsEvents := &events.ApplicationVersions{}
+	applicationVersionsData, _ := json.Marshal(applicationVersions)
+	json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+
 	hs := string(a.Status.Health.Status)
 	source := &events.ObjectSource{
 		DesiredManifest:       "",
@@ -703,6 +714,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		Cluster:               a.Spec.Destination.Server,
 		AppInstanceLabelKey:   appInstanceLabelKey,
 		TrackingMethod:        string(trackingMethod),
+		AppVersions:           applicationVersionsEvents,
 	}
 
 	payload := events.EventPayload{

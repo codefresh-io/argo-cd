@@ -78,6 +78,7 @@ message ObjectSource {
     optional string appNamespace = 21 [(gogoproto.nullable) = false];
     optional string appInstanceLabelKey = 22 [(gogoproto.nullable) = false];
     optional string trackingMethod = 23 [(gogoproto.nullable) = false];
+    optional ApplicationVersions appVersions = 24;
 }
 
 /**
@@ -89,3 +90,16 @@ message ObjectError {
     optional string message = 3 [(gogoproto.nullable) = false];
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 4 [(gogoproto.nullable) = false];
 } 
+
+message Dependencies {
+	optional string lock = 1;
+	optional string deps = 2;
+	optional string requirements = 3;
+}
+
+message ApplicationVersions {
+    // Application version presented by single value
+    optional string appVersion = 1;
+    optional Dependencies dependencies = 2;
+}
+

@@ -588,7 +588,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var res *apiclient.ManifestResponse
 	var err error
 	cacheFn := func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error) {
-		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, refSourceCommitSHAs, firstInvocation)
+		ok, resp, err := s.getManifestCacheEntry("cacheKey", q, refSourceCommitSHAs, firstInvocation)
 		res = resp
 		return ok, err
 	}
@@ -1416,17 +1416,19 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		SourceType: string(appSourceType),
 	}
 
-	appVersions, err := getAppVersions(appPath, q.VersionConfig.ResourceName, q.VersionConfig.JsonPath)
-	if err != nil {
-		log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
-	} else {
-		res.ApplicationVersions = &apiclient.ApplicationVersions{
-			AppVersion: appVersions.AppVersion,
-			Dependencies: &apiclient.Dependencies{
-				Lock:         appVersions.Dependencies.Lock,
-				Deps:         appVersions.Dependencies.Deps,
-				Requirements: appVersions.Dependencies.Requirements,
-			},
+	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
+		appVersions, err := getAppVersions(appPath, q.VersionConfig.ResourceName, q.VersionConfig.JsonPath)
+		if err != nil {
+			log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
+		} else {
+			res.ApplicationVersions = &apiclient.ApplicationVersions{
+				AppVersion: appVersions.AppVersion,
+				Dependencies: &apiclient.Dependencies{
+					Lock:         appVersions.Dependencies.Lock,
+					Deps:         appVersions.Dependencies.Deps,
+					Requirements: appVersions.Dependencies.Requirements,
+				},
+			}
 		}
 	}
 
