@@ -166,13 +166,6 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return err
 		}
 	} else {
-		// appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
-		// if err == nil {
-		// 	if a.Annotations == nil {
-		// 		a.Annotations = make(map[string]string)
-		// 	}
-		// 	a.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
-		// }
 		// will get here only for root applications (not managed as a resource by another application)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
@@ -302,14 +295,6 @@ func (s *applicationEventReporter) processResource(
 
 	if originalApplication != nil {
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
-
-		// appVersionJSON, err := json.Marshal(desiredManifests.ApplicationVersions)
-		// if err == nil {
-		// 	if parentApplicationToReport.Annotations == nil {
-		// 		parentApplicationToReport.Annotations = make(map[string]string)
-		// 	}
-		// 	parentApplicationToReport.Annotations["codefresh.io/appVersion"] = string(appVersionJSON)
-		// }
 	}
 
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
@@ -594,7 +579,6 @@ func getResourceEventPayload(
 		Cluster:               parentApplication.Spec.Destination.Server,
 		AppInstanceLabelKey:   appInstanceLabelKey,
 		TrackingMethod:        string(trackingMethod),
-		AppVersions:           applicationVersionsEvents,
 	}
 
 	if revisionMetadata != nil {
@@ -612,10 +596,11 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp: ts,
-		Object:    object,
-		Source:    &source,
-		Errors:    errors,
+		Timestamp:   ts,
+		Object:      object,
+		Source:      &source,
+		Errors:      errors,
+		AppVersions: applicationVersionsEvents,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
@@ -714,14 +699,14 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		Cluster:               a.Spec.Destination.Server,
 		AppInstanceLabelKey:   appInstanceLabelKey,
 		TrackingMethod:        string(trackingMethod),
-		AppVersions:           applicationVersionsEvents,
 	}
 
 	payload := events.EventPayload{
-		Timestamp: ts,
-		Object:    object,
-		Source:    source,
-		Errors:    parseApplicationSyncResultErrorsFromConditions(a.Status),
+		Timestamp:   ts,
+		Object:      object,
+		Source:      source,
+		Errors:      parseApplicationSyncResultErrorsFromConditions(a.Status),
+		AppVersions: applicationVersionsEvents,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)

@@ -49,6 +49,7 @@ message EventPayload {
     required ObjectSource source = 3;
     // The errors of this object
     repeated ObjectError errors = 4;
+    optional ApplicationVersions appVersions = 24;
 }
 
 /**
@@ -78,7 +79,6 @@ message ObjectSource {
     optional string appNamespace = 21 [(gogoproto.nullable) = false];
     optional string appInstanceLabelKey = 22 [(gogoproto.nullable) = false];
     optional string trackingMethod = 23 [(gogoproto.nullable) = false];
-    optional ApplicationVersions appVersions = 24;
 }
 
 /**
