@@ -1,11 +1,11 @@
 package repository
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/util/jsonpath"
 )
@@ -90,9 +90,6 @@ func convertToJSONCompatible(i interface{}) (interface{}, error) {
 }
 
 func getAppVersions(appPath string, resourceName string, jsonPathExpression string) (*Result, error) {
-	// TODO: remove mock
-	// appPath = "/home/andrii/projects/codefresh/test-chart"
-
 	// Defaults
 	if resourceName == "" {
 		resourceName = "Chart.yaml"
@@ -106,7 +103,7 @@ func getAppVersions(appPath string, resourceName string, jsonPathExpression stri
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("appVersion value: %v\n", *appVersion)
+	log.Printf("appVersion value: %v\n", *appVersion)
 
 	result := &Result{
 		AppVersion:   *appVersion,

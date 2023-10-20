@@ -100,14 +100,18 @@ message Manifest {
 }
 
 message Dependencies {
+    // Content of Chart.lock
 	string lock = 1;
+    // Content of Cart.yaml/dependencies
 	string deps = 2;
+    // Content of requirements.yaml
 	string requirements = 3;
 }
 
 message ApplicationVersions {
     // Application version presented by single value
     string appVersion = 1;
+    // Yaml content of dependencies
     Dependencies dependencies = 2;
 }
 
@@ -123,6 +127,7 @@ message ManifestResponse {
     string commitMessage = 8;
     string commitAuthor = 9;
     k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
+    // A version of the application and its dependencies
     ApplicationVersions applicationVersions = 11;
 }
 

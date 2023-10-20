@@ -466,7 +466,16 @@ func getResourceEventPayload(
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
 		errors       = []*events.ObjectError{}
+		logCtx       *log.Entry
 	)
+
+	if originalApplication != nil {
+		logCtx = log.WithField("application", originalApplication.Name)
+	} else if parentApplication != nil {
+		logCtx = log.WithField("application", parentApplication.Name)
+	} else {
+		logCtx = log.NewEntry(log.StandardLogger())
+	}
 
 	object := []byte(*actualState.Manifest)
 
@@ -556,9 +565,10 @@ func getResourceEventPayload(
 		}
 	}
 
-	applicationVersionsEvents := &events.ApplicationVersions{}
-	applicationVersionsData, _ := json.Marshal(applicationVersions)
-	json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+	applicationVersionsEvents, err := repoAppVersionsToEvent(applicationVersions)
+	if err != nil {
+		logCtx.Errorf("failed to convert appVersions: %v", err)
+	}
 
 	source := events.ObjectSource{
 		DesiredManifest:       desiredState.CompiledManifest,
@@ -672,9 +682,10 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		logCtx.Info("reporting application deletion event")
 	}
 
-	applicationVersionsEvents := &events.ApplicationVersions{}
-	applicationVersionsData, _ := json.Marshal(applicationVersions)
-	json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+	applicationVersionsEvents, err := repoAppVersionsToEvent(applicationVersions)
+	if err != nil {
+		logCtx.Errorf("failed to convert appVersions: %v", err)
+	}
 
 	hs := string(a.Status.Health.Status)
 	source := &events.ObjectSource{
@@ -777,4 +788,14 @@ func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *ap
 	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Message, "metadata", "labels", "app.meta.commit-message")
 
 	return u
+}
+
+func repoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
+	applicationVersionsEvents := &events.ApplicationVersions{}
+	applicationVersionsData, _ := json.Marshal(applicationVersions)
+	err := json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+	if err != nil {
+		return nil, err
+	}
+	return applicationVersionsEvents, nil
 }

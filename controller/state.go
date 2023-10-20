@@ -180,8 +180,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
-
-		// versionConfig :=
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:               repo,
 			Repos:              permittedHelmRepos,

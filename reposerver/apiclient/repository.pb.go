@@ -805,8 +805,11 @@ func (m *Manifest) GetLine() int32 {
 }
 
 type Dependencies struct {
-	Lock                 string   `protobuf:"bytes,1,opt,name=lock,proto3" json:"lock,omitempty"`
-	Deps                 string   `protobuf:"bytes,2,opt,name=deps,proto3" json:"deps,omitempty"`
+	// Content of Chart.lock
+	Lock string `protobuf:"bytes,1,opt,name=lock,proto3" json:"lock,omitempty"`
+	// Content of Cart.yaml/dependencies
+	Deps string `protobuf:"bytes,2,opt,name=deps,proto3" json:"deps,omitempty"`
+	// Content of requirements.yaml
 	Requirements         string   `protobuf:"bytes,3,opt,name=requirements,proto3" json:"requirements,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -869,7 +872,8 @@ func (m *Dependencies) GetRequirements() string {
 
 type ApplicationVersions struct {
 	// Application version presented by single value
-	AppVersion           string        `protobuf:"bytes,1,opt,name=appVersion,proto3" json:"appVersion,omitempty"`
+	AppVersion string `protobuf:"bytes,1,opt,name=appVersion,proto3" json:"appVersion,omitempty"`
+	// Yaml content of dependencies
 	Dependencies         *Dependencies `protobuf:"bytes,2,opt,name=dependencies,proto3" json:"dependencies,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
@@ -931,10 +935,11 @@ type ManifestResponse struct {
 	Revision   string `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	SourceType string `protobuf:"bytes,6,opt,name=sourceType,proto3" json:"sourceType,omitempty"`
 	// Raw response of git verify-commit operation (always the empty string for Helm)
-	VerifyResult         string               `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
-	CommitMessage        string               `protobuf:"bytes,8,opt,name=commitMessage,proto3" json:"commitMessage,omitempty"`
-	CommitAuthor         string               `protobuf:"bytes,9,opt,name=commitAuthor,proto3" json:"commitAuthor,omitempty"`
-	CommitDate           *v1.Time             `protobuf:"bytes,10,opt,name=commitDate,proto3" json:"commitDate,omitempty"`
+	VerifyResult  string   `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
+	CommitMessage string   `protobuf:"bytes,8,opt,name=commitMessage,proto3" json:"commitMessage,omitempty"`
+	CommitAuthor  string   `protobuf:"bytes,9,opt,name=commitAuthor,proto3" json:"commitAuthor,omitempty"`
+	CommitDate    *v1.Time `protobuf:"bytes,10,opt,name=commitDate,proto3" json:"commitDate,omitempty"`
+	// A version of the application and its dependencies
 	ApplicationVersions  *ApplicationVersions `protobuf:"bytes,11,opt,name=applicationVersions,proto3" json:"applicationVersions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`

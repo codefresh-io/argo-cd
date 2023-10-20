@@ -5029,13 +5029,16 @@
       "type": "object",
       "properties": {
         "deps": {
-          "type": "string"
+          "type": "string",
+          "title": "Content of Cart.yaml/dependencies"
         },
         "lock": {
-          "type": "string"
+          "type": "string",
+          "title": "Content of Chart.lock"
         },
         "requirements": {
-          "type": "string"
+          "type": "string",
+          "title": "Content of requirements.yaml"
         }
       }
     },

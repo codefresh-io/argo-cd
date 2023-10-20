@@ -5,6 +5,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	CodefreshAPIProviderType = "CodereshAPI"
+	ConfigMapProviderType    = "ConfigMap"
+)
+
 type VersionConfig struct {
 	ProductLabel string `json:"productLabel"`
 	JsonPath     string `json:"jsonPath"`
@@ -23,7 +28,7 @@ type ConfigMapProvider struct {
 	ConfigMapPath string
 }
 
-func (CodereshAPI *CodereshAPIConfigProvider) GetConfig() (*VersionConfig, error) {
+func (codereshAPI *CodereshAPIConfigProvider) GetConfig() (*VersionConfig, error) {
 	// Implement logic to fetch config from the CodereshAPI here.
 	// For this example, we'll just return a mock config.
 	return &VersionConfig{
@@ -50,9 +55,9 @@ type VersionConfigManager struct {
 func NewVersionConfigManager(providerType string, source string) (*VersionConfigManager, error) {
 	var provider ConfigProvider
 	switch providerType {
-	case "CodereshAPI":
+	case CodefreshAPIProviderType:
 		provider = &CodereshAPIConfigProvider{CodereshAPIEndpoint: source}
-	case "ConfigMap":
+	case ConfigMapProviderType:
 		provider = &ConfigMapProvider{ConfigMapPath: source}
 	default:
 		return nil, errors.New("Invalid provider type")
@@ -67,7 +72,7 @@ func (v *VersionConfigManager) ObtainConfig() (*VersionConfig, error) {
 func GetVersionConfig() *VersionConfig {
 	versionConfigManager, err := NewVersionConfigManager("ConfigMap", "some-product-cm")
 	if err != nil {
-		log.Printf("ERROR: Failed to create VersionConfigManager: %v", err)
+		log.Errorf("ERROR: Failed to create VersionConfigManager: %v", err)
 		return nil
 	}
 

@@ -49,7 +49,8 @@ message EventPayload {
     required ObjectSource source = 3;
     // The errors of this object
     repeated ObjectError errors = 4;
-    optional ApplicationVersions appVersions = 24;
+    // A version of the application and its dependencies
+    optional ApplicationVersions appVersions = 5;
 }
 
 /**
@@ -92,14 +93,18 @@ message ObjectError {
 } 
 
 message Dependencies {
+    // Content of Chart.lock
 	optional string lock = 1;
+    // Content of Cart.yaml/dependencies
 	optional string deps = 2;
+    // Content of requirements.yaml
 	optional string requirements = 3;
 }
 
 message ApplicationVersions {
     // Application version presented by single value
     optional string appVersion = 1;
+    // Yaml content of dependencies
     optional Dependencies dependencies = 2;
 }
 
