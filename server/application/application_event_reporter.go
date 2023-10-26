@@ -612,14 +612,18 @@ func getResourceEventPayload(
 		Errors:      errors,
 		AppVersions: applicationVersionsEvents,
 	}
-	payload.AppVersions.AppVersion = nil
+
 	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
-	logCtx.Infof(
-		"AppVersion deps before encoding: %v ||| %v ||| %v",
-		safeString(payload.AppVersions.Dependencies.Lock),
-		safeString(payload.AppVersions.Dependencies.Deps),
-		safeString(payload.AppVersions.Dependencies.Requirements),
-	)
+	if payload.AppVersions.Dependencies == nil {
+		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
+	} else {
+		logCtx.Infof(
+			"AppVersion deps before encoding: %v ||| %v ||| %v",
+			safeString(payload.AppVersions.Dependencies.Lock),
+			safeString(payload.AppVersions.Dependencies.Deps),
+			safeString(payload.AppVersions.Dependencies.Requirements),
+		)
+	}
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
@@ -729,12 +733,16 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	}
 
 	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
-	logCtx.Infof(
-		"AppVersion deps before encoding: %v ||| %v ||| %v",
-		safeString(payload.AppVersions.Dependencies.Lock),
-		safeString(payload.AppVersions.Dependencies.Deps),
-		safeString(payload.AppVersions.Dependencies.Requirements),
-	)
+	if payload.AppVersions.Dependencies == nil {
+		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
+	} else {
+		logCtx.Infof(
+			"AppVersion deps before encoding: %v ||| %v ||| %v",
+			safeString(payload.AppVersions.Dependencies.Lock),
+			safeString(payload.AppVersions.Dependencies.Deps),
+			safeString(payload.AppVersions.Dependencies.Requirements),
+		)
+	}
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
