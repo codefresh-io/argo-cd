@@ -161,7 +161,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return err
 		}
@@ -191,7 +191,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			continue
 		}
 
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
 			return err
 		}
@@ -240,6 +240,7 @@ func (s *applicationEventReporter) processResource(
 	ignoreResourceCache bool,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) error {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
@@ -297,7 +298,7 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
-	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
@@ -471,8 +472,6 @@ func getResourceEventPayload(
 
 	if originalApplication != nil {
 		logCtx = log.WithField("application", originalApplication.Name)
-	} else if parentApplication != nil {
-		logCtx = log.WithField("application", parentApplication.Name)
 	} else {
 		logCtx = log.NewEntry(log.StandardLogger())
 	}
@@ -613,6 +612,8 @@ func getResourceEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", rs.Namespace, rs.Name, err)
@@ -720,6 +721,8 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", a.Namespace, a.Name, err)
@@ -798,4 +801,11 @@ func repoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) 
 		return nil, err
 	}
 	return applicationVersionsEvents, nil
+}
+
+func safeString(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }
