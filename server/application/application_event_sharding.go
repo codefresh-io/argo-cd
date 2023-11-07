@@ -37,7 +37,7 @@ func (s *channelPerApplicationChannelSelector) Subscribe(application appv1.Appli
 					callback(app)
 				default:
 					// drop event if cannot send right away
-					log.Warn("unable to process app channel events %s", len(channel))
+					log.Infof("unable to process app channel events %s", len(channel))
 				}
 			}
 		}(s.channels[application.Name])
