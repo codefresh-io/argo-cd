@@ -1040,6 +1040,9 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		selector labels.Selector
 		err      error
 	)
+
+	channelSelector := NewChannelPerApplicationChannelSelector()
+
 	q := application.ApplicationQuery{}
 	if err := yaml.Unmarshal(es.Config, &q); err != nil {
 		logCtx.WithError(err).Error("failed to unmarshal event-source config")
@@ -1121,22 +1124,23 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-eventsChannel:
-			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
-			if !shouldProcess {
-				continue
-			}
-			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-			ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
-			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
-			if err != nil {
-				logCtx.WithError(err).Error("failed to stream application events")
-				if strings.Contains(err.Error(), "context deadline exceeded") {
-					logCtx.Info("Closing event-source connection")
-					cancel()
-					return err
+			channelSelector.Subscribe(event.Application, event.Type, func(payload channelPayload) {
+				log.Infof("Processing callback for application %s", payload.Application.Name)
+				shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+				if !shouldProcess {
+					return
 				}
-			}
-			cancel()
+				ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+				ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
+				err := sendIfPermitted(ctx, payload.Application, payload.Type, ts, ignoreResourceCache)
+				if err != nil {
+					logCtx.WithError(err).Error("failed to stream application events")
+					if strings.Contains(err.Error(), "context deadline exceeded") {
+						logCtx.Info("Closing event-source connection")
+						cancel()
+					}
+				}
+			})
 		case <-ticker.C:
 			var err error
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
