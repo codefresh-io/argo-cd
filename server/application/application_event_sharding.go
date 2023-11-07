@@ -35,11 +35,14 @@ func (s *channelPerApplicationChannelSelector) Subscribe(application appv1.Appli
 				case app := <-channel:
 					log.Infof("Received event for application %s", app.Application.Name)
 					callback(app)
+				default:
+					// drop event if cannot send right away
+					log.Warn("unable to process app channel events %s", len(channel))
 				}
 			}
 		}(s.channels[application.Name])
 	}
-	
+
 	go func() {
 		log.Infof("Publish to application %s", application.Name)
 		s.channels[application.Name] <- channelPayload{
