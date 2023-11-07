@@ -1116,7 +1116,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		return nil
 	}
 
-	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	eventsChannel := make(chan *appv1.ApplicationWatchEvent, 100000)
 	unsubscribe := s.appBroadcaster.Subscribe(eventsChannel)
 	ticker := time.NewTicker(5 * time.Second)
 	defer unsubscribe()
@@ -1124,6 +1124,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-eventsChannel:
+			log.Infof("Events channel size is %d", len(eventsChannel))
 			channelSelector.Subscribe(event.Application, event.Type, func(payload channelPayload) {
 				log.Infof("Processing callback for application %s", payload.Application.Name)
 				shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
