@@ -81,7 +81,7 @@ var (
 	watchAPIBufferSize  = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 	permissionDeniedErr = status.Error(codes.PermissionDenied, "permission denied")
 
-	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
+	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 5, 0, math.MaxInt32))
 	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
@@ -1124,12 +1124,10 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-eventsChannel:
-			log.Infof("Events channel size is %d", len(eventsChannel))
-			channelSelector.Subscribe(event.Application, event.Type, func(payload channelPayload) {
-				log.Infof("Processing callback for application %s", payload.Application.Name)
+			channelSelector.Subscribe(event.Application, event.Type, func(payload channelPayload) bool {
 				shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 				if !shouldProcess {
-					return
+					return false
 				}
 				ts := time.Now().Format("2006-01-02T15:04:05.000Z")
 				ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
@@ -1138,9 +1136,10 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 					logCtx.WithError(err).Error("failed to stream application events")
 					if strings.Contains(err.Error(), "context deadline exceeded") {
 						logCtx.Info("Closing event-source connection")
-						cancel()
 					}
 				}
+				cancel()
+				return true
 			})
 		case <-ticker.C:
 			var err error

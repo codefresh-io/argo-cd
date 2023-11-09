@@ -352,6 +352,10 @@ func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.Applicat
 	// check if application changed to healthy status
 	if ae.Application.Status.Health.Status == health.HealthStatusHealthy && cachedApp.Status.Health.Status != health.HealthStatusHealthy {
 		return true, true
+	} else {
+		if ae.Application.Name == "gb-rollout" {
+			logCtx.Infof("ignore status, because app status is %s and cached app status %s", ae.Application.Status.Health.Status, cachedApp.Status.Health.Status)
+		}
 	}
 
 	if !reflect.DeepEqual(ae.Application.Spec, cachedApp.Spec) {
@@ -732,6 +736,9 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 }
 
 func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
+	if ds == nil {
+		return &apiclient.Manifest{}
+	}
 	for _, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
