@@ -159,7 +159,7 @@ ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 else
-IMAGE_TAG?="2.8.1-parrallel-events-8"
+IMAGE_TAG?="2.8.1-parrallel-events-24"
 endif
 
 ifeq (${DOCKER_PUSH},true)

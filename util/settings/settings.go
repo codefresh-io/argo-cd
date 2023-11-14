@@ -115,6 +115,7 @@ type ArgoCDSettings struct {
 	ExtensionConfig string `json:"extensionConfig,omitempty"`
 	// KustomizeSetNamespaceEnabled enable set namespace for kustomize by default
 	KustomizeSetNamespaceEnabled bool `json:"kustomizeSetNamespaceEnabled"`
+	AmountOfThreads              int  `json:"reportingThreads"`
 }
 
 type GoogleAnalytics struct {
@@ -487,6 +488,7 @@ const (
 	extensionConfig   = "extension.config"
 	// kustomizeSetNamespaceEnabledKey is the key to configure if kustomize set namespace should be executed
 	kustomizeSetNamespaceEnabledKey = "kustomize.setNamespace.enabled"
+	amountOfThreadsKey              = "reporting.threads"
 )
 
 var (
@@ -731,6 +733,23 @@ func (mgr *SettingsManager) GetKustomizeSetNamespaceEnabled() bool {
 		return true
 	}
 	return kustomizeSetNamespaceEnabled == "true"
+}
+
+func (mgr *SettingsManager) GetAmountOfThreads() int {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return 10
+	}
+	amountOfThreads := argoCDCM.Data[amountOfThreadsKey]
+	if amountOfThreads == "" {
+		// enabled by default because it is a breaking change to disable it
+		return 10
+	}
+	amountOfThreadsInt, err := strconv.Atoi(amountOfThreads)
+	if err != nil {
+		return 10
+	}
+	return amountOfThreadsInt
 }
 
 func (mgr *SettingsManager) GetTrackingMethod() (string, error) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/argo"
 
@@ -25,12 +26,18 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
-type applicationEventReporter struct {
-	server *Server
+type MetricsRegistry interface {
+	IncEventReportingCounter(failed bool, cache bool, application string)
+	IncEventReportingHistogram(duration time.Duration)
 }
 
-func NewApplicationEventReporter(server *Server) *applicationEventReporter {
-	return &applicationEventReporter{server}
+type applicationEventReporter struct {
+	server   *Server
+	registry MetricsRegistry
+}
+
+func NewApplicationEventReporter(server *Server, registry MetricsRegistry) *applicationEventReporter {
+	return &applicationEventReporter{server, registry}
 }
 
 func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application, rs appv1.ResourceStatus) bool {
@@ -116,6 +123,12 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 ) error {
+	startTime := time.Now()
+	defer func() {
+		reconcileDuration := time.Since(startTime)
+		s.registry.IncEventReportingHistogram(reconcileDuration)
+	}()
+
 	logCtx := log.WithField("app", a.Name)
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
@@ -162,6 +175,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		}
 
 		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+		s.registry.IncEventReportingCounter(err != nil, false, a.Name)
 		if err != nil {
 			return err
 		}
@@ -176,7 +190,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			// event did not have an OperationState - skip all events
 			return nil
 		}
-
+		s.registry.IncEventReportingCounter(err != nil, false, a.Name)
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
 		if err := stream.Send(appEvent); err != nil {
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)

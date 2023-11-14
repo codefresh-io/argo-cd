@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/server/metrics"
 	"math"
 	"reflect"
 	"sort"
@@ -104,6 +105,7 @@ type Server struct {
 	projInformer             cache.SharedIndexInformer
 	enabledNamespaces        []string
 	applicationEventReporter *applicationEventReporter
+	metricsServer            *metrics.MetricsServer
 }
 
 // NewServer returns a new instance of the Application service
@@ -123,6 +125,7 @@ func NewServer(
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
+	metricsServer *metrics.MetricsServer,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
@@ -145,8 +148,9 @@ func NewServer(
 		settingsMgr:       settingsMgr,
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
+		metricsServer:     metricsServer,
 	}
-	server.applicationEventReporter = NewApplicationEventReporter(server)
+	server.applicationEventReporter = NewApplicationEventReporter(server, metricsServer)
 
 	return server, server.getAppResources
 }
@@ -1041,7 +1045,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		err      error
 	)
 
-	channelSelector := NewChannelPerApplicationChannelSelector()
+	channelSelector := NewChannelPerApplicationChannelSelector(s.metricsServer, s.settingsMgr)
 
 	q := application.ApplicationQuery{}
 	if err := yaml.Unmarshal(es.Config, &q); err != nil {
@@ -1116,19 +1120,23 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		return nil
 	}
 
-	eventsChannel := make(chan *appv1.ApplicationWatchEvent, 100000)
+	eventsChannel := make(chan *appv1.ApplicationWatchEvent, 1000)
 	unsubscribe := s.appBroadcaster.Subscribe(eventsChannel)
 	ticker := time.NewTicker(5 * time.Second)
+	tickerChSize := time.NewTicker(60 * time.Second)
 	defer unsubscribe()
 	defer ticker.Stop()
 	for {
 		select {
 		case event := <-eventsChannel:
+			s.metricsServer.IncAmountOfChangesCounter()
+			s.metricsServer.SetChannelSizeCounter("root", float64(len(eventsChannel)))
+			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+			if !shouldProcess {
+				s.metricsServer.IncEventReportingCounter(false, true, event.Application.Name)
+				continue
+			}
 			channelSelector.Subscribe(event.Application, event.Type, func(payload channelPayload) bool {
-				shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
-				if !shouldProcess {
-					return false
-				}
 				ts := time.Now().Format("2006-01-02T15:04:05.000Z")
 				ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
 				err := sendIfPermitted(ctx, payload.Application, payload.Type, ts, ignoreResourceCache)
@@ -1156,6 +1164,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 				log.Errorf("failed to send heartbeat: %s", err.Error())
 				break
 			}
+		case <-tickerChSize.C:
+			log.Infof("Main Channel has size %d", len(eventsChannel))
 		case <-stream.Context().Done():
 			return nil
 		}

@@ -477,7 +477,12 @@ func (a *ArgoCDServer) Init(ctx context.Context) {
 // golang/protobuf).
 func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	a.userStateStorage.Init(ctx)
-	svcSet := newArgoCDServiceSet(a)
+	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
+	if a.RedisClient != nil {
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
+	}
+
+	svcSet := newArgoCDServiceSet(a, metricsServ)
 	a.serviceSet = svcSet
 	grpcS, appResourceTreeFn := a.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
@@ -499,11 +504,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	httpS.Handler = &bug21955Workaround{handler: httpS.Handler}
 	if httpsS != nil {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
-	}
-
-	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
-	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
 
 	// CMux is used to support servicing gRPC and HTTP1.1+JSON on the same port
@@ -807,7 +807,7 @@ type ArgoCDServiceSet struct {
 	VersionService        *version.Server
 }
 
-func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
+func newArgoCDServiceSet(a *ArgoCDServer, metricsServer *metrics.MetricsServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
@@ -833,7 +833,8 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		projectLock,
 		a.settingsMgr,
 		a.projInformer,
-		a.ApplicationNamespaces)
+		a.ApplicationNamespaces,
+		metricsServer)
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
