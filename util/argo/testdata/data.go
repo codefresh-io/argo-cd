@@ -14,4 +14,10 @@ var (
 
 	//go:embed desired_validating_webhook.yaml
 	DesiredValidatingWebhookYaml string
+
+	//go:embed live_app_with_old_label_tracking.yaml
+	LiveAppWithOldLabelTrackingYaml string
+
+	//go:embed desired_app_mixed_tracking.yaml
+	DesiredAppMixedTrackingYaml string
 )
