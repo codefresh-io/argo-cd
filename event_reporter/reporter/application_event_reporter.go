@@ -212,7 +212,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
-		if err := s.codefreshClient.Send(appEvent.Payload); err != nil {
+		if err := s.codefreshClient.Send(ctx, appEvent.Payload); err != nil {
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
 	}
