@@ -1133,7 +1133,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		select {
 		case event := <-onAddEventsChannel:
 			logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
-			logCtx.Infof("Received application \"%s\" added event", event.Application)
+			logCtx.Infof("Received application \"%s\" added event", event.Application.Name)
 			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 			if !shouldProcess {
 				continue
@@ -1152,7 +1152,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			cancel()
 		case event := <-onDeleteEventsChannel:
 			logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
-			logCtx.Infof("Received application \"%s\" deleted event", event.Application)
+			logCtx.Infof("Received application \"%s\" deleted event", event.Application.Name)
 			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 			if !shouldProcess {
 				continue
@@ -1171,7 +1171,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			cancel()
 		case event := <-onUpdateEventsChannel:
 			logCtx.Infof("OnUpdate channel size is %d", len(onDeleteEventsChannel))
-			logCtx.Infof("Received application \"%s\" update event", event.Application)
+			logCtx.Infof("Received application \"%s\" update event", event.Application.Name)
 			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 			if !shouldProcess {
 				continue
