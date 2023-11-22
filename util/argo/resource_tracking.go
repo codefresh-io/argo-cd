@@ -204,6 +204,12 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
+	liveInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance)
+
+	if err == nil && liveInstanceAnnotation == "" && trackingMethod != string(TrackingMethodLabel) {
+		return nil
+	}
+
 	annotation, err := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return err
