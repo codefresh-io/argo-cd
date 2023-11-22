@@ -1113,14 +1113,65 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		return nil
 	}
 
-	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
-	unsubscribe := s.appBroadcaster.Subscribe(eventsChannel)
+	onUpdateEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	unsubscribeOnUpdateChannel := s.appBroadcaster.SubscribeOnUpdate(onUpdateEventsChannel)
+
+	onDeleteEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	unsubscribeOnDeleteChannel := s.appBroadcaster.SubscribeOnDelete(onDeleteEventsChannel)
+
+	onAddEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	unsubscribeOnAddChannel := s.appBroadcaster.SubscribeOnAdd(onAddEventsChannel)
+
 	ticker := time.NewTicker(5 * time.Second)
-	defer unsubscribe()
+
+	defer unsubscribeOnUpdateChannel()
+	defer unsubscribeOnDeleteChannel()
+	defer unsubscribeOnAddChannel()
+
 	defer ticker.Stop()
 	for {
 		select {
-		case event := <-eventsChannel:
+		case event := <-onAddEventsChannel:
+			logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
+			logCtx.Infof("Received application \"%s\" added event", event.Application)
+			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+			if !shouldProcess {
+				continue
+			}
+			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
+			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+			if err != nil {
+				logCtx.WithError(err).Error("failed to stream application events")
+				if strings.Contains(err.Error(), "context deadline exceeded") {
+					logCtx.Info("Closing event-source connection")
+					cancel()
+					return err
+				}
+			}
+			cancel()
+		case event := <-onDeleteEventsChannel:
+			logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
+			logCtx.Infof("Received application \"%s\" deleted event", event.Application)
+			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+			if !shouldProcess {
+				continue
+			}
+			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
+			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+			if err != nil {
+				logCtx.WithError(err).Error("failed to stream application events")
+				if strings.Contains(err.Error(), "context deadline exceeded") {
+					logCtx.Info("Closing event-source connection")
+					cancel()
+					return err
+				}
+			}
+			cancel()
+		case event := <-onUpdateEventsChannel:
+			logCtx.Infof("OnUpdate channel size is %d", len(onDeleteEventsChannel))
+			logCtx.Infof("Received application \"%s\" update event", event.Application)
 			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 			if !shouldProcess {
 				continue
