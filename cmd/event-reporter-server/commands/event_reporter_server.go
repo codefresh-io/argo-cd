@@ -10,9 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
-	"github.com/argoproj/argo-cd/v2/event_reporter"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
