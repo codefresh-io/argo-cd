@@ -17,7 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/repository"
 	"github.com/argoproj/argo-cd/v2/ui"
 	"github.com/argoproj/argo-cd/v2/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
@@ -119,6 +118,10 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
+	a.userStateStorage.Init(ctx)
+	svcSet := newEventReporterServiceSet(a)
+	a.serviceSet = svcSet
+	go a.Run(ctx)
 	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.serviceSet.MetricsServer)
 	go controller.Run(ctx)
 }
@@ -157,9 +160,6 @@ func (a *EventReporterServer) checkServeErr(name string, err error) {
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
 func (a *EventReporterServer) Run(ctx context.Context) {
-	a.userStateStorage.Init(ctx)
-	svcSet := newEventReporterServiceSet(a)
-	a.serviceSet = svcSet
 	var httpS = a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -236,9 +236,9 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 func newEventReporterServiceSet(a *EventReporterServer) *EventReporterServerSet {
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
 	metricsServer := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
-	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServer)
-	}
+	//if a.RedisClient != nil {
+	//	cacheutil.CollectMetrics(a.RedisClient, metricsServer)
+	//}
 
 	return &EventReporterServerSet{
 		RepoService:   repoService,
