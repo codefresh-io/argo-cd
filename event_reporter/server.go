@@ -4,7 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io/fs"
+	"net/http"
+	"os"
+	"strings"
+	gosync "sync"
+
 	"github.com/argoproj/argo-cd/v2/common"
+	codefresh "github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -25,14 +32,9 @@ import (
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
-	"io/fs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"net/http"
-	"os"
-	"strings"
-	gosync "sync"
 )
 
 const (
@@ -82,6 +84,7 @@ type EventReporterServerOpts struct {
 	ApplicationNamespaces    []string
 	BaseHRef                 string
 	RootPath                 string
+	CodefreshConfig          *codefresh.CodefreshConfig
 }
 
 type handlerSwitcher struct {
@@ -114,7 +117,7 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig)
 	go controller.Run(ctx)
 }
 

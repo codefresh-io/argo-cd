@@ -3,10 +3,12 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/event_reporter"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
@@ -66,6 +68,8 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS      bool
 		staticAssetsDir          string
 		applicationNamespaces    []string
+		codefreshUrl             string
+		codefreshToken           string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -142,7 +146,7 @@ func NewCommand() *cobra.Command {
 				PlainText:  true,
 				AuthToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhZG1pbjpsb2dpbiIsImV4cCI6MTcwMDY1MzkxMCwibmJmIjoxNzAwNTY3NTEwLCJpYXQiOjE3MDA1Njc1MTAsImp0aSI6IjNjNjljZGU4LTIyNTYtNDk4Ny1iNzQxLTAzNGZmYTFmOGYwMiJ9.ZTUyKciOQZU3TMfp6nTN9cyhblBeata6CfDgUAAaLdE",
 			})
-			
+
 			errors.CheckError(err)
 
 			closer, applicationClient, err := applicationClientSet.NewApplicationClient()
@@ -166,6 +170,10 @@ func NewCommand() *cobra.Command {
 				RedisClient:              redisClient,
 				ApplicationNamespaces:    applicationNamespaces,
 				ApplicationServiceClient: applicationClient,
+				CodefreshConfig: &codefresh.CodefreshConfig{
+					BaseURL:   codefreshUrl,
+					AuthToken: codefreshToken,
+				},
 			}
 
 			stats.RegisterStackDumper()
@@ -207,6 +215,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
+	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API url")
+	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
 	})

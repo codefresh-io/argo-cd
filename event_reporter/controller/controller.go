@@ -2,7 +2,12 @@ package controller
 
 import (
 	"context"
+	"math"
+	"strings"
+	"time"
+
 	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -16,9 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
-	"math"
-	"strings"
-	"time"
 )
 
 var (
@@ -42,12 +44,12 @@ type eventReporterController struct {
 	applicationServiceClient applicationpkg.ApplicationServiceClient
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) EventReporterController {
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig) EventReporterController {
 	appBroadcaster := reporter.NewBroadcaster()
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
-		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister),
+		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, codefreshConfig),
 		cache:                    cache,
 		settingsMgr:              settingsMgr,
 		applicationServiceClient: applicationServiceClient,
