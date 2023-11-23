@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"reflect"
+	"strings"
+	"time"
+
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"math"
-	"reflect"
-	"strings"
-	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/argo"
 
@@ -56,11 +57,11 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) ApplicationEventReporter {
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig) ApplicationEventReporter {
 	return &applicationEventReporter{
 		cache:                    cache,
 		applicationServiceClient: applicationServiceClient,
-		codefreshClient:          codefresh.NewCodefreshClient(),
+		codefreshClient:          codefresh.NewCodefreshClient(codefreshConfig),
 		appLister:                appLister,
 	}
 }
@@ -212,7 +213,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
-		if err := s.codefreshClient.Send(appEvent.Payload); err != nil {
+		if err := s.codefreshClient.Send(ctx, appEvent); err != nil {
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
 	}
@@ -343,7 +344,7 @@ func (s *applicationEventReporter) processResource(
 		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
 	}
 
-	if err := s.codefreshClient.Send(ev.Payload); err != nil {
+	if err := s.codefreshClient.Send(ctx, ev); err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			return fmt.Errorf("failed to send resource event: %w", err)
 		}

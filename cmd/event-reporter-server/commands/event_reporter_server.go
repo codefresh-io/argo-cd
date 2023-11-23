@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/argoproj/pkg/stats"
@@ -64,6 +65,8 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS      bool
 		applicationNamespaces    []string
 		argocdToken              string
+		codefreshUrl             string
+		codefreshToken           string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -156,6 +159,10 @@ func NewCommand() *cobra.Command {
 				RedisClient:              redisClient,
 				ApplicationNamespaces:    applicationNamespaces,
 				ApplicationServiceClient: applicationClient,
+				CodefreshConfig: &codefresh.CodefreshConfig{
+					BaseURL:   codefreshUrl,
+					AuthToken: codefreshToken,
+				},
 			}
 
 			stats.RegisterStackDumper()
@@ -193,6 +200,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("EVENT_REPORTER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("EVENT_REPORTER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("EVENT_REPORTER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
+	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API url")
+	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
 	})
