@@ -141,7 +141,7 @@ func NewCommand() *cobra.Command {
 				Insecure:   true,
 				GRPCWeb:    true,
 				PlainText:  true,
-				AuthToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhZG1pbjpsb2dpbiIsImV4cCI6MTcwMDY1MzkxMCwibmJmIjoxNzAwNTY3NTEwLCJpYXQiOjE3MDA1Njc1MTAsImp0aSI6IjNjNjljZGU4LTIyNTYtNDk4Ny1iNzQxLTAzNGZmYTFmOGYwMiJ9.ZTUyKciOQZU3TMfp6nTN9cyhblBeata6CfDgUAAaLdE",
+				AuthToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhZG1pbjpsb2dpbiIsImV4cCI6MTcwMDg0MzM4NiwibmJmIjoxNzAwNzU2OTg2LCJpYXQiOjE3MDA3NTY5ODYsImp0aSI6ImZlMjA1MGU0LWU2ZTgtNDNjYi05MmFmLTU5YzMwOTE4MDMxOCJ9.kIXis4Xf9zPFq6_sK2DVmiTe5x_E0k5VFMzYMtUj01Y",
 			})
 
 			errors.CheckError(err)
