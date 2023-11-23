@@ -5,16 +5,16 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: server
-  name: argocd-server
+  name: event-reporter
 spec:
   ports:
   - name: http
     protocol: TCP
     port: 80
-    targetPort: 8080
+    targetPort: 8088
   - name: https
     protocol: TCP
     port: 443
-    targetPort: 8080
+    targetPort: 8088
   selector:
-    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/name: event-reporter

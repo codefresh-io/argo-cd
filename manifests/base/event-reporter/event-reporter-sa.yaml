@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/name: event-reporter
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: server
-  name: argocd-server
+  name: event-reporter

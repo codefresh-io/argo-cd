@@ -2,25 +2,26 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/name: event-reporter
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: server
-  name: argocd-server
+  name: event-reporter
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: argocd-server
+      app.kubernetes.io/name: event-reporter
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: argocd-server
+        app.kubernetes.io/name: event-reporter
     spec:
-      serviceAccountName: argocd-server
+      serviceAccountName: event-reporter
       containers:
       - name: argocd-server
-        image: quay.io/argoproj/argocd:latest
+        image: docker.io/xeonalex/personal-argocd-dev:reporter-v2
         imagePullPolicy: Always
-        command: [argocd-server]
+        args:
+          - /usr/local/bin/event-reporter-server
         env:
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
@@ -302,7 +303,7 @@ spec:
             podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  app.kubernetes.io/name: argocd-server
+                  app.kubernetes.io/name: event-reporter
               topologyKey: kubernetes.io/hostname
           - weight: 5
             podAffinityTerm:
