@@ -17,18 +17,23 @@ spec:
     spec:
       serviceAccountName: event-reporter
       containers:
-      - name: argocd-server
-        image: docker.io/xeonalex/personal-argocd-dev:reporter-v2
+      - name: event-reporter
+        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v2
         imagePullPolicy: Always
         args:
           - /usr/local/bin/event-reporter-server
         env:
+        - name: ARGOCD_TOKEN
+          valueFrom: 
+             secretKeyRef: 
+               key: token
+               name: argocd-token
         - name: EVENT_REPORTER_INSECURE
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: event-reporter.insecure
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: event-reporter.insecure
+              optional: true
         - name: EVENT_REPORTER_LOGFORMAT
           valueFrom:
               configMapKeyRef:
@@ -84,10 +89,6 @@ spec:
                 key: event-reporter.metrics.listen.address
                 optional: true
         volumeMounts:
-        - name: ssh-known-hosts
-          mountPath: /app/config/ssh
-        - name: tls-certs
-          mountPath: /app/config/tls
         - name: argocd-repo-server-tls
           mountPath: /app/config/server/tls
         - mountPath: /tmp
