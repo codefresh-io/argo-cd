@@ -344,7 +344,7 @@ func (s *applicationEventReporter) processResource(
 		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
 	}
 
-	if err := s.codefreshClient.Send(ev.Payload); err != nil {
+	if err := s.codefreshClient.Send(ctx, ev); err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			return fmt.Errorf("failed to send resource event: %w", err)
 		}
