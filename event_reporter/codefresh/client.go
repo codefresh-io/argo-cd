@@ -3,6 +3,7 @@ package codefresh
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,9 +39,19 @@ func NewCodefreshClient(cfConfig *CodefreshConfig) CodefreshClient {
 
 func (cc *codefreshClient) Send(ctx context.Context, event *events.Event) error {
 	return WithRetry(&DefaultBackoff, func() error {
-		url := cc.cfConfig.BaseURL + "/2.0/api/events/"
-		log.Infof("Sending event from %s", *event.Name)
-		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(event.Payload))
+		url := cc.cfConfig.BaseURL + "/2.0/api/events"
+		log.Info("Sending application event")
+
+		wrappedPayload := map[string]json.RawMessage{
+			"data": event.Payload,
+		}
+
+		newPayloadBytes, err := json.Marshal(wrappedPayload)
+		if err != nil {
+			return err
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(newPayloadBytes))
 		if err != nil {
 			return err
 		}
@@ -61,7 +72,7 @@ func (cc *codefreshClient) Send(ctx context.Context, event *events.Event) error 
 				res.StatusCode, string(b), string(event.Payload))
 		}
 
-		log.Infof("Event from %s successfully sent", *event.Name)
+		log.Infof("Application event successfully sent")
 		return nil
 	})
 }
