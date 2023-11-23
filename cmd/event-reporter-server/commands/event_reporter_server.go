@@ -3,10 +3,11 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/event_reporter"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
@@ -66,6 +67,7 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS      bool
 		staticAssetsDir          string
 		applicationNamespaces    []string
+		argocdToken              string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -140,9 +142,9 @@ func NewCommand() *cobra.Command {
 				Insecure:   true,
 				GRPCWeb:    true,
 				PlainText:  true,
-				AuthToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhZG1pbjpsb2dpbiIsImV4cCI6MTcwMDY1MzkxMCwibmJmIjoxNzAwNTY3NTEwLCJpYXQiOjE3MDA1Njc1MTAsImp0aSI6IjNjNjljZGU4LTIyNTYtNDk4Ny1iNzQxLTAzNGZmYTFmOGYwMiJ9.ZTUyKciOQZU3TMfp6nTN9cyhblBeata6CfDgUAAaLdE",
+				AuthToken:  argocdToken,
 			})
-			
+
 			errors.CheckError(err)
 
 			closer, applicationClient, err := applicationClientSet.NewApplicationClient()
@@ -195,6 +197,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&applicationServerAddress, "application-server", env.StringFromEnv("ARGOCD_SERVER_APPLICATION_SERVER", common.DefaultApplicationServerAddr), "Application server address")
+	command.Flags().StringVar(&argocdToken, "argocd-token", env.StringFromEnv("ARGOCD_TOKEN", ""), "ArgoCD server JWT token")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
