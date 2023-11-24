@@ -7,8 +7,8 @@ import (
 	"time"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -108,6 +108,8 @@ func (c *eventReporterController) Run(ctx context.Context) {
 	defer unsubscribe()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case event := <-eventsChannel:
 			logCtx.Infof("channel size is %d", len(eventsChannel))
 			c.metricsServer.SetQueueSizeCounter(len(eventsChannel))
