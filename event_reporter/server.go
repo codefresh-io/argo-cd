@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
-	gosync "sync"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	codefresh "github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
@@ -26,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
+	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/redis/go-redis/v9"
@@ -34,8 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"net"
-	"time"
 )
 
 const (
@@ -65,12 +65,8 @@ type EventReporterServer struct {
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh        chan struct{}
-	indexDataInit gosync.Once
-	indexData     []byte
-	indexDataErr  error
-	staticAssets  http.FileSystem
-	serviceSet    *EventReporterServerSet
+	stopCh     chan struct{}
+	serviceSet *EventReporterServerSet
 }
 
 type EventReporterServerSet struct {
@@ -103,10 +99,17 @@ type handlerSwitcher struct {
 }
 
 type Listeners struct {
+	Main    net.Listener
 	Metrics net.Listener
 }
 
 func (l *Listeners) Close() error {
+	if l.Main != nil {
+		if err := l.Main.Close(); err != nil {
+			return err
+		}
+		l.Main = nil
+	}
 	if l.Metrics != nil {
 		if err := l.Metrics.Close(); err != nil {
 			return err
@@ -192,11 +195,16 @@ func startListener(host string, port int) (net.Listener, error) {
 }
 
 func (a *EventReporterServer) Listen() (*Listeners, error) {
-	metricsLn, err := startListener(a.ListenHost, a.MetricsPort)
+	mainLn, err := startListener(a.ListenHost, a.ListenPort)
 	if err != nil {
 		return nil, err
 	}
-	return &Listeners{Metrics: metricsLn}, nil
+	metricsLn, err := startListener(a.MetricsHost, a.MetricsPort)
+	if err != nil {
+		io.Close(mainLn)
+		return nil, err
+	}
+	return &Listeners{Main: mainLn, Metrics: metricsLn}, nil
 }
 
 // Run runs the API Server
@@ -209,7 +217,7 @@ func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return a.settings.Certificate, nil
 	}
-	go func() { a.checkServeErr("httpS", httpS.ListenAndServe()) }()
+	go func() { a.checkServeErr("httpS", httpS.Serve(lns.Main)) }()
 	go func() { a.checkServeErr("metrics", a.serviceSet.MetricsServer.Serve(lns.Metrics)) }()
 	go a.RunController(ctx)
 
