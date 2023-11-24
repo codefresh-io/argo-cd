@@ -28,6 +28,17 @@ spec:
              secretKeyRef: 
                key: token
                name: argocd-token
+        - name: CODEFRESH_URL
+          valueFrom:
+            configMapKeyRef:
+              name: codefresh-cm
+              key: base-url
+              optional: true
+        - name: CODEFRESH_TOKEN
+          valueFrom: 
+             secretKeyRef: 
+               key: token
+               name: codefresh-token
         - name: EVENT_REPORTER_INSECURE
           valueFrom:
             configMapKeyRef:
