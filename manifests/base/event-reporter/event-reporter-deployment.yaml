@@ -18,7 +18,7 @@ spec:
       serviceAccountName: event-reporter
       containers:
       - name: event-reporter
-        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v2
+        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v5
         imagePullPolicy: Always
         args:
           - /usr/local/bin/event-reporter-server
@@ -110,14 +110,14 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz?full=true
-            port: 8080
+            port: 8088
           initialDelaySeconds: 3
           periodSeconds: 30
           timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: 8088
           initialDelaySeconds: 3
           periodSeconds: 30
         securityContext:

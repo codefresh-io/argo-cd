@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	watchAPIBufferSize              = 100000
+	watchAPIBufferSize              = 1000
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
@@ -109,6 +109,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			logCtx.Infof("channel size is %d", len(eventsChannel))
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
+				logCtx.Infof("Skipping event %s/%s", event.Application.Name, event.Type)
 				continue
 			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
