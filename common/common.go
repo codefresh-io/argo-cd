@@ -50,7 +50,7 @@ const (
 	DefaultPortArgoCDMetrics              = 8082
 	DefaultPortArgoCDAPIServerMetrics     = 8083
 	DefaultPortRepoServerMetrics          = 8084
-	DefaultPortEventReporterServerMetrics = 8085
+	DefaultPortEventReporterServerMetrics = 8087
 	DefaultPortEventReporterServer        = 8088
 )
 

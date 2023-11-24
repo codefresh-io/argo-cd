@@ -7,6 +7,7 @@ import (
 	"time"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -42,18 +43,20 @@ type eventReporterController struct {
 	ns                       string
 	enabledNamespaces        []string
 	applicationServiceClient applicationpkg.ApplicationServiceClient
+	metricsServer            *metrics.MetricsServer
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig) EventReporterController {
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer) EventReporterController {
 	appBroadcaster := reporter.NewBroadcaster()
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
-		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, codefreshConfig),
+		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, codefreshConfig, metricsServer),
 		cache:                    cache,
 		settingsMgr:              settingsMgr,
 		applicationServiceClient: applicationServiceClient,
 		appLister:                appLister,
+		metricsServer:            metricsServer,
 	}
 }
 
@@ -107,9 +110,11 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		select {
 		case event := <-eventsChannel:
 			logCtx.Infof("channel size is %d", len(eventsChannel))
+			c.metricsServer.SetQueueSizeCounter(len(eventsChannel))
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
 				logCtx.Infof("Skipping event %s/%s", event.Application.Name, event.Type)
+				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType)
 				continue
 			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
