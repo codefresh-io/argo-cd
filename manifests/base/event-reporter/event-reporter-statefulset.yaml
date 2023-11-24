@@ -4,9 +4,10 @@ metadata:
   labels:
     app.kubernetes.io/name: event-reporter
     app.kubernetes.io/part-of: argocd
-    app.kubernetes.io/component: server
+    app.kubernetes.io/component: event-reporter
   name: event-reporter
 spec:
+  replicas: 1
   serviceName: event-reporter
   selector:
     matchLabels:
@@ -110,18 +111,20 @@ spec:
           name: tmp
         ports:
         - containerPort: 8088
-        - containerPort: 8085
+          name: health
+        - containerPort: 8087
+          name: metrics
         livenessProbe:
           httpGet:
             path: /healthz?full=true
-            port: 8088
+            port: health
           initialDelaySeconds: 3
           periodSeconds: 30
           timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 8088
+            port: health
           initialDelaySeconds: 3
           periodSeconds: 30
         securityContext:
