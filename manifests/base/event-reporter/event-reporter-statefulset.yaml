@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   labels:
     app.kubernetes.io/name: event-reporter
@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/component: server
   name: event-reporter
 spec:
+  serviceName: event-reporter
   selector:
     matchLabels:
       app.kubernetes.io/name: event-reporter
@@ -23,6 +24,8 @@ spec:
         args:
           - /usr/local/bin/event-reporter-server
         env:
+        - name: EVENT_REPORTER_REPLICAS
+          value: "1"
         - name: ARGOCD_TOKEN
           valueFrom: 
              secretKeyRef: 
@@ -39,6 +42,7 @@ spec:
              secretKeyRef: 
                key: token
                name: codefresh-token
+        # todo: clean up
         - name: EVENT_REPORTER_INSECURE
           valueFrom:
             configMapKeyRef:

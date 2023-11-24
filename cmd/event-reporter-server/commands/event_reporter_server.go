@@ -67,6 +67,7 @@ func NewCommand() *cobra.Command {
 		argocdToken              string
 		codefreshUrl             string
 		codefreshToken           string
+		shardingAlgorithm        string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -205,6 +206,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("EVENT_REPORTER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API url")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvEventReporterShardingAlgorithm, common.DefaultEventReporterShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy] ")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
 	})

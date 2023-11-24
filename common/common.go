@@ -242,6 +242,12 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
+	// EnvEventReporterShardingAlgorithm is the distribution sharding algorithm to be used: legacy
+	EnvEventReporterShardingAlgorithm = "EVENT_REPORTER_SHARDING_ALGORITHM"
+	// EnvEventReporterReplicas is the number of EventReporter replicas
+	EnvEventReporterReplicas = "EVENT_REPORTER_REPLICAS"
+	// EnvEventReporterShard is the shard number that should be handled by reporter
+	EnvEventReporterShard = "EVENT_REPORTER_SHARD"
 )
 
 // Config Management Plugin related constants
@@ -350,3 +356,9 @@ const TokenVerificationError = "failed to verify the token"
 var TokenVerificationErr = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+// Event reporter constants
+const (
+	EventReporterLegacyShardingAlgorithm  = "legacy"
+	DefaultEventReporterShardingAlgorithm = EventReporterLegacyShardingAlgorithm
+)
