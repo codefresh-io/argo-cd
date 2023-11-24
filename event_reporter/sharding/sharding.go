@@ -2,7 +2,7 @@ package sharding
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"hash/fnv"
 	"math"
@@ -47,7 +47,7 @@ func (s *sharding) GetDistributionFunction(shardingAlgorithm string) Distributio
 }
 
 func (s *sharding) LegacyDistributionFunction() DistributionFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	replicas := env.ParseNumFromEnv(argocommon.EnvEventReporterReplicas, 0, 0, math.MaxInt32)
 	return func(a *v1alpha1.Application) int {
 		if replicas == 0 {
 			return -1

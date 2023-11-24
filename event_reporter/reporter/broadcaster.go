@@ -43,6 +43,7 @@ type broadcasterHandler struct {
 }
 
 func NewBroadcaster() Broadcaster {
+	// todo: pass real value here
 	filter := getApplicationFilter("")
 	return &broadcasterHandler{
 		filter: filter,
@@ -115,9 +116,8 @@ func (b *broadcasterHandler) OnDelete(obj interface{}) {
 func getApplicationFilter(shardingAlgorithm string) sharding.ApplicationFilterFunction {
 	shardingSvc := sharding.NewSharding()
 
-	// TODO: rename
-	replicas := env.ParseNumFromEnv(argocommon.EnvControllerReplicas, 0, 0, math.MaxInt32)
-	shard := env.ParseNumFromEnv(argocommon.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	replicas := env.ParseNumFromEnv(argocommon.EnvEventReporterReplicas, 0, 0, math.MaxInt32)
+	shard := env.ParseNumFromEnv(argocommon.EnvEventReporterShard, -1, -math.MaxInt32, math.MaxInt32)
 	var applicationFilter func(app *appv1.Application) bool
 	if replicas > 1 {
 		if shard < 0 {
