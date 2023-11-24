@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	gosync "sync"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	codefresh "github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
@@ -24,11 +26,13 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
+	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -37,6 +41,13 @@ const (
 	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
 	notObjectErrMsg = "object does not implement the Object interfaces"
 )
+
+var backoff = wait.Backoff{
+	Steps:    5,
+	Duration: 500 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
 
 type EventReporterServer struct {
 	EventReporterServerOpts
@@ -68,6 +79,8 @@ type EventReporterServerSet struct {
 type EventReporterServerOpts struct {
 	ListenPort               int
 	ListenHost               string
+	MetricsPort              int
+	MetricsHost              string
 	Namespace                string
 	KubeClientset            kubernetes.Interface
 	AppClientset             appclientset.Interface
@@ -108,6 +121,27 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 	return nil
 }
 
+type Listeners struct {
+	Main    net.Listener
+	Metrics net.Listener
+}
+
+func (l *Listeners) Close() error {
+	if l.Main != nil {
+		if err := l.Main.Close(); err != nil {
+			return err
+		}
+		l.Main = nil
+	}
+	if l.Metrics != nil {
+		if err := l.Metrics.Close(); err != nil {
+			return err
+		}
+		l.Metrics = nil
+	}
+	return nil
+}
+
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
@@ -144,11 +178,37 @@ func (a *EventReporterServer) checkServeErr(name string, err error) {
 	}
 }
 
+func startListener(host string, port int) (net.Listener, error) {
+	var conn net.Listener
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		if realErr != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	return conn, realErr
+}
+
+func (a *EventReporterServer) Listen() (*Listeners, error) {
+	mainLn, err := startListener(a.ListenHost, a.ListenPort)
+	if err != nil {
+		return nil, err
+	}
+	metricsLn, err := startListener(a.MetricsHost, a.MetricsPort)
+	if err != nil {
+		io.Close(mainLn)
+		return nil, err
+	}
+	return &Listeners{Main: mainLn, Metrics: metricsLn}, nil
+}
+
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *EventReporterServer) Run(ctx context.Context) {
+func (a *EventReporterServer) Run(ctx context.Context, listeners *Listeners) {
 	svcSet := newEventReporterServiceSet(a)
 	a.serviceSet = svcSet
 	var httpS = a.newHTTPServer(ctx, a.ListenPort)
@@ -156,7 +216,7 @@ func (a *EventReporterServer) Run(ctx context.Context) {
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return a.settings.Certificate, nil
 	}
-	go func() { a.checkServeErr("httpS", httpS.ListenAndServe()) }()
+	go func() { a.checkServeErr("httpS", httpS.Serve(listeners.Main)) }()
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}

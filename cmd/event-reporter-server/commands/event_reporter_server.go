@@ -151,6 +151,8 @@ func NewCommand() *cobra.Command {
 			eventReporterServerOpts := event_reporter.EventReporterServerOpts{
 				ListenPort:               listenPort,
 				ListenHost:               listenHost,
+				MetricsHost:              metricsHost,
+				MetricsPort:              metricsPort,
 				Namespace:                namespace,
 				KubeClientset:            kubeclientset,
 				AppClientset:             appClientSet,
@@ -169,12 +171,13 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 			eventReporter := event_reporter.NewEventReporterServer(ctx, eventReporterServerOpts)
+			lns, err := eventReporter.Listen()
 			eventReporter.Init(ctx)
 			errors.CheckError(err)
 			for {
 				var closer func()
 				ctx, cancel := context.WithCancel(ctx)
-				eventReporter.Run(ctx)
+				eventReporter.Run(ctx, lns)
 				cancel()
 				if closer != nil {
 					closer()
