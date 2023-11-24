@@ -25,7 +25,7 @@ type codefreshClient struct {
 }
 
 type CodefreshClient interface {
-	Send(ctx context.Context, event *events.Event) error
+	Send(ctx context.Context, appName string, event *events.Event) error
 }
 
 func NewCodefreshClient(cfConfig *CodefreshConfig) CodefreshClient {
@@ -37,10 +37,10 @@ func NewCodefreshClient(cfConfig *CodefreshConfig) CodefreshClient {
 	}
 }
 
-func (cc *codefreshClient) Send(ctx context.Context, event *events.Event) error {
+func (cc *codefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
 	return WithRetry(&DefaultBackoff, func() error {
 		url := cc.cfConfig.BaseURL + "/2.0/api/events"
-		log.Info("Sending application event")
+		log.Infof("Sending application event for %s", appName)
 
 		wrappedPayload := map[string]json.RawMessage{
 			"data": event.Payload,
@@ -72,7 +72,7 @@ func (cc *codefreshClient) Send(ctx context.Context, event *events.Event) error 
 				res.StatusCode, string(b), string(event.Payload))
 		}
 
-		log.Infof("Application event successfully sent")
+		log.Infof("Application event for %s successfully sent", appName)
 		return nil
 	})
 }

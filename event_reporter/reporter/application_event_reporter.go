@@ -221,7 +221,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
-		if err := s.codefreshClient.Send(ctx, appEvent); err != nil {
+		if err := s.codefreshClient.Send(ctx, a.Name, appEvent); err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType)
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
@@ -360,13 +360,16 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	appRes := appv1.Application{}
+	appName := ""
 	if isApp(rs) && actualState.Manifest != nil && json.Unmarshal([]byte(*actualState.Manifest), &appRes) == nil {
 		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
+		appName = appRes.Name
 	} else {
 		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
+		appName = rs.Name
 	}
 
-	if err := s.codefreshClient.Send(ctx, ev); err != nil {
+	if err := s.codefreshClient.Send(ctx, appName, ev); err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			return fmt.Errorf("failed to send resource event: %w", err)
 		}
