@@ -35,10 +35,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"net"
-	"net/http"
-	"os"
-	"strings"
-	gosync "sync"
 	"time"
 )
 
@@ -144,7 +140,6 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	//a.userStateStorage.Init(ctx)
 	svcSet := newEventReporterServiceSet(a)
 	a.serviceSet = svcSet
 }
@@ -209,8 +204,6 @@ func (a *EventReporterServer) Listen() (*Listeners, error) {
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
 func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
-	svcSet := newEventReporterServiceSet(a)
-	a.serviceSet = svcSet
 	var httpS = a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
