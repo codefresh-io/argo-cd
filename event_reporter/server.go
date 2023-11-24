@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -60,6 +61,7 @@ type EventReporterServerOpts struct {
 	ApplicationNamespaces    []string
 	BaseHRef                 string
 	RootPath                 string
+	CodefreshConfig          *codefresh.CodefreshConfig
 }
 
 type handlerSwitcher struct {
@@ -92,7 +94,7 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig)
 	go controller.Run(ctx)
 }
 
