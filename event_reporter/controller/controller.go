@@ -2,8 +2,13 @@ package controller
 
 import (
 	"context"
+	"math"
+	"strings"
+	"time"
+
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -17,13 +22,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
-	"math"
-	"strings"
-	"time"
 )
 
 var (
-	watchAPIBufferSize              = 100000
+	watchAPIBufferSize              = 1000
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
@@ -44,12 +46,12 @@ type eventReporterController struct {
 	metricsServer            *metrics.MetricsServer
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, metricsServer *metrics.MetricsServer) EventReporterController {
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer) EventReporterController {
 	appBroadcaster := reporter.NewBroadcaster()
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
-		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, metricsServer),
+		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, codefreshConfig, metricsServer),
 		cache:                    cache,
 		settingsMgr:              settingsMgr,
 		applicationServiceClient: applicationServiceClient,
@@ -111,6 +113,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			c.metricsServer.SetQueueSizeCounter(len(eventsChannel))
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
+				logCtx.Infof("Skipping event %s/%s", event.Application.Name, event.Type)
 				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType)
 				continue
 			}
