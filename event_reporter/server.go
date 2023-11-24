@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	gosync "sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	codefresh "github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/server/repository"
 	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
@@ -64,16 +65,13 @@ type EventReporterServer struct {
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh        chan struct{}
-	indexDataInit gosync.Once
-	indexData     []byte
-	indexDataErr  error
-	staticAssets  http.FileSystem
-	serviceSet    *EventReporterServerSet
+	stopCh     chan struct{}
+	serviceSet *EventReporterServerSet
 }
 
 type EventReporterServerSet struct {
-	RepoService *repository.Server
+	RepoService   *repository.Server
+	MetricsServer *metrics.MetricsServer
 }
 
 type EventReporterServerOpts struct {
@@ -100,27 +98,6 @@ type handlerSwitcher struct {
 	contentTypeToHandler map[string]http.Handler
 }
 
-func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
-		urlHandler.ServeHTTP(w, r)
-	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
-		contentHandler.ServeHTTP(w, r)
-	} else {
-		s.handler.ServeHTTP(w, r)
-	}
-}
-
-func (a *EventReporterServer) healthCheck(r *http.Request) error {
-	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-		_, err := argoDB.ListClusters(r.Context())
-		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
-			return err
-		}
-	}
-	return nil
-}
-
 type Listeners struct {
 	Main    net.Listener
 	Metrics net.Listener
@@ -142,10 +119,36 @@ func (l *Listeners) Close() error {
 	return nil
 }
 
+func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
+		urlHandler.ServeHTTP(w, r)
+	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
+		contentHandler.ServeHTTP(w, r)
+	} else {
+		s.handler.ServeHTTP(w, r)
+	}
+}
+
+func (a *EventReporterServer) healthCheck(r *http.Request) error {
+	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
+		_, err := argoDB.ListClusters(r.Context())
+		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
+			return err
+		}
+	}
+	return nil
+}
+
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig)
+	svcSet := newEventReporterServiceSet(a)
+	a.serviceSet = svcSet
+}
+
+func (a *EventReporterServer) RunController(ctx context.Context) {
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer)
 	go controller.Run(ctx)
 }
 
@@ -208,15 +211,16 @@ func (a *EventReporterServer) Listen() (*Listeners, error) {
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *EventReporterServer) Run(ctx context.Context, listeners *Listeners) {
-	svcSet := newEventReporterServiceSet(a)
-	a.serviceSet = svcSet
+func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
 	var httpS = a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return a.settings.Certificate, nil
 	}
-	go func() { a.checkServeErr("httpS", httpS.Serve(listeners.Main)) }()
+	go func() { a.checkServeErr("httpS", httpS.Serve(lns.Main)) }()
+	go func() { a.checkServeErr("metrics", a.serviceSet.MetricsServer.Serve(lns.Metrics)) }()
+	go a.RunController(ctx)
+
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
@@ -255,7 +259,7 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 
-	a := &EventReporterServer{
+	server := &EventReporterServer{
 		EventReporterServerOpts: opts,
 		log:                     log.NewEntry(log.StandardLogger()),
 		settings:                settings,
@@ -274,13 +278,18 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 		log.Warnf("Failed to log in-cluster warnings: %v", err)
 	}
 
-	return a
+	return server
 }
 
 func newEventReporterServiceSet(a *EventReporterServer) *EventReporterServerSet {
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
+	metricsServer := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
+	if a.RedisClient != nil {
+		cacheutil.CollectMetrics(a.RedisClient, metricsServer)
+	}
 
 	return &EventReporterServerSet{
-		RepoService: repoService,
+		RepoService:   repoService,
+		MetricsServer: metricsServer,
 	}
 }
