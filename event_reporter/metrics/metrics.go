@@ -2,7 +2,9 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,7 +20,7 @@ type MetricsServer struct {
 	shard                            string
 	redisRequestCounter              *prometheus.CounterVec
 	redisRequestHistogram            *prometheus.HistogramVec
-	queueSizeCounter                 *prometheus.CounterVec
+	queueSizeCounter                 *prometheus.GaugeVec
 	erroredEventsCounter             *prometheus.CounterVec
 	cachedIgnoredEventsCounter       *prometheus.CounterVec
 	eventProcessingDurationHistogram *prometheus.HistogramVec
@@ -57,8 +59,8 @@ var (
 		},
 		[]string{"initiator"},
 	)
-	queueSizeCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
+	queueSizeCounter = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Name: "cf_e_reporter_queue_size",
 			Help: "Size of application events queue of taked shard.",
 		},
@@ -69,7 +71,7 @@ var (
 			Name: "cf_e_reporter_errored_events",
 			Help: "Total amount of errored events.",
 		},
-		[]string{"reporter_shard", "metric_event_type"},
+		[]string{"reporter_shard", "metric_event_type", "error_type"},
 	)
 	cachedIgnoredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -82,7 +84,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "cf_e_reporter_event_processing_duration",
 			Help:    "Event processing duration.",
-			Buckets: []float64{0.1, 0.25, .5, 1, 2, 3},
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 3, 4, 5, 7, 10, 15, 20},
 		},
 		[]string{"reporter_shard", "metric_event_type"},
 	)
@@ -92,8 +94,8 @@ var (
 func NewMetricsServer(host string, port int) *MetricsServer {
 	mux := http.NewServeMux()
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	registry.MustRegister(collectors.NewGoCollector())
+	//registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	//registry.MustRegister(collectors.NewGoCollector())
 
 	mux.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{
 		registry,
@@ -109,12 +111,14 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(cachedIgnoredEventsCounter)
 	registry.MustRegister(eventProcessingDurationHistogram)
 
+	shard := env.ParseInt64FromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", host, port),
 			Handler: mux,
 		},
-		shard:                            strconv.FormatInt(1, 10),
+		shard:                            strconv.FormatInt(shard, 10),
 		queueSizeCounter:                 queueSizeCounter,
 		erroredEventsCounter:             erroredEventsCounter,
 		cachedIgnoredEventsCounter:       cachedIgnoredEventsCounter,
@@ -131,8 +135,8 @@ func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues("argocd-server").Observe(duration.Seconds())
 }
 
-func (m *MetricsServer) IncQueueSizeCounter() {
-	m.queueSizeCounter.WithLabelValues(m.shard).Inc()
+func (m *MetricsServer) SetQueueSizeCounter(size int) {
+	m.queueSizeCounter.WithLabelValues(m.shard).Set(float64(size))
 }
 
 func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType) {

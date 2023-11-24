@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/repository"
 	"github.com/argoproj/argo-cd/v2/ui"
 	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
@@ -28,18 +29,28 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/fs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	gosync "sync"
+	"time"
 )
 
 const (
 	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
 	notObjectErrMsg = "object does not implement the Object interfaces"
 )
+
+var backoff = wait.Backoff{
+	Steps:    5,
+	Duration: 500 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
 
 type EventReporterServer struct {
 	EventReporterServerOpts
@@ -94,6 +105,20 @@ type handlerSwitcher struct {
 	contentTypeToHandler map[string]http.Handler
 }
 
+type Listeners struct {
+	Metrics net.Listener
+}
+
+func (l *Listeners) Close() error {
+	if l.Metrics != nil {
+		if err := l.Metrics.Close(); err != nil {
+			return err
+		}
+		l.Metrics = nil
+	}
+	return nil
+}
+
 func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
 		urlHandler.ServeHTTP(w, r)
@@ -121,7 +146,9 @@ func (a *EventReporterServer) Init(ctx context.Context) {
 	a.userStateStorage.Init(ctx)
 	svcSet := newEventReporterServiceSet(a)
 	a.serviceSet = svcSet
-	go a.Run(ctx)
+}
+
+func (a *EventReporterServer) RunController(ctx context.Context) {
 	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.serviceSet.MetricsServer)
 	go controller.Run(ctx)
 }
@@ -155,17 +182,41 @@ func (a *EventReporterServer) checkServeErr(name string, err error) {
 	}
 }
 
+func startListener(host string, port int) (net.Listener, error) {
+	var conn net.Listener
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		if realErr != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	return conn, realErr
+}
+
+func (a *EventReporterServer) Listen() (*Listeners, error) {
+	metricsLn, err := startListener(a.ListenHost, a.MetricsPort)
+	if err != nil {
+		return nil, err
+	}
+	return &Listeners{Metrics: metricsLn}, nil
+}
+
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *EventReporterServer) Run(ctx context.Context) {
+func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
 	var httpS = a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return a.settings.Certificate, nil
 	}
 	go func() { a.checkServeErr("httpS", httpS.ListenAndServe()) }()
+	go func() { a.checkServeErr("metrics", a.serviceSet.MetricsServer.Serve(lns.Metrics)) }()
+	go a.RunController(ctx)
+
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
@@ -208,7 +259,7 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 
-	a := &EventReporterServer{
+	server := &EventReporterServer{
 		EventReporterServerOpts: opts,
 		log:                     log.NewEntry(log.StandardLogger()),
 		settings:                settings,
@@ -230,15 +281,15 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 		log.Warnf("Failed to log in-cluster warnings: %v", err)
 	}
 
-	return a
+	return server
 }
 
 func newEventReporterServiceSet(a *EventReporterServer) *EventReporterServerSet {
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
 	metricsServer := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
-	//if a.RedisClient != nil {
-	//	cacheutil.CollectMetrics(a.RedisClient, metricsServer)
-	//}
+	if a.RedisClient != nil {
+		cacheutil.CollectMetrics(a.RedisClient, metricsServer)
+	}
 
 	return &EventReporterServerSet{
 		RepoService:   repoService,
