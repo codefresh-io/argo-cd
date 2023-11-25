@@ -111,7 +111,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(cachedIgnoredEventsCounter)
 	registry.MustRegister(eventProcessingDurationHistogram)
 
-	shard := env.ParseInt64FromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	shard := env.ParseInt64FromEnv(common.EnvEventReporterShard, -1, -math.MaxInt32, math.MaxInt32)
 
 	return &MetricsServer{
 		Server: &http.Server{
