@@ -16,7 +16,7 @@ import (
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr        = "argo-cd-repo-server:8081"
-	DefaultApplicationServerAddr = "argo-cd-server:8080"
+	DefaultApplicationServerAddr = "argo-cd-server:80"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address

@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/component: event-reporter
   name: event-reporter
 spec:
-  replicas: 1
+  replicas: 5
   serviceName: event-reporter
   selector:
     matchLabels:
@@ -20,13 +20,13 @@ spec:
       serviceAccountName: event-reporter
       containers:
       - name: event-reporter
-        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v5
+        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v10
         imagePullPolicy: Always
         args:
           - /usr/local/bin/event-reporter-server
         env:
         - name: EVENT_REPORTER_REPLICAS
-          value: "1"
+          value: "5"
         - name: ARGOCD_TOKEN
           valueFrom: 
              secretKeyRef: 

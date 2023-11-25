@@ -17,7 +17,7 @@ import (
 var osHostnameFunction = os.Hostname
 
 type DistributionFunction func(c *v1alpha1.Application) int
-type ApplicationFilterFunction func(c *v1alpha1.Application) bool
+type ApplicationFilterFunction func(c *v1alpha1.Application) (bool, int)
 
 type Sharding interface {
 	GetApplicationFilter(distributionFunction DistributionFunction, shard int) ApplicationFilterFunction
@@ -32,9 +32,10 @@ func NewSharding() Sharding {
 }
 
 func (s *sharding) GetApplicationFilter(distributionFunction DistributionFunction, shard int) ApplicationFilterFunction {
-	return func(app *v1alpha1.Application) bool {
+	return func(app *v1alpha1.Application) (bool, int) {
+		expectedShard := distributionFunction(app)
 		// TODO: [reporter] provide ability define label with shard number
-		return distributionFunction(app) == shard
+		return expectedShard == shard, expectedShard
 	}
 }
 
@@ -84,4 +85,18 @@ func InferShard() (int, error) {
 		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
 	}
 	return int(shard), nil
+}
+
+func GetShardNumber() int {
+	shard := env.ParseNumFromEnv(argocommon.EnvEventReporterShard, -1, -math.MaxInt32, math.MaxInt32)
+
+	if shard < 0 {
+		var err error
+		shard, err = InferShard()
+		if err != nil {
+			return -1
+		}
+	}
+
+	return shard
 }

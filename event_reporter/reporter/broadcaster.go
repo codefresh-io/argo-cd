@@ -4,7 +4,6 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"math"
 	"sync"
 
@@ -58,9 +57,12 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	subscribers = append(subscribers, b.subscribers...)
 	b.lock.Unlock()
 
-	if b.filter != nil && !b.filter(&event.Application) {
-		log.Info("filtering application, wrong shard")
-		return
+	if b.filter != nil {
+		result, expectedShard := b.filter(&event.Application)
+		if !result {
+			log.Infof("filtering application \"%s\", wrong shard, should be %d", event.Application.Name, expectedShard)
+			return
+		}
 	}
 
 	for _, s := range subscribers {
@@ -115,16 +117,10 @@ func (b *broadcasterHandler) OnDelete(obj interface{}) {
 
 func getApplicationFilter(shardingAlgorithm string) sharding.ApplicationFilterFunction {
 	shardingSvc := sharding.NewSharding()
-
 	replicas := env.ParseNumFromEnv(argocommon.EnvEventReporterReplicas, 0, 0, math.MaxInt32)
-	shard := env.ParseNumFromEnv(argocommon.EnvEventReporterShard, -1, -math.MaxInt32, math.MaxInt32)
-	var applicationFilter func(app *appv1.Application) bool
+	var applicationFilter func(app *appv1.Application) (bool, int)
 	if replicas > 1 {
-		if shard < 0 {
-			var err error
-			shard, err = sharding.InferShard()
-			errors.CheckError(err)
-		}
+		shard := sharding.GetShardNumber()
 		log.Infof("Processing applications from shard %d", shard)
 		log.Infof("Using filter function:  %s", shardingAlgorithm)
 		distributionFunction := shardingSvc.GetDistributionFunction(shardingAlgorithm)

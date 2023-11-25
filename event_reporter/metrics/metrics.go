@@ -2,9 +2,7 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"math"
+	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	"net/http"
 	"strconv"
 	"time"
@@ -111,14 +109,14 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(cachedIgnoredEventsCounter)
 	registry.MustRegister(eventProcessingDurationHistogram)
 
-	shard := env.ParseInt64FromEnv(common.EnvEventReporterShard, -1, -math.MaxInt32, math.MaxInt32)
+	shard := sharding.GetShardNumber()
 
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", host, port),
 			Handler: mux,
 		},
-		shard:                            strconv.FormatInt(shard, 10),
+		shard:                            strconv.FormatInt(int64(shard), 10),
 		queueSizeCounter:                 queueSizeCounter,
 		erroredEventsCounter:             erroredEventsCounter,
 		cachedIgnoredEventsCounter:       cachedIgnoredEventsCounter,
