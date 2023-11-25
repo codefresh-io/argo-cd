@@ -148,8 +148,30 @@ func (a *EventReporterServer) Init(ctx context.Context) {
 }
 
 func (a *EventReporterServer) RunController(ctx context.Context) {
+	running := false
+	controllerCtx, cancel := context.WithCancel(ctx)
 	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer)
-	go controller.Run(ctx)
+	tick := time.Tick(5 * time.Second)
+
+	for {
+		select {
+		case <-tick:
+			{
+				rVersion, err := a.settingsMgr.GetCodefreshReporterVersion()
+				if !running && rVersion == string(settings_util.CodefreshV2ReporterVersion) {
+					controllerCtx, cancel = context.WithCancel(ctx)
+					log.Warnf("Reporter parameter (%s) detected - starting controller", rVersion)
+					go controller.Run(controllerCtx)
+					running = true
+				}
+				if running == true && err == nil && isOldReporterVersion(rVersion) {
+					log.Warnf("Stopping reporter because version param changed to %s or missing", settings_util.CodefreshV1ReporterVersion)
+					cancel()
+					running = false
+				}
+			}
+		}
+	}
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
@@ -227,6 +249,10 @@ func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
 
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
+}
+
+func isOldReporterVersion(reporterVersion string) bool {
+	return reporterVersion == "" || reporterVersion == string(settings_util.CodefreshV1ReporterVersion)
 }
 
 // NewServer returns a new instance of the Argo CD API server

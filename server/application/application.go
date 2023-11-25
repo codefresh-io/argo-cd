@@ -1121,6 +1121,12 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-eventsChannel:
+			rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
+			if rVersion == string(settings.CodefreshV2ReporterVersion) {
+				logCtx.Info("v1 reported disabled skipping event")
+				continue
+			}
+
 			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 			if !shouldProcess {
 				continue
