@@ -170,14 +170,19 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		logCtx.WithError(err).Warn("failed to get application tree, resuming")
 	}
 
+	logCtx.Info("getting desired manifests")
+
 	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
 	if err != nil {
 		return err
 	}
 
+	logCtx.Info("getting parent application name")
+
 	parentAppName := getParentAppName(a, appInstanceLabelKey, trackingMethod)
 
 	if isChildApp(parentAppName) {
+		logCtx.Info("processing as child application")
 		parentApplicationEntity, err := s.applicationServiceClient.Get(ctx, &application.ApplicationQuery{
 			Name: &parentAppName,
 		})
@@ -202,16 +207,17 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
-			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType)
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
 		}
 		reconcileDuration := time.Since(startTime)
 		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricChildAppEventType, reconcileDuration)
 	} else {
+		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
-			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType)
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
 
@@ -222,7 +228,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
 		if err := s.codefreshClient.Send(ctx, a.Name, appEvent); err != nil {
-			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType)
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType, a.Name)
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
 		reconcileDuration := time.Since(startTime)
@@ -239,7 +245,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		startTime := time.Now()
 		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, appTree, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
-			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType)
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
 		}
 		reconcileDuration := time.Since(startTime)
@@ -309,7 +315,7 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	if !ignoreResourceCache && !s.shouldSendResourceEvent(parentApplication, rs) {
-		s.metricsServer.IncCachedIgnoredEventsCounter(metricsEventType)
+		s.metricsServer.IncCachedIgnoredEventsCounter(metricsEventType, parentApplication.Name)
 		return nil
 	}
 
@@ -334,7 +340,7 @@ func (s *applicationEventReporter) processResource(
 				return fmt.Errorf("failed to get actual state: %w", err)
 			}
 
-			s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventUnknownErrorType)
+			s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventUnknownErrorType, parentApplication.Name)
 			logCtx.WithError(err).Warn("failed to get actual state, resuming")
 			return nil
 		}
@@ -354,7 +360,7 @@ func (s *applicationEventReporter) processResource(
 
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
-		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType)
+		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, parentApplication.Name)
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
 	}
@@ -374,7 +380,7 @@ func (s *applicationEventReporter) processResource(
 			return fmt.Errorf("failed to send resource event: %w", err)
 		}
 
-		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventDeliveryErrorType)
+		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventDeliveryErrorType, appName)
 		logCtx.WithError(err).Warn("failed to send resource event, resuming")
 		return nil
 	}

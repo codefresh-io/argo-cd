@@ -69,14 +69,14 @@ var (
 			Name: "cf_e_reporter_errored_events",
 			Help: "Total amount of errored events.",
 		},
-		[]string{"reporter_shard", "metric_event_type", "error_type"},
+		[]string{"reporter_shard", "metric_event_type", "error_type", "application"},
 	)
 	cachedIgnoredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "cf_e_reporter_cached_ignored_events",
 			Help: "Total number of ignored events because of cache.",
 		},
-		[]string{"reporter_shard", "metric_event_type"},
+		[]string{"reporter_shard", "metric_event_type", "application"},
 	)
 	eventProcessingDurationHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -137,12 +137,12 @@ func (m *MetricsServer) SetQueueSizeCounter(size int) {
 	m.queueSizeCounter.WithLabelValues(m.shard).Set(float64(size))
 }
 
-func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType) {
-	m.erroredEventsCounter.WithLabelValues(m.shard, string(metricEventType), string(errorType)).Inc()
+func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType, application string) {
+	m.erroredEventsCounter.WithLabelValues(m.shard, string(metricEventType), string(errorType), application).Inc()
 }
 
-func (m *MetricsServer) IncCachedIgnoredEventsCounter(metricEventType MetricEventType) {
-	m.cachedIgnoredEventsCounter.WithLabelValues(m.shard, string(metricEventType)).Inc()
+func (m *MetricsServer) IncCachedIgnoredEventsCounter(metricEventType MetricEventType, application string) {
+	m.cachedIgnoredEventsCounter.WithLabelValues(m.shard, string(metricEventType), application).Inc()
 }
 
 func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(metricEventType MetricEventType, duration time.Duration) {

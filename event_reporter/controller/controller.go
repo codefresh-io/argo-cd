@@ -116,7 +116,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
 				logCtx.Infof("Skipping event %s/%s", event.Application.Name, event.Type)
-				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType)
+				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType, event.Application.Name)
 				continue
 			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
