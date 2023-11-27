@@ -16,8 +16,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
@@ -37,11 +35,9 @@ type eventReporterController struct {
 	settingsMgr              *settings.SettingsManager
 	appBroadcaster           reporter.Broadcaster
 	applicationEventReporter reporter.ApplicationEventReporter
-	enf                      *rbac.Enforcer
 	cache                    *servercache.Cache
 	appLister                applisters.ApplicationLister
 	ns                       string
-	enabledNamespaces        []string
 	applicationServiceClient applicationpkg.ApplicationServiceClient
 	metricsServer            *metrics.MetricsServer
 }
@@ -58,18 +54,6 @@ func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *se
 		appLister:                appLister,
 		metricsServer:            metricsServer,
 	}
-}
-
-func (c *eventReporterController) appNamespaceOrDefault(appNs string) string {
-	if appNs == "" {
-		return c.ns
-	} else {
-		return appNs
-	}
-}
-
-func (c *eventReporterController) isNamespaceEnabled(namespace string) bool {
-	return security.IsNamespaceEnabled(namespace, c.ns, c.enabledNamespaces)
 }
 
 func (c *eventReporterController) Run(ctx context.Context) {
