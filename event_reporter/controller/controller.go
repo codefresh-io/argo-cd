@@ -37,7 +37,6 @@ type eventReporterController struct {
 	applicationEventReporter reporter.ApplicationEventReporter
 	cache                    *servercache.Cache
 	appLister                applisters.ApplicationLister
-	ns                       string
 	applicationServiceClient applicationpkg.ApplicationServiceClient
 	metricsServer            *metrics.MetricsServer
 }

@@ -27,14 +27,11 @@ func (f *FeatureManager) setShouldRun() {
 
 func (f *FeatureManager) Watch() {
 	f.setShouldRun()
+	// nolint:staticcheck
 	tick := time.Tick(5 * time.Second)
 	for {
-		select {
-		case <-tick:
-			{
-				f.setShouldRun()
-			}
-		}
+		<-tick
+		f.setShouldRun()
 	}
 }
 
