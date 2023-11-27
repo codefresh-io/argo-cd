@@ -40,7 +40,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // as a filter. When getting a single application, you may specify either zero or one project. If you specify zero
 // projects, the application will be returned regardless of which project it belongs to (assuming you have access). If
 // you specify one project, the application will only be returned if it exists and belongs to the specified project.
-// Otherwise you will receive a 404./Users/xeonalex/go/src/github.com/argoproj/argo-cd/pkg/apiclient/application/application.pb.go
+// Otherwise you will receive a 404.
 type ApplicationQuery struct {
 	// the application's name
 	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
