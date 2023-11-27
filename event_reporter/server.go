@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	codefresh "github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
+	"github.com/argoproj/argo-cd/v2/event_reporter/handlers"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -187,6 +188,10 @@ func (a *EventReporterServer) newHTTPServer(ctx context.Context, port int) *http
 	}
 
 	healthz.ServeHealthCheck(mux, a.healthCheck)
+
+	rH := handlers.GetRequestHandlers(a.ApplicationServiceClient)
+	mux.HandleFunc("/app-distribution", rH.GetAppDistribution)
+
 	return &httpS
 }
 
