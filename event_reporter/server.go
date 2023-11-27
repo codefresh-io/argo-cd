@@ -3,10 +3,12 @@ package event_reporter
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	codefresh "github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
+	sharding "github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -187,6 +190,9 @@ func (a *EventReporterServer) newHTTPServer(ctx context.Context, port int) *http
 	}
 
 	healthz.ServeHealthCheck(mux, a.healthCheck)
+
+	mux.HandleFunc("/app-distribution", a.getAppDistribution)
+
 	return &httpS
 }
 
@@ -200,6 +206,66 @@ func (a *EventReporterServer) checkServeErr(name string, err error) {
 		}
 	} else {
 		log.Infof("graceful shutdown %s", name)
+	}
+}
+
+func (a *EventReporterServer) getAppDistribution(w http.ResponseWriter, r *http.Request) {
+	shardings := []string{""}
+	shardingsParam := r.URL.Query().Get("shardings")
+	if shardingsParam != "" {
+		shardings = strings.Split(shardingsParam, ",")
+	}
+
+	apps, err := a.ApplicationServiceClient.List(r.Context(), &applicationpkg.ApplicationQuery{})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	shardingInstance := sharding.NewSharding()
+
+	type ShardingAlgorithmData struct {
+		Distribution map[string]int `json:"distribution"`
+		Apps         map[string]int `json:"apps"`
+	}
+
+	res := map[string]ShardingAlgorithmData{}
+
+	for _, shardingAlgorithm := range shardings {
+		distributionMap := make(map[string]int)
+		appsMap := make(map[string]int)
+		distributionFunction := shardingInstance.GetDistributionFunction(shardingAlgorithm)
+
+		for _, app := range apps.Items {
+			expectedShard := distributionFunction(&app)
+			distributionMap[strconv.Itoa(expectedShard)] += 1
+			appsMap[app.QualifiedName()] = expectedShard
+		}
+
+		shardingAlgorithmDisplayName := shardingAlgorithm
+		if shardingAlgorithm == "" {
+			shardingAlgorithmDisplayName = "default"
+		}
+
+		res[shardingAlgorithmDisplayName] = ShardingAlgorithmData{
+			Distribution: distributionMap,
+			Apps:         appsMap,
+		}
+	}
+
+	jsonBytes, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(jsonBytes)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
