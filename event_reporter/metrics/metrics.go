@@ -92,8 +92,6 @@ var (
 func NewMetricsServer(host string, port int) *MetricsServer {
 	mux := http.NewServeMux()
 	registry := prometheus.NewRegistry()
-	//registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	//registry.MustRegister(collectors.NewGoCollector())
 
 	mux.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{
 		registry,

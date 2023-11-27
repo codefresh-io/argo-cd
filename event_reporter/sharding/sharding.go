@@ -57,7 +57,6 @@ func (s *sharding) LegacyDistributionFunction() DistributionFunction {
 			return 0
 		}
 		id := a.Name
-		log.Debugf("Calculating application shard for cluster id: %s", id)
 		if id == "" {
 			return 0
 		} else {

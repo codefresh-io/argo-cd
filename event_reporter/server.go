@@ -66,7 +66,7 @@ type EventReporterServer struct {
 	appLister      applisters.ApplicationLister
 	db             db.ArgoDB
 
-	// stopCh is the channel which when closed, will shutdown the Argo CD server
+	// stopCh is the channel which when closed, will shutdown the Event Reporter server
 	stopCh         chan struct{}
 	serviceSet     *EventReporterServerSet
 	featureManager *reporter.FeatureManager
@@ -237,7 +237,7 @@ func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
 	<-a.stopCh
 }
 
-// NewServer returns a new instance of the Argo CD API server
+// NewServer returns a new instance of the Event Reporter server
 func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *EventReporterServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(true)

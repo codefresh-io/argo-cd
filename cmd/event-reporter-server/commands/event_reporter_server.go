@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	failureRetryCountEnv              = "ARGOCD_K8S_RETRY_COUNT"
-	failureRetryPeriodMilliSecondsEnv = "ARGOCD_K8S_RETRY_DURATION_MILLISECONDS"
+	failureRetryCountEnv              = "EVENT_REPORTER_K8S_RETRY_COUNT"
+	failureRetryPeriodMilliSecondsEnv = "EVENT_REPORTE_K8S_RETRY_DURATION_MILLISECONDS"
 )
 
 var (
@@ -45,7 +45,7 @@ func init() {
 	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
 }
 
-// NewCommand returns a new instance of an argocd command
+// NewCommand returns a new instance of an event reporter command
 func NewCommand() *cobra.Command {
 	var (
 		redisClient              *redis.Client
@@ -70,10 +70,9 @@ func NewCommand() *cobra.Command {
 		shardingAlgorithm        string
 	)
 	var command = &cobra.Command{
-		Use:   cliName,
-		Short: "Run the Event Reporter server",
-		// TODO: [Event Reporter] change description
-		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
+		Use:               cliName,
+		Short:             "Run the Event Reporter server",
+		Long:              "The Event reporter is a server that listens to Kubernetes events and reports them to the Codefresh server.",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
