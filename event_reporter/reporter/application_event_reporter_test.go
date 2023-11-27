@@ -3,7 +3,9 @@ package reporter
 import (
 	"context"
 	"encoding/json"
-	application2 "github.com/argoproj/argo-cd/v2/server/application"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"net/http"
 	"testing"
 	"time"
 
@@ -13,18 +15,13 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
-
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/test"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
@@ -35,8 +32,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	repoApiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+)
+
+const (
+	testNamespace = "default"
 )
 
 func TestGetResourceEventPayload(t *testing.T) {
@@ -44,14 +45,13 @@ func TestGetResourceEventPayload(t *testing.T) {
 
 		app := v1alpha1.Application{}
 		rs := v1alpha1.ResourceStatus{}
-		es := events.EventSource{}
 
 		man := "{ \"key\" : \"manifest\" }"
 
 		actualState := application.ApplicationResourceResponse{
 			Manifest: &man,
 		}
-		desiredState := apiclient.Manifest{
+		desiredState := repoApiclient.Manifest{
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
 		}
 		appTree := v1alpha1.ApplicationTree{}
@@ -61,7 +61,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
+		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -82,12 +82,11 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Status: v1alpha1.ApplicationStatus{},
 		}
 		rs := v1alpha1.ResourceStatus{}
-		es := events.EventSource{}
 		man := "{ \"key\" : \"manifest\" }"
 		actualState := application.ApplicationResourceResponse{
 			Manifest: &man,
 		}
-		desiredState := apiclient.Manifest{
+		desiredState := repoApiclient.Manifest{
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
 		}
 		appTree := v1alpha1.ApplicationTree{}
@@ -97,7 +96,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
+		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -215,14 +214,25 @@ func newAppLister(objects ...runtime.Object) applisters.ApplicationLister {
 	return appLister
 }
 
-func fakeServer() *application2.Server {
-	cm := test.NewFakeConfigMap()
-	secret := test.NewFakeSecret()
-	kubeclientset := fake.NewSimpleClientset(cm, secret)
-	appClientSet := apps.NewSimpleClientset()
+type MockcodefreshClient interface {
+	Send(ctx context.Context, appName string, event *events.Event) error
+}
 
-	appInformer := appinformers.NewApplicationInformer(appClientSet, "", time.Minute, cache.Indexers{})
+type MockCodefreshConfig struct {
+	BaseURL   string
+	AuthToken string
+}
 
+type MockCodefreshClient struct {
+	cfConfig   *MockCodefreshConfig
+	httpClient *http.Client
+}
+
+func (cc *MockCodefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
+	return nil
+}
+
+func fakeReporter() *applicationEventReporter {
 	guestbookApp := &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
@@ -230,7 +240,7 @@ func fakeServer() *application2.Server {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
-			Namespace: application2.testNamespace,
+			Namespace: testNamespace,
 		},
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
@@ -259,7 +269,6 @@ func fakeServer() *application2.Server {
 	}
 
 	appLister := newAppLister(guestbookApp)
-	// _, _ := test.NewInMemoryRedis()
 
 	cache := servercache.NewCache(
 		appstatecache.NewCache(
@@ -271,17 +280,34 @@ func fakeServer() *application2.Server {
 		1*time.Minute,
 	)
 
-	server, _ := application2.NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, nil, cache, nil, nil, nil, nil, nil, nil, nil)
-	return server.(*application2.Server)
+	cfClient := &MockCodefreshClient{
+		cfConfig: &MockCodefreshConfig{
+			BaseURL:   "",
+			AuthToken: "",
+		},
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+
+	metricsServ := metrics.NewMetricsServer("", 8099)
+	closer, cdClient, _ := apiclient.NewClientOrDie(&apiclient.ClientOptions{
+		ServerAddr: "site.com",
+	}).NewApplicationClient()
+	defer io.Close(closer)
+
+	return &applicationEventReporter{
+		cache,
+		cfClient,
+		appLister,
+		cdClient,
+		metricsServ,
+	}
 }
 
 func TestShouldSendEvent(t *testing.T) {
-	serverInstance := fakeServer()
+	eventReporter := fakeReporter()
 	t.Run("should send because cache is missing", func(t *testing.T) {
-		eventReporter := applicationEventReporter{
-			server: serverInstance,
-		}
-
 		app := &v1alpha1.Application{}
 		rs := v1alpha1.ResourceStatus{}
 
@@ -290,28 +316,20 @@ func TestShouldSendEvent(t *testing.T) {
 	})
 
 	t.Run("should not send - same entities", func(t *testing.T) {
-		eventReporter := applicationEventReporter{
-			server: serverInstance,
-		}
-
 		app := &v1alpha1.Application{}
 		rs := v1alpha1.ResourceStatus{}
 
-		_ = eventReporter.server.cache.SetLastResourceEvent(app, rs, time.Minute, "")
+		_ = eventReporter.cache.SetLastResourceEvent(app, rs, time.Minute, "")
 
 		res := eventReporter.shouldSendResourceEvent(app, rs)
 		assert.False(t, res)
 	})
 
 	t.Run("should send - different entities", func(t *testing.T) {
-		eventReporter := applicationEventReporter{
-			server: serverInstance,
-		}
-
 		app := &v1alpha1.Application{}
 		rs := v1alpha1.ResourceStatus{}
 
-		_ = eventReporter.server.cache.SetLastResourceEvent(app, rs, time.Minute, "")
+		_ = eventReporter.cache.SetLastResourceEvent(app, rs, time.Minute, "")
 
 		rs.Status = v1alpha1.SyncStatusCodeOutOfSync
 
@@ -332,19 +350,14 @@ func (m *MockEventing_StartEventSourceServer) Send(event *events.Event) error {
 }
 
 func TestStreamApplicationEvent(t *testing.T) {
-	serverInstance := fakeServer()
+	eventReporter := fakeReporter()
 	t.Run("root application", func(t *testing.T) {
-		eventReporter := applicationEventReporter{
-			server: serverInstance,
-		}
-
 		app := &v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "argoproj.io/v1alpha1",
 				Kind:       "Application",
 			},
 		}
-		name := "name"
 
 		result = func(event *events.Event) error {
 			var payload events.EventPayload
@@ -355,8 +368,7 @@ func TestStreamApplicationEvent(t *testing.T) {
 			assert.Equal(t, *app, actualApp)
 			return nil
 		}
-
-		_ = eventReporter.streamApplicationEvents(context.Background(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
+		_ = eventReporter.StreamApplicationEvents(context.Background(), app, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
 	})
 
 }
@@ -364,19 +376,18 @@ func TestStreamApplicationEvent(t *testing.T) {
 func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	app := v1alpha1.Application{}
 	rs := v1alpha1.ResourceStatus{}
-	es := events.EventSource{}
 
 	mf := "{ \"key\" : \"manifest\" }"
 
 	actualState := application.ApplicationResourceResponse{
 		Manifest: &mf,
 	}
-	desiredState := apiclient.Manifest{
+	desiredState := repoApiclient.Manifest{
 		CompiledManifest: "{ \"key\" : \"manifest\" }",
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
+	_, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
 	assert.NoError(t, err)
 
 }
