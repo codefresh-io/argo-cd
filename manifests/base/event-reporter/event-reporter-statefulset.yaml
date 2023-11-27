@@ -20,7 +20,7 @@ spec:
       serviceAccountName: event-reporter
       containers:
       - name: event-reporter
-        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v13
+        image: docker.io/xeonalex/personal-argocd-dev:reporting-v2-test-v20
         imagePullPolicy: Always
         args:
           - /usr/local/bin/event-reporter-server

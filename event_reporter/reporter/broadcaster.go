@@ -36,16 +36,18 @@ type Broadcaster interface {
 }
 
 type broadcasterHandler struct {
-	lock        sync.Mutex
-	subscribers []*subscriber
-	filter      sharding.ApplicationFilterFunction
+	lock           sync.Mutex
+	subscribers    []*subscriber
+	filter         sharding.ApplicationFilterFunction
+	featureManager *FeatureManager
 }
 
-func NewBroadcaster() Broadcaster {
+func NewBroadcaster(featureManager *FeatureManager) Broadcaster {
 	// todo: pass real value here
 	filter := getApplicationFilter("")
 	return &broadcasterHandler{
-		filter: filter,
+		filter:         filter,
+		featureManager: featureManager,
 	}
 }
 
@@ -56,6 +58,11 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	b.lock.Lock()
 	subscribers = append(subscribers, b.subscribers...)
 	b.lock.Unlock()
+
+	if !b.featureManager.ShouldReporterRun() {
+		log.Infof("filtering application '%s', event reporting is turned off and old one is in use", event.Application.Name)
+		return
+	}
 
 	if b.filter != nil {
 		result, expectedShard := b.filter(&event.Application)

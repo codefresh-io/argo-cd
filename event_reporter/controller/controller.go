@@ -46,8 +46,8 @@ type eventReporterController struct {
 	metricsServer            *metrics.MetricsServer
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer) EventReporterController {
-	appBroadcaster := reporter.NewBroadcaster()
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, featureManager *reporter.FeatureManager) EventReporterController {
+	appBroadcaster := reporter.NewBroadcaster(featureManager)
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,

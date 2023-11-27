@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"net"
 	"net/http"
 	"os"
@@ -66,8 +67,9 @@ type EventReporterServer struct {
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh     chan struct{}
-	serviceSet *EventReporterServerSet
+	stopCh         chan struct{}
+	serviceSet     *EventReporterServerSet
+	featureManager *reporter.FeatureManager
 }
 
 type EventReporterServerSet struct {
@@ -144,35 +146,14 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
+	go a.featureManager.Watch()
 	svcSet := newEventReporterServiceSet(a)
 	a.serviceSet = svcSet
 }
 
 func (a *EventReporterServer) RunController(ctx context.Context) {
-	running := false
-	controllerCtx, cancel := context.WithCancel(ctx)
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer)
-	tick := time.Tick(5 * time.Second)
-
-	for {
-		select {
-		case <-tick:
-			{
-				rVersion, err := a.settingsMgr.GetCodefreshReporterVersion()
-				if !running && rVersion == string(settings_util.CodefreshV2ReporterVersion) {
-					controllerCtx, cancel = context.WithCancel(ctx)
-					log.Warnf("Reporter parameter (%s) detected - starting controller", rVersion)
-					go controller.Run(controllerCtx)
-					running = true
-				}
-				if running == true && err == nil && isOldReporterVersion(rVersion) {
-					log.Warnf("Stopping reporter because version param changed to %s or missing", settings_util.CodefreshV1ReporterVersion)
-					cancel()
-					running = false
-				}
-			}
-		}
-	}
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager)
+	go controller.Run(ctx)
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
@@ -256,10 +237,6 @@ func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
 	<-a.stopCh
 }
 
-func isOldReporterVersion(reporterVersion string) bool {
-	return reporterVersion == "" || reporterVersion == string(settings_util.CodefreshV1ReporterVersion)
-}
-
 // NewServer returns a new instance of the Argo CD API server
 func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *EventReporterServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
@@ -302,6 +279,7 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 		appLister:               appLister,
 		policyEnforcer:          policyEnf,
 		db:                      dbInstance,
+		featureManager:          reporter.NewFeatureManager(settingsMgr),
 	}
 
 	if err != nil {
