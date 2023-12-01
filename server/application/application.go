@@ -1114,8 +1114,15 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	}
 
 	processEvent := func(event *appv1.ApplicationWatchEvent) error {
+		rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
+		if rVersion == string(settings.CodefreshV2ReporterVersion) {
+			logCtx.Info("v1 reporter disabled skipping event")
+			return nil
+		}
+
 		shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 		if !shouldProcess {
+			log.Infof("ignore event for app %s", event.Application.Name)
 			return nil
 		}
 		ts := time.Now().Format("2006-01-02T15:04:05.000Z")
