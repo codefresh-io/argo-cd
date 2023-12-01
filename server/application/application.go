@@ -1114,12 +1114,6 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	}
 
 	processEvent := func(event *appv1.ApplicationWatchEvent) error {
-		rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
-		if rVersion == string(settings.CodefreshV2ReporterVersion) {
-			logCtx.Info("v1 reporter disabled skipping event")
-			return nil
-		}
-
 		shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 		if !shouldProcess {
 			log.Infof("ignore event for app %s", event.Application.Name)
@@ -1147,24 +1141,33 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	onDeleteEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	onAddEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 
+	v1ReporterEnabledFilter := func(event *appv1.ApplicationWatchEvent) bool {
+		rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
+		if rVersion == string(settings.CodefreshV2ReporterVersion) {
+			logCtx.Info("v1 reporter disabled skipping event")
+			return false
+		}
+		return true
+	}
+
 	if priorityQueueEnabled {
 		unsubscribeOnUpdateChannel := s.appBroadcaster.Subscribe(onUpdateEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
 			return event.Type == watch.Modified
-		})
+		}, v1ReporterEnabledFilter)
 
 		unsubscribeOnDeleteChannel := s.appBroadcaster.Subscribe(onDeleteEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
 			return event.Type == watch.Deleted
-		})
+		}, v1ReporterEnabledFilter)
 
 		unsubscribeOnAddChannel := s.appBroadcaster.Subscribe(onAddEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
 			return event.Type == watch.Added
-		})
+		}, v1ReporterEnabledFilter)
 
 		defer unsubscribeOnUpdateChannel()
 		defer unsubscribeOnDeleteChannel()
 		defer unsubscribeOnAddChannel()
 	} else {
-		unsubscribeEventsChannel := s.appBroadcaster.Subscribe(allEventsChannel)
+		unsubscribeEventsChannel := s.appBroadcaster.Subscribe(allEventsChannel, v1ReporterEnabledFilter)
 		defer unsubscribeEventsChannel()
 	}
 
@@ -1172,7 +1175,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	defer ticker.Stop()
 	for {
 		select {
-		case event := <-onAddEventsChannel:
+		case event := <-onAddEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
 			{
 				logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
 				logCtx.Infof("Received application \"%s\" added event", event.Application.Name)
@@ -1181,7 +1184,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 					return err
 				}
 			}
-		case event := <-onDeleteEventsChannel:
+		case event := <-onDeleteEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
 			{
 				logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
 				logCtx.Infof("Received application \"%s\" deleted event", event.Application.Name)
@@ -1190,7 +1193,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 					return err
 				}
 			}
-		case event := <-onUpdateEventsChannel:
+		case event := <-onUpdateEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
 			{
 				logCtx.Infof("OnUpdate channel size is %d", len(onUpdateEventsChannel))
 				logCtx.Infof("Received application \"%s\" update event", event.Application.Name)
@@ -1199,7 +1202,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 					return err
 				}
 			}
-		case event := <-allEventsChannel:
+		case event := <-allEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=false
 			{
 				logCtx.Infof("All events channel size is %d", len(allEventsChannel))
 				logCtx.Infof("Received application \"%s\" event", event.Application.Name)
