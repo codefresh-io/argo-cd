@@ -124,5 +124,9 @@ func release() error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return moveChangelog()
+	err = moveChangelog()
+	if err != nil {
+		return err
+	}
+	return exec.Command("git", "push", "origin", "--delete", release).Run()
 }
