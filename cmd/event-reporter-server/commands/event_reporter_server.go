@@ -58,13 +58,9 @@ func getApplicationClient(useGrpc bool, address, token string) appclient.Applica
 
 		errors.CheckError(err)
 
-		closer, applicationClient, err := applicationClientSet.NewApplicationClient()
+		_, applicationClient, err := applicationClientSet.NewApplicationClient()
 
 		errors.CheckError(err)
-
-		defer func() {
-			_ = closer.Close()
-		}()
 
 		return applicationClient
 	}
@@ -175,6 +171,8 @@ func NewCommand() *cobra.Command {
 					AuthToken: codefreshToken,
 				},
 			}
+
+			log.Infof("Starting event reporter server with grpc transport %v", useGrpc)
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
