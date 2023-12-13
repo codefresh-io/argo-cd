@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -68,7 +67,7 @@ func (c *httpApplicationClient) execute(ctx context.Context, url string, result 
 
 	isStatusOK := res.StatusCode >= 200 && res.StatusCode < 300
 	if !isStatusOK {
-		return errors.New(fmt.Sprintf("argocd server respond with code %d, msg is: %s", res.StatusCode, string(b)))
+		return fmt.Errorf("argocd server respond with code %d, msg is: %s", res.StatusCode, string(b))
 	}
 
 	err = json.Unmarshal(b, &result)
