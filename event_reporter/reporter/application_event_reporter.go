@@ -211,7 +211,8 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+		setHealthStatusIfMissing(*rs)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -248,8 +249,13 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
+		setHealthStatusIfMissing(rs)
+		if !ignoreResourceCache && !s.shouldSendResourceEvent(a, rs) {
+			s.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricResourceEventType, a.Name)
+			continue
+		}
 		startTime := time.Now()
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, appTree, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod, nil)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, appTree, manifestGenErr, nil, revisionMetadata, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -285,6 +291,17 @@ func (s *applicationEventReporter) getAppForResourceReporting(
 	return latestAppStatus, revisionMetadataToReport
 }
 
+func setHealthStatusIfMissing(rs appv1.ResourceStatus) {
+	if rs.Health == nil && rs.Status == appv1.SyncStatusCodeSynced {
+		// for resources without health status we need to add 'Healthy' status
+		// when they are synced because we might have sent an event with 'Missing'
+		// status earlier and they would be stuck in it if we don't switch to 'Healthy'
+		rs.Health = &appv1.HealthStatus{
+			Status: health.HealthStatusHealthy,
+		}
+	}
+}
+
 func (s *applicationEventReporter) processResource(
 	ctx context.Context,
 	rs appv1.ResourceStatus,
@@ -296,7 +313,6 @@ func (s *applicationEventReporter) processResource(
 	manifestGenErr bool,
 	originalApplication *appv1.Application,
 	revisionMetadata *appv1.RevisionMetadata,
-	ignoreResourceCache bool,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
@@ -310,20 +326,6 @@ func (s *applicationEventReporter) processResource(
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 	})
-
-	if rs.Health == nil && rs.Status == appv1.SyncStatusCodeSynced {
-		// for resources without health status we need to add 'Healthy' status
-		// when they are synced because we might have sent an event with 'Missing'
-		// status earlier and they would be stuck in it if we don't switch to 'Healthy'
-		rs.Health = &appv1.HealthStatus{
-			Status: health.HealthStatusHealthy,
-		}
-	}
-
-	if !ignoreResourceCache && !s.shouldSendResourceEvent(parentApplication, rs) {
-		s.metricsServer.IncCachedIgnoredEventsCounter(metricsEventType, parentApplication.Name)
-		return nil
-	}
 
 	// get resource desired state
 	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
