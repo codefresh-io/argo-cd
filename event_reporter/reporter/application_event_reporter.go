@@ -215,7 +215,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			return err
 		}
 		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricChildAppEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, "Application", metrics.MetricChildAppEventType, reconcileDuration)
 	} else {
 		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
@@ -236,7 +236,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
 		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricParentAppEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, "Application", metrics.MetricParentAppEventType, reconcileDuration)
 	}
 
 	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
@@ -253,7 +253,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			return err
 		}
 		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricResourceEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, rs.Kind, metrics.MetricResourceEventType, reconcileDuration)
 	}
 	return nil
 }
