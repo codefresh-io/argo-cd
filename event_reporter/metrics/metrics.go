@@ -2,7 +2,9 @@ package metrics
 
 import (
 	"fmt"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"net/http"
 	"strconv"
 	"time"
@@ -16,13 +18,17 @@ import (
 type MetricsServer struct {
 	*http.Server
 	shard                            string
+	detailedMetricsEnabled           bool
 	redisRequestCounter              *prometheus.CounterVec
 	redisRequestHistogram            *prometheus.HistogramVec
 	queueSizeCounter                 *prometheus.GaugeVec
+	appEventsCounter                 *prometheus.CounterVec
 	erroredEventsCounter             *prometheus.CounterVec
 	cachedIgnoredEventsCounter       *prometheus.CounterVec
 	eventProcessingDurationHistogram *prometheus.HistogramVec
 }
+
+const notDetailedMetricPlaceholderLabel = "not_reported"
 
 type MetricEventType string
 
@@ -64,6 +70,13 @@ var (
 		},
 		[]string{"reporter_shard"},
 	)
+	appEventsCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "cf_e_reporter_app_events_size",
+			Help: "Size of specific application events queue of taked shard.",
+		},
+		[]string{"reporter_shard", "application", "got_in_queue"},
+	)
 	erroredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "cf_e_reporter_errored_events",
@@ -84,7 +97,7 @@ var (
 			Help:    "Event processing duration.",
 			Buckets: []float64{0.1, 0.25, .5, 1, 2, 3, 4, 5, 7, 10, 15, 20},
 		},
-		[]string{"reporter_shard", "metric_event_type"},
+		[]string{"reporter_shard", "application", "kind", "metric_event_type"},
 	)
 )
 
@@ -103,11 +116,13 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(redisRequestHistogram)
 
 	registry.MustRegister(queueSizeCounter)
+	registry.MustRegister(appEventsCounter)
 	registry.MustRegister(erroredEventsCounter)
 	registry.MustRegister(cachedIgnoredEventsCounter)
 	registry.MustRegister(eventProcessingDurationHistogram)
 
 	shard := sharding.GetShardNumber()
+	detailedMetrics := env.ParseBoolFromEnv(argocommon.EnvEventReporterDetailedMetrics, false)
 
 	return &MetricsServer{
 		Server: &http.Server{
@@ -115,7 +130,9 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 			Handler: mux,
 		},
 		shard:                            strconv.FormatInt(int64(shard), 10),
+		detailedMetricsEnabled:           detailedMetrics,
 		queueSizeCounter:                 queueSizeCounter,
+		appEventsCounter:                 appEventsCounter,
 		erroredEventsCounter:             erroredEventsCounter,
 		cachedIgnoredEventsCounter:       cachedIgnoredEventsCounter,
 		eventProcessingDurationHistogram: eventProcessingDurationHistogram,
@@ -135,6 +152,10 @@ func (m *MetricsServer) SetQueueSizeCounter(size int) {
 	m.queueSizeCounter.WithLabelValues(m.shard).Set(float64(size))
 }
 
+func (m *MetricsServer) IncAppEventsCounter(application string, gotToProcessingQueue bool) {
+	m.appEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(gotToProcessingQueue)).Inc()
+}
+
 func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType, application string) {
 	m.erroredEventsCounter.WithLabelValues(m.shard, string(metricEventType), string(errorType), application).Inc()
 }
@@ -143,6 +164,10 @@ func (m *MetricsServer) IncCachedIgnoredEventsCounter(metricEventType MetricEven
 	m.cachedIgnoredEventsCounter.WithLabelValues(m.shard, string(metricEventType), application).Inc()
 }
 
-func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(metricEventType MetricEventType, duration time.Duration) {
-	m.eventProcessingDurationHistogram.WithLabelValues(m.shard, string(metricEventType)).Observe(duration.Seconds())
+func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(application string, managedResourceKind string, metricEventType MetricEventType, duration time.Duration) {
+	if m.detailedMetricsEnabled {
+		m.eventProcessingDurationHistogram.WithLabelValues(m.shard, application, managedResourceKind, string(metricEventType)).Observe(duration.Seconds())
+	} else {
+		m.eventProcessingDurationHistogram.WithLabelValues(m.shard, notDetailedMetricPlaceholderLabel, notDetailedMetricPlaceholderLabel, string(metricEventType)).Observe(duration.Seconds())
+	}
 }

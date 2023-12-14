@@ -273,6 +273,8 @@ const (
 	EnvEventReporterReplicas = "EVENT_REPORTER_REPLICAS"
 	// EnvEventReporterShard is the shard number that should be handled by reporter
 	EnvEventReporterShard = "EVENT_REPORTER_SHARD"
+	// EnvEventReporterDetailedMetrics is bool value that enables sending details metrics with resource kind, app names, etc.
+	EnvEventReporterDetailedMetrics = "EVENT_REPORTER_DETAILED_METRICS"
 )
 
 // Config Management Plugin related constants
