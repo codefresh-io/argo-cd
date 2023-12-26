@@ -36,6 +36,10 @@ type httpApplicationClient struct {
 }
 
 func NewHttpApplicationClient(token string, address string, rootpath string) ApplicationClient {
+	if rootpath != "" && !strings.HasPrefix(rootpath, "/") {
+		rootpath = "/" + rootpath
+	}
+
 	if !strings.Contains(address, "http") {
 		address = "http://" + address
 	}
