@@ -213,7 +213,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		setHealthStatusIfMissing(*rs)
+		setHealthStatusIfMissing(rs)
 		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
@@ -251,7 +251,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
-		setHealthStatusIfMissing(rs)
+		setHealthStatusIfMissing(&rs)
 		if !ignoreResourceCache && !s.shouldSendResourceEvent(a, rs) {
 			s.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricResourceEventType, a.Name)
 			continue
@@ -293,7 +293,7 @@ func (s *applicationEventReporter) getAppForResourceReporting(
 	return latestAppStatus, revisionMetadataToReport
 }
 
-func setHealthStatusIfMissing(rs appv1.ResourceStatus) {
+func setHealthStatusIfMissing(rs *appv1.ResourceStatus) {
 	if rs.Health == nil && rs.Status == appv1.SyncStatusCodeSynced {
 		// for resources without health status we need to add 'Healthy' status
 		// when they are synced because we might have sent an event with 'Missing'
