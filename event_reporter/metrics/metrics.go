@@ -2,9 +2,7 @@ package metrics
 
 import (
 	"fmt"
-	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,7 +16,6 @@ import (
 type MetricsServer struct {
 	*http.Server
 	shard                            string
-	detailedMetricsEnabled           bool
 	redisRequestCounter              *prometheus.CounterVec
 	redisRequestHistogram            *prometheus.HistogramVec
 	queueSizeCounter                 *prometheus.GaugeVec
@@ -27,8 +24,6 @@ type MetricsServer struct {
 	cachedIgnoredEventsCounter       *prometheus.CounterVec
 	eventProcessingDurationHistogram *prometheus.HistogramVec
 }
-
-const notDetailedMetricPlaceholderLabel = "not_reported"
 
 type MetricEventType string
 
@@ -94,10 +89,10 @@ var (
 	eventProcessingDurationHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "cf_e_reporter_event_processing_duration",
-			Help:    "Event processing duration.",
+			Help:    "Application event processing duration.",
 			Buckets: []float64{0.1, 0.25, .5, 1, 2, 3, 4, 5, 7, 10, 15, 20},
 		},
-		[]string{"reporter_shard", "application", "kind", "metric_event_type"},
+		[]string{"reporter_shard", "application", "metric_event_type"},
 	)
 )
 
@@ -122,7 +117,6 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(eventProcessingDurationHistogram)
 
 	shard := sharding.GetShardNumber()
-	detailedMetrics := env.ParseBoolFromEnv(argocommon.EnvEventReporterDetailedMetrics, false)
 
 	return &MetricsServer{
 		Server: &http.Server{
@@ -130,7 +124,6 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 			Handler: mux,
 		},
 		shard:                            strconv.FormatInt(int64(shard), 10),
-		detailedMetricsEnabled:           detailedMetrics,
 		queueSizeCounter:                 queueSizeCounter,
 		appEventsCounter:                 appEventsCounter,
 		erroredEventsCounter:             erroredEventsCounter,
@@ -164,10 +157,6 @@ func (m *MetricsServer) IncCachedIgnoredEventsCounter(metricEventType MetricEven
 	m.cachedIgnoredEventsCounter.WithLabelValues(m.shard, string(metricEventType), application).Inc()
 }
 
-func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(application string, managedResourceKind string, metricEventType MetricEventType, duration time.Duration) {
-	if m.detailedMetricsEnabled {
-		m.eventProcessingDurationHistogram.WithLabelValues(m.shard, application, managedResourceKind, string(metricEventType)).Observe(duration.Seconds())
-	} else {
-		m.eventProcessingDurationHistogram.WithLabelValues(m.shard, notDetailedMetricPlaceholderLabel, notDetailedMetricPlaceholderLabel, string(metricEventType)).Observe(duration.Seconds())
-	}
+func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(application string, metricEventType MetricEventType, duration time.Duration) {
+	m.eventProcessingDurationHistogram.WithLabelValues(m.shard, application, string(metricEventType)).Observe(duration.Seconds())
 }

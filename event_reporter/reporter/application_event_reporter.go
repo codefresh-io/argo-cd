@@ -39,8 +39,6 @@ var (
 	resourceEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
-const ApplicationKind = "Application"
-
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
 	codefreshClient          codefresh.CodefreshClient
@@ -220,7 +218,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			return err
 		}
 		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, ApplicationKind, metrics.MetricChildAppEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricChildAppEventType, reconcileDuration)
 	} else {
 		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
@@ -241,7 +239,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
 		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, ApplicationKind, metrics.MetricParentAppEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricParentAppEventType, reconcileDuration)
 	}
 
 	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
@@ -256,14 +254,11 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			s.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricResourceEventType, a.Name)
 			continue
 		}
-		startTime := time.Now()
 		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, appTree, manifestGenErr, nil, revisionMetadata, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
 		}
-		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, rs.Kind, metrics.MetricResourceEventType, reconcileDuration)
 	}
 	return nil
 }
