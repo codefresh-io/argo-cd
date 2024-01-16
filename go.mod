@@ -56,6 +56,7 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.67
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-zglob v0.0.4
+	github.com/mennanov/limiters v1.2.3
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -145,7 +146,6 @@ require (
 	github.com/hashicorp/serf v0.10.1 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mennanov/limiters v1.2.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/samuel/go-zookeeper v0.0.0-20201211165307-7117e9ea2414 // indirect
