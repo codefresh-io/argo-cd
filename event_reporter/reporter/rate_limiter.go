@@ -24,7 +24,7 @@ func NewRateLimiter(opts *RateLimiterOpts) *RateLimiter {
 
 func (rl *RateLimiter) Limit(applicationName string) (time.Duration, error, bool) {
 	if !rl.opts.Enabled {
-		return time.Duration(0), nil, false
+		return time.Duration(0), nil, rl.opts.LearningMode
 	}
 
 	limiter := rl.limiters[applicationName]
