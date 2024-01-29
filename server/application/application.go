@@ -507,7 +507,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			EnabledSourceTypes: enableGenerateManifests,
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
-			VersionConfig:      apiclient.GetVersionConfig(),
+			ApplicationIdentity: &apiclient.ApplicationIdentity{
+				Runtime:   "runtime",
+				Cluster:   "cluster",
+				Namespace: a.Spec.Destination.Namespace,
+				Name:      a.InstanceName(s.ns),
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)

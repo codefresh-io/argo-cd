@@ -11,9 +11,9 @@ import (
 	"time"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 
@@ -46,7 +46,7 @@ type AppIdentity struct {
 
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
-	codefreshClient          codefresh.CodefreshClient
+	codefreshClient          *codefresh.CodefreshClient
 	appLister                applisters.ApplicationLister
 	applicationServiceClient appclient.ApplicationClient
 	metricsServer            *metrics.MetricsServer
