@@ -508,8 +508,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
 			ApplicationIdentity: &apiclient.ApplicationIdentity{
-				Runtime:   "runtime",
-				Cluster:   "cluster",
+				Cluster:   a.Spec.Destination.Server,
 				Namespace: a.Spec.Destination.Namespace,
 				Name:      a.InstanceName(s.ns),
 			},

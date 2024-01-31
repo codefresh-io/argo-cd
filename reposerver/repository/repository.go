@@ -637,7 +637,6 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 
 		versionConfig := s.GetVersionConfig(&codefresh.ApplicationIdentity{
-			Runtime:   q.ApplicationIdentity.Runtime,
 			Cluster:   q.ApplicationIdentity.Cluster,
 			Namespace: q.ApplicationIdentity.Namespace,
 			Name:      q.ApplicationIdentity.Name,

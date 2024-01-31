@@ -774,8 +774,7 @@ func verifyGenerateManifests(
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
 			ApplicationIdentity: &apiclient.ApplicationIdentity{
-				Runtime:   "runtime",
-				Cluster:   "cluster",
+				Cluster:   dest.Server,
 				Namespace: dest.Namespace,
 				Name:      name,
 			},

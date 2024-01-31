@@ -9,10 +9,9 @@ import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.p
 import "google/protobuf/empty.proto";
 
 message ApplicationIdentity {
-    string runtime = 1;
-    string cluster = 2;
-    string namespace = 3;
-    string name = 4;
+    string cluster = 1;
+    string namespace = 2;
+    string name = 3;
 }
 
 // ManifestRequest is a query for manifest generation.

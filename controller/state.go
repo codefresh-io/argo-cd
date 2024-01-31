@@ -209,8 +209,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
 			ApplicationIdentity: &apiclient.ApplicationIdentity{
-				Runtime:   "runtime",
-				Cluster:   "cluster",
+				Cluster:   app.Spec.Destination.Server,
 				Namespace: app.Spec.Destination.Namespace,
 				Name:      app.InstanceName(m.namespace),
 			},

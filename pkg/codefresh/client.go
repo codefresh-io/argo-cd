@@ -106,8 +106,8 @@ func (cc *CodefreshClient) Send(ctx context.Context, appName string, event *even
 func (client *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error) {
 	query := GraphQLQuery{
 		Query: `
-		query ($runtime: String!, $cluster: String!, $namespace: String!, $name: String!) {
-		  applicationConfiguration(runtime: $runtime, cluster: $cluster, namespace: $namespace, name: $name) {
+		query ($cluster: String!, $namespace: String!, $name: String!) {
+		  applicationConfigurationByRuntime(cluster: $cluster, namespace: $namespace, name: $name) {
 			versionSource {
 			  file
 			  jsonPath
@@ -116,7 +116,6 @@ func (client *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdent
 		}
 		`,
 		Variables: map[string]interface{}{
-			"runtime":   app.Runtime,
 			"cluster":   app.Cluster,
 			"namespace": app.Namespace,
 			"name":      app.Name,
