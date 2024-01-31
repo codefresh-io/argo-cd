@@ -9,6 +9,7 @@ import (
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -355,7 +356,7 @@ func TestStreamApplicationEvent(t *testing.T) {
 			return nil
 		}
 
-		_ = eventReporter.streamApplicationEvents(context.Background(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
+		_ = eventReporter.streamApplicationEvents(context.Background(), log.New(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
 	})
 
 }
