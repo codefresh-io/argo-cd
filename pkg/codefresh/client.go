@@ -26,8 +26,7 @@ type CodefreshClient struct {
 
 type CodefreshClientInterface interface {
 	Send(ctx context.Context, appName string, event *events.Event) error
-	SendGraphQLRequest(config CodefreshConfig, query GraphQLQuery) (interface{}, error)
-	GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error)
+	SendGraphQLRequest(query GraphQLQuery) (interface{}, error)
 }
 
 // GraphQLQuery structure to form a GraphQL query
@@ -76,47 +75,19 @@ func (c *CodefreshClient) Send(ctx context.Context, appName string, event *event
 	})
 }
 
-// GetApplicationConfiguration method to get application configuration
-func (c *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error) {
-	query := GraphQLQuery{
-		Query: `
-		query ($cluster: String!, $namespace: String!, $name: String!) {
-		  applicationConfigurationByRuntime(cluster: $cluster, namespace: $namespace, name: $name) {
-			versionSource {
-			  file
-			  jsonPath
-			}
-		  }
-		}
-		`,
-		Variables: map[string]interface{}{
-			"cluster":   app.Cluster,
-			"namespace": app.Namespace,
-			"name":      app.Name,
-		},
-	}
-
-	responseData, err := c.SendGraphQLRequest(*c.cfConfig, query)
-	if err != nil {
-		return nil, err
-	}
-
-	return responseData.(*ApplicationConfiguration), nil
-}
-
 // sendGraphQLRequest function to send the GraphQL request and handle the response
-func (c *CodefreshClient) SendGraphQLRequest(config CodefreshConfig, query GraphQLQuery) (interface{}, error) {
+func (c *CodefreshClient) SendGraphQLRequest(query GraphQLQuery) (interface{}, error) {
 	queryJSON, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", config.BaseURL+"/2.0/api/graphql", bytes.NewBuffer(queryJSON))
+	req, err := http.NewRequest("POST", c.cfConfig.BaseURL+"/2.0/api/graphql", bytes.NewBuffer(queryJSON))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", config.AuthToken)
+	req.Header.Set("Authorization", c.cfConfig.AuthToken)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

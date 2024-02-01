@@ -29,7 +29,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 	}
 
 	// Get from Codefresh API
-	appConfig, err = v.client.GetApplicationConfiguration(app)
+	appConfig, err = v.requests.GetApplicationConfiguration(app)
 	if err != nil {
 		log.Infof("Failed to get application config from API: %v", err)
 		return nil, err
@@ -59,13 +59,13 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 }
 
 type VersionConfigManager struct {
-	client codefresh.CodefreshClientInterface
-	cache  *cache.Cache
+	requests codefresh.CodefreshGraphQLRequestsInterface
+	cache    *cache.Cache
 }
 
-func NewVersionConfigManager(client codefresh.CodefreshClientInterface, cache *cache.Cache) *VersionConfigManager {
+func NewVersionConfigManager(requests codefresh.CodefreshGraphQLRequestsInterface, cache *cache.Cache) *VersionConfigManager {
 	return &VersionConfigManager{
-		client: client,
-		cache:  cache,
+		requests,
+		cache,
 	}
 }

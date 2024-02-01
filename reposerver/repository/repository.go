@@ -124,7 +124,8 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	helmRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 
 	codefreshClient := codefresh.NewCodefreshClient(&initConstants.CodefreshConfig)
-	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshClient, cache)
+	codefreshGraphQLRequests := codefresh.NewCodefreshGraphQLRequests(codefreshClient)
+	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshGraphQLRequests, cache)
 
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,

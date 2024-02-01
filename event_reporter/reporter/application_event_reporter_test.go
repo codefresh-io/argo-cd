@@ -235,11 +235,7 @@ func (cc *MockCodefreshClient) Send(ctx context.Context, appName string, event *
 	return nil
 }
 
-func (cc *MockCodefreshClient) SendGraphQLRequest(config codefresh.CodefreshConfig, query codefresh.GraphQLQuery) (interface{}, error) {
-	return nil, nil
-}
-
-func (cc *MockCodefreshClient) GetApplicationConfiguration(app *codefresh.ApplicationIdentity) (*codefresh.ApplicationConfiguration, error) {
+func (cc *MockCodefreshClient) SendGraphQLRequest(query codefresh.GraphQLQuery) (interface{}, error) {
 	return nil, nil
 }
 
