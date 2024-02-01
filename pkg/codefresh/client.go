@@ -26,25 +26,8 @@ type CodefreshClient struct {
 
 type CodefreshClientInterface interface {
 	Send(ctx context.Context, appName string, event *events.Event) error
-	GetApplicationConfiguration(app ApplicationIdentity) (*ApplicationConfiguration, error)
-}
-
-// VersionSource structure for the versionSource field
-type VersionSource struct {
-	File     string `json:"file"`
-	JsonPath string `json:"jsonPath"`
-}
-
-type ApplicationIdentity struct {
-	Runtime   string
-	Cluster   string
-	Namespace string
-	Name      string
-}
-
-// ApplicationConfiguration structure for GraphQL response
-type ApplicationConfiguration struct {
-	VersionSource VersionSource `json:"versionSource"`
+	SendGraphQLRequest(config CodefreshConfig, query GraphQLQuery) (interface{}, error)
+	GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error)
 }
 
 // GraphQLQuery structure to form a GraphQL query
@@ -53,18 +36,9 @@ type GraphQLQuery struct {
 	Variables map[string]interface{} `json:"variables"`
 }
 
-func NewCodefreshClient(cfConfig *CodefreshConfig) *CodefreshClient {
-	return &CodefreshClient{
-		cfConfig: cfConfig,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}
-}
-
-func (cc *CodefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
+func (c *CodefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
 	return WithRetry(&DefaultBackoff, func() error {
-		url := cc.cfConfig.BaseURL + "/2.0/api/events"
+		url := c.cfConfig.BaseURL + "/2.0/api/events"
 		log.Infof("Sending application event for %s", appName)
 
 		wrappedPayload := map[string]json.RawMessage{
@@ -82,9 +56,9 @@ func (cc *CodefreshClient) Send(ctx context.Context, appName string, event *even
 		}
 
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", cc.cfConfig.AuthToken)
+		req.Header.Set("Authorization", c.cfConfig.AuthToken)
 
-		res, err := cc.httpClient.Do(req)
+		res, err := c.httpClient.Do(req)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed reporting to Codefresh, event: %s", string(event.Payload)))
 		}
@@ -103,7 +77,7 @@ func (cc *CodefreshClient) Send(ctx context.Context, appName string, event *even
 }
 
 // GetApplicationConfiguration method to get application configuration
-func (client *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error) {
+func (c *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error) {
 	query := GraphQLQuery{
 		Query: `
 		query ($cluster: String!, $namespace: String!, $name: String!) {
@@ -122,7 +96,7 @@ func (client *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdent
 		},
 	}
 
-	responseData, err := sendGraphQLRequest(*client.cfConfig, query)
+	responseData, err := c.SendGraphQLRequest(*c.cfConfig, query)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +105,7 @@ func (client *CodefreshClient) GetApplicationConfiguration(app *ApplicationIdent
 }
 
 // sendGraphQLRequest function to send the GraphQL request and handle the response
-func sendGraphQLRequest(config CodefreshConfig, query GraphQLQuery) (interface{}, error) {
+func (c *CodefreshClient) SendGraphQLRequest(config CodefreshConfig, query GraphQLQuery) (interface{}, error) {
 	queryJSON, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
@@ -164,4 +138,13 @@ func sendGraphQLRequest(config CodefreshConfig, query GraphQLQuery) (interface{}
 	}
 
 	return &responseStruct.Data, nil
+}
+
+func NewCodefreshClient(cfConfig *CodefreshConfig) CodefreshClientInterface {
+	return &CodefreshClient{
+		cfConfig: cfConfig,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
 }

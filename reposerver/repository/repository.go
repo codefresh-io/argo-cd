@@ -91,7 +91,7 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
-	codefreshClient           *codefresh.CodefreshClient
+	codefreshClient           codefresh.CodefreshClientInterface
 	versionConfigManager      *version_config_manager.VersionConfigManager
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
@@ -124,7 +124,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	helmRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 
 	codefreshClient := codefresh.NewCodefreshClient(&initConstants.CodefreshConfig)
-	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshClient)
+	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshClient, cache)
 
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,

@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"math"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
@@ -46,7 +47,7 @@ type AppIdentity struct {
 
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
-	codefreshClient          *codefresh.CodefreshClient
+	codefreshClient          codefresh.CodefreshClientInterface
 	appLister                applisters.ApplicationLister
 	applicationServiceClient appclient.ApplicationClient
 	metricsServer            *metrics.MetricsServer
