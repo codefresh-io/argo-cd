@@ -7,7 +7,6 @@ type VersionSource struct {
 }
 
 type ApplicationIdentity struct {
-	Runtime   string
 	Cluster   string
 	Namespace string
 	Name      string

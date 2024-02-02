@@ -26,7 +26,7 @@ type CodefreshClient struct {
 
 type CodefreshClientInterface interface {
 	Send(ctx context.Context, appName string, event *events.Event) error
-	SendGraphQLRequest(query GraphQLQuery) (interface{}, error)
+	SendGraphQLRequest(query GraphQLQuery) (*json.RawMessage, error)
 }
 
 // GraphQLQuery structure to form a GraphQL query
@@ -76,7 +76,7 @@ func (c *CodefreshClient) Send(ctx context.Context, appName string, event *event
 }
 
 // sendGraphQLRequest function to send the GraphQL request and handle the response
-func (c *CodefreshClient) SendGraphQLRequest(query GraphQLQuery) (interface{}, error) {
+func (c *CodefreshClient) SendGraphQLRequest(query GraphQLQuery) (*json.RawMessage, error) {
 	queryJSON, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
@@ -96,15 +96,10 @@ func (c *CodefreshClient) SendGraphQLRequest(query GraphQLQuery) (interface{}, e
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	var responseStruct struct {
-		Data interface{} `json:"data"`
+		Data json.RawMessage `json:"data"`
 	}
-	if err := json.Unmarshal(body, &responseStruct); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&responseStruct); err != nil {
 		return nil, err
 	}
 

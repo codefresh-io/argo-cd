@@ -15,9 +15,9 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 	var appConfig *codefresh.ApplicationConfiguration
 
 	// Get from cache
-	appConfig, err := v.cache.GetCfAppConfig(app.Runtime, app.Cluster, app.Namespace, app.Name)
-	if appConfig != nil {
-		log.Infof("CfAppConfig cache hit: %s/%s/%s/%s", app.Runtime, app.Cluster, app.Namespace, app.Name)
+	appConfig, err := v.cache.GetCfAppConfig(app.Cluster, app.Namespace, app.Name)
+	if err == nil {
+		log.Infof("CfAppConfig cache hit: '%s'", cache.CfAppConfigCacheKey(app.Cluster, app.Namespace, app.Name))
 		return &VersionConfig{
 			JsonPath:     appConfig.VersionSource.JsonPath,
 			ResourceName: appConfig.VersionSource.File,
@@ -25,7 +25,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 	}
 
 	if err != nil {
-		log.Errorf("CfAppConfig cache get error for %s/%s/%s/%s: %v", app.Runtime, app.Cluster, app.Namespace, app.Name, err)
+		log.Errorf("CfAppConfig cache get error for '%s': %v", cache.CfAppConfigCacheKey(app.Cluster, app.Namespace, app.Name), err)
 	}
 
 	// Get from Codefresh API
@@ -37,11 +37,11 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 
 	if appConfig != nil {
 		// Set to cache
-		err = v.cache.SetCfAppConfig(app.Runtime, app.Cluster, app.Namespace, app.Name, appConfig)
+		err = v.cache.SetCfAppConfig(app.Cluster, app.Namespace, app.Name, appConfig)
 		if err == nil {
-			log.Infof("CfAppConfig saved to cache hit: %s/%s/%s/%s", app.Runtime, app.Cluster, app.Namespace, app.Name)
+			log.Infof("CfAppConfig saved to cache hit: '%s'", cache.CfAppConfigCacheKey(app.Cluster, app.Namespace, app.Name))
 		} else {
-			log.Errorf("CfAppConfig cache set error for %s/%s/%s/%s: %v", app.Runtime, app.Cluster, app.Namespace, app.Name, err)
+			log.Errorf("CfAppConfig cache set error for '%s': %v", cache.CfAppConfigCacheKey(app.Cluster, app.Namespace, app.Name), err)
 		}
 
 		return &VersionConfig{
@@ -51,7 +51,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 	}
 
 	// Default value
-	log.Infof("Used default CfAppConfig for: %s/%s/%s/%s", app.Runtime, app.Cluster, app.Namespace, app.Name)
+	log.Infof("Used default CfAppConfig for: '%s'", cache.CfAppConfigCacheKey(app.Cluster, app.Namespace, app.Name))
 	return &VersionConfig{
 		JsonPath:     "{.appVersion}",
 		ResourceName: "Chart.yaml",

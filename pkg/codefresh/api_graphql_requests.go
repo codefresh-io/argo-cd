@@ -1,5 +1,9 @@
 package codefresh
 
+import (
+	"encoding/json"
+)
+
 type CodefreshGraphQLRequests struct {
 	client CodefreshClientInterface
 }
@@ -10,6 +14,10 @@ type CodefreshGraphQLRequestsInterface interface {
 
 // GetApplicationConfiguration method to get application configuration
 func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error) {
+	type ResponseData struct {
+		ApplicationConfigurationByRuntime ApplicationConfiguration `json:"applicationConfigurationByRuntime"`
+	}
+
 	query := GraphQLQuery{
 		Query: `
 		query ($cluster: String!, $namespace: String!, $name: String!) {
@@ -28,12 +36,17 @@ func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *ApplicationI
 		},
 	}
 
-	responseData, err := r.client.SendGraphQLRequest(query)
+	responseJSON, err := r.client.SendGraphQLRequest(query)
 	if err != nil {
 		return nil, err
 	}
 
-	return responseData.(*ApplicationConfiguration), nil
+	var responseData ResponseData
+	if err := json.Unmarshal(*responseJSON, &responseData); err != nil {
+		return nil, err
+	}
+
+	return &responseData.ApplicationConfigurationByRuntime, nil
 }
 
 func NewCodefreshGraphQLRequests(client CodefreshClientInterface) CodefreshGraphQLRequestsInterface {
