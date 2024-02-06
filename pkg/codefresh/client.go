@@ -25,8 +25,8 @@ type CodefreshClient struct {
 }
 
 type CodefreshClientInterface interface {
-	Send(ctx context.Context, appName string, event *events.Event) error
-	SendGraphQLRequest(query GraphQLQuery) (*json.RawMessage, error)
+	SendEvent(ctx context.Context, appName string, event *events.Event) error
+	SendGraphQL(query GraphQLQuery) (*json.RawMessage, error)
 }
 
 // GraphQLQuery structure to form a GraphQL query
@@ -35,7 +35,7 @@ type GraphQLQuery struct {
 	Variables map[string]interface{} `json:"variables"`
 }
 
-func (c *CodefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
+func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *events.Event) error {
 	return WithRetry(&DefaultBackoff, func() error {
 		url := c.cfConfig.BaseURL + "/2.0/api/events"
 		log.Infof("Sending application event for %s", appName)
@@ -76,7 +76,7 @@ func (c *CodefreshClient) Send(ctx context.Context, appName string, event *event
 }
 
 // sendGraphQLRequest function to send the GraphQL request and handle the response
-func (c *CodefreshClient) SendGraphQLRequest(query GraphQLQuery) (*json.RawMessage, error) {
+func (c *CodefreshClient) SendGraphQL(query GraphQLQuery) (*json.RawMessage, error) {
 	queryJSON, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

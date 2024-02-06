@@ -36,7 +36,7 @@ func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *ApplicationI
 		},
 	}
 
-	responseJSON, err := r.client.SendGraphQLRequest(query)
+	responseJSON, err := r.client.SendGraphQL(query)
 	if err != nil {
 		return nil, err
 	}

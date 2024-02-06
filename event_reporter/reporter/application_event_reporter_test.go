@@ -231,11 +231,11 @@ type MockCodefreshClient struct {
 	httpClient *http.Client
 }
 
-func (cc *MockCodefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
+func (cc *MockCodefreshClient) SendEvent(ctx context.Context, appName string, event *events.Event) error {
 	return nil
 }
 
-func (cc *MockCodefreshClient) SendGraphQLRequest(query codefresh.GraphQLQuery) (*json.RawMessage, error) {
+func (cc *MockCodefreshClient) SendGraphQL(query codefresh.GraphQLQuery) (*json.RawMessage, error) {
 	return nil, nil
 }
 
