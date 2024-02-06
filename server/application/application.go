@@ -1073,11 +1073,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
-		if eventType == watch.Bookmark {
-			return nil // ignore this event
-		}
-
+	sendIfPermitted := func(ctx context.Context, logCtx log.FieldLogger, a appv1.Application, ts string, ignoreResourceCache bool) error {
 		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
 			return nil
 		}
@@ -1104,7 +1100,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		}
 		trackingMethod := argoutil.GetTrackingMethod(s.settingsMgr)
 
-		err = s.applicationEventReporter.streamApplicationEvents(ctx, &a, es, stream, ts, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		err = s.applicationEventReporter.streamApplicationEvents(ctx, logCtx, &a, es, stream, ts, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return err
 		}
@@ -1113,6 +1109,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			logCtx.WithError(err).Error("failed to cache last sent application event")
 			return err
 		}
+
 		return nil
 	}
 
@@ -1124,6 +1121,10 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	onAddEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 
 	v1ReporterEnabledFilter := func(event *appv1.ApplicationWatchEvent) bool {
+		if event.Type == watch.Bookmark {
+			return false // ignore this event
+		}
+
 		rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
 		if rVersion == string(settings.CodefreshV2ReporterVersion) {
 			logCtx.Info("v1 reporter disabled skipping event")
@@ -1160,8 +1161,12 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		case event := <-onAddEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
 			{
 				logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
-				logCtx.Infof("Received application \"%s\" added event", event.Application.Name)
-				err = s.processEvent(event, logCtx, stream, sendIfPermitted)
+				logAppEvent := logCtx.WithFields(log.Fields{
+					"app": event.Application.Name,
+					"type":    event.Type,
+				})
+				logAppEvent.Infof("Received application added event")
+				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
 				if err != nil {
 					return err
 				}
@@ -1169,8 +1174,12 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		case event := <-onDeleteEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
 			{
 				logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
-				logCtx.Infof("Received application \"%s\" deleted event", event.Application.Name)
-				err = s.processEvent(event, logCtx, stream, sendIfPermitted)
+				logAppEvent := logCtx.WithFields(log.Fields{
+					"app": event.Application.Name,
+					"type":    event.Type,
+				})
+				logAppEvent.Infof("Received application deleted event")
+				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
 				if err != nil {
 					return err
 				}
@@ -1178,8 +1187,12 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		case event := <-onUpdateEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
 			{
 				logCtx.Infof("OnUpdate channel size is %d", len(onUpdateEventsChannel))
-				logCtx.Infof("Received application \"%s\" update event", event.Application.Name)
-				err = s.processEvent(event, logCtx, stream, sendIfPermitted)
+				logAppEvent := logCtx.WithFields(log.Fields{
+					"app": event.Application.Name,
+					"type":    event.Type,
+				})
+				logAppEvent.Infof("Received application update event")
+				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
 				if err != nil {
 					return err
 				}
@@ -1187,8 +1200,12 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		case event := <-allEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=false
 			{
 				logCtx.Infof("All events channel size is %d", len(allEventsChannel))
-				logCtx.Infof("Received application \"%s\" event", event.Application.Name)
-				err = s.processEvent(event, logCtx, stream, sendIfPermitted)
+				logAppEvent := logCtx.WithFields(log.Fields{
+					"app": event.Application.Name,
+					"type":    event.Type,
+				})
+				logAppEvent.Infof("Received application event")
+				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
 				if err != nil {
 					return err
 				}
@@ -1218,16 +1235,17 @@ func (s *Server) processEvent(
 	event *appv1.ApplicationWatchEvent,
 	logCtx log.FieldLogger,
 	stream events.Eventing_StartEventSourceServer,
-	sendIfPermitted func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error,
+	sendIfPermitted func(ctx context.Context, logCtx log.FieldLogger, a appv1.Application, ts string, ignoreResourceCache bool) error,
 ) error {
 	shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 	if !shouldProcess {
-		log.Infof("ignore event for app %s", event.Application.Name)
+		logCtx.Infof("ignore event")
 		return nil
 	}
+
 	ts := time.Now().Format("2006-01-02T15:04:05.000Z")
 	ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
-	err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+	err := sendIfPermitted(ctx, logCtx, event.Application, ts, ignoreResourceCache)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to stream application events")
 		if strings.Contains(err.Error(), "context deadline exceeded") {
@@ -1236,6 +1254,7 @@ func (s *Server) processEvent(
 			return err
 		}
 	}
+
 	cancel()
 	return nil
 }
