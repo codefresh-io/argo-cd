@@ -59,11 +59,11 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 }
 
 type VersionConfigManager struct {
-	requests codefresh.CodefreshGraphQLRequestsInterface
+	requests codefresh.CodefreshGraphQLInterface
 	cache    *cache.Cache
 }
 
-func NewVersionConfigManager(requests codefresh.CodefreshGraphQLRequestsInterface, cache *cache.Cache) *VersionConfigManager {
+func NewVersionConfigManager(requests codefresh.CodefreshGraphQLInterface, cache *cache.Cache) *VersionConfigManager {
 	return &VersionConfigManager{
 		requests,
 		cache,

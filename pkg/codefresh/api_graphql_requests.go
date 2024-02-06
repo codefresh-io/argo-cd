@@ -8,7 +8,7 @@ type CodefreshGraphQLRequests struct {
 	client CodefreshClientInterface
 }
 
-type CodefreshGraphQLRequestsInterface interface {
+type CodefreshGraphQLInterface interface {
 	GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error)
 }
 
@@ -49,6 +49,6 @@ func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *ApplicationI
 	return &responseData.ApplicationConfigurationByRuntime, nil
 }
 
-func NewCodefreshGraphQLRequests(client CodefreshClientInterface) CodefreshGraphQLRequestsInterface {
+func NewCodefreshGraphQLRequests(client CodefreshClientInterface) CodefreshGraphQLInterface {
 	return &CodefreshGraphQLRequests{client}
 }
