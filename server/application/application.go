@@ -509,7 +509,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			ProjectSourceRepos: proj.Spec.SourceRepos,
 			ApplicationIdentity: &apiclient.ApplicationIdentity{
 				Cluster:   a.Spec.Destination.Server,
-				Namespace: a.Spec.Destination.Namespace,
+				Namespace: a.GetNamespace(),
 				Name:      a.InstanceName(s.ns),
 			},
 		})
@@ -1162,8 +1162,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app": event.Application.Name,
-					"type":    event.Type,
+					"app":  event.Application.Name,
+					"type": event.Type,
 				})
 				logAppEvent.Infof("Received application added event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
@@ -1175,8 +1175,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app": event.Application.Name,
-					"type":    event.Type,
+					"app":  event.Application.Name,
+					"type": event.Type,
 				})
 				logAppEvent.Infof("Received application deleted event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
@@ -1188,8 +1188,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("OnUpdate channel size is %d", len(onUpdateEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app": event.Application.Name,
-					"type":    event.Type,
+					"app":  event.Application.Name,
+					"type": event.Type,
 				})
 				logAppEvent.Infof("Received application update event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
@@ -1201,8 +1201,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("All events channel size is %d", len(allEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app": event.Application.Name,
-					"type":    event.Type,
+					"app":  event.Application.Name,
+					"type": event.Type,
 				})
 				logAppEvent.Infof("Received application event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)

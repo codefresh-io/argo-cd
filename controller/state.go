@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
 	"time"
-
-	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
