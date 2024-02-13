@@ -931,6 +931,8 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		}
 	}
 
+	log.Infof("Deleting application '%s' from namespace '%s', cascade deletion is %t", appName, appNs, q.Cascade != nil)
+	
 	err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Delete(ctx, appName, metav1.DeleteOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error deleting application: %w", err)

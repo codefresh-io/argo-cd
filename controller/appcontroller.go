@@ -845,6 +845,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		app = freshApp
 	}
 
+	if app.DeletionTimestamp != nil {
+		log.Infof("Application \"%s\" is deleting with cascade deletion %t", app.Name, app.CascadedDeletion())
+	}
+
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
