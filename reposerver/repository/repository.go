@@ -639,7 +639,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 
 		var versionConfig *version_config_manager.VersionConfig
-		if s.initConstants.CodefreshIgnoreVersionConfig {
+		if !s.initConstants.CodefreshIgnoreVersionConfig {
 			log.Infof("cfAppConfig. Get version config for namespace: %s, name: %s", q.ApplicationMetadata.Namespace, q.ApplicationMetadata.Name)
 			versionConfig = s.GetVersionConfig(q.ApplicationMetadata)
 			if versionConfig != nil {
