@@ -932,7 +932,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	}
 
 	log.Infof("Deleting application '%s' from namespace '%s', cascade deletion is %t", appName, appNs, q.Cascade != nil)
-	
+
 	err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Delete(ctx, appName, metav1.DeleteOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error deleting application: %w", err)
@@ -1556,6 +1556,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}
 	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, deleteOption)
+	log.Infof("Deleting resource '%s' from namespace '%s', cascade deletion is %t", res.Name, res.Namespace, !q.GetOrphan())
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
 	}
