@@ -36,9 +36,9 @@ func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*Versio
 		log.Infof("Failed to get application config from API: %v", err)
 		return nil, err
 	}
-	log.Infof("CfAppConfig. Use config from API. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
 
 	if appConfig != nil {
+		log.Infof("CfAppConfig. Use config from API. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
 		// Set to cache
 		err = v.cache.SetCfAppConfig(app.Namespace, app.Name, appConfig)
 		if err == nil {
