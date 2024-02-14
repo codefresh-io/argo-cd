@@ -19,7 +19,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*Versio
 	appConfig, err := v.cache.GetCfAppConfig(app.Namespace, app.Name)
 	if err == nil {
 		log.Infof("CfAppConfig cache hit: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
-		log.Infof("CfAppConfig. Use config from cache. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
+		log.Infof("CfAppConfig. Use config from cache.  File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
 		return &VersionConfig{
 			JsonPath:     appConfig.VersionSource.JsonPath,
 			ResourceName: appConfig.VersionSource.File,
