@@ -2,8 +2,6 @@ package codefresh
 
 import (
 	"encoding/json"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CodefreshGraphQLRequests struct {
@@ -11,19 +9,19 @@ type CodefreshGraphQLRequests struct {
 }
 
 type CodefreshGraphQLInterface interface {
-	GetApplicationConfiguration(app *metav1.ObjectMeta) (*ApplicationConfiguration, error)
+	GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error)
 }
 
 // GetApplicationConfiguration method to get application configuration
-func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *metav1.ObjectMeta) (*ApplicationConfiguration, error) {
+func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *ApplicationIdentity) (*ApplicationConfiguration, error) {
 	type ResponseData struct {
 		ApplicationConfigurationByRuntime ApplicationConfiguration `json:"applicationConfigurationByRuntime"`
 	}
 
 	query := GraphQLQuery{
 		Query: `
-		query ($applicationMetadata: Object!) {
-		  applicationConfigurationByRuntime(applicationMetadata: $applicationMetadata) {
+		query ($cluster: String!, $namespace: String!, $name: String!) {
+		  applicationConfigurationByRuntime(cluster: $cluster, namespace: $namespace, name: $name) {
 			versionSource {
 			  file
 			  jsonPath
@@ -32,7 +30,9 @@ func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *metav1.Objec
 		}
 		`,
 		Variables: map[string]interface{}{
-			"applicationMetadata": app,
+			"cluster":   app.Cluster,
+			"namespace": app.Namespace,
+			"name":      app.Name,
 		},
 	}
 

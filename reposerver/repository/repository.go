@@ -110,7 +110,6 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
 	DisableHelmManifestMaxExtractedSize          bool
-	CodefreshIgnoreVersionConfig                 bool
 	CodefreshConfig                              codefresh.CodefreshConfig
 }
 
@@ -604,7 +603,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 	return repoRefs, nil
 }
 
-func (s *Service) GetVersionConfig(app *metav1.ObjectMeta) *version_config_manager.VersionConfig {
+func (s *Service) GetVersionConfig(app *codefresh.ApplicationIdentity) *version_config_manager.VersionConfig {
 	versionConfig, err := s.versionConfigManager.GetVersionConfig(app)
 
 	if versionConfig == nil || err != nil {
@@ -638,18 +637,13 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return nil
 		}
 
-		var versionConfig *version_config_manager.VersionConfig
-		if !s.initConstants.CodefreshIgnoreVersionConfig {
-			log.Infof("cfAppConfig. Get version config for namespace: %s, name: %s", q.ApplicationMetadata.Namespace, q.ApplicationMetadata.Name)
-			versionConfig = s.GetVersionConfig(q.ApplicationMetadata)
-			if versionConfig != nil {
-				log.Infof("cfAppConfig. Config file: %s, jsonPath: %s", versionConfig.ResourceName, versionConfig.JsonPath)
-			} else {
-				log.Infof("cfAppConfig. versionConfig is nil. Unable to retrieve version configuration.")
-			}
-		} else {
-			log.Infof("cfAppConfig. Flag CodefreshIgnoreVersionConfig (ARGOCD_REPO_SERVER_CODEFRESH_IGNORE_VERSION_CONFIG) enabled. Skip getting application version config.")
-		}
+		log.Infof("cfAppConfig. Get version config for cluster: %s, namespace: %s, name: %s", q.ApplicationIdentity.Cluster, q.ApplicationIdentity.Namespace, q.ApplicationIdentity.Name)
+		versionConfig := s.GetVersionConfig(&codefresh.ApplicationIdentity{
+			Cluster:   q.ApplicationIdentity.Cluster,
+			Namespace: q.ApplicationIdentity.Namespace,
+			Name:      q.ApplicationIdentity.Name,
+		})
+		log.Infof("cfAppConfig. Config file: %s, jsonPath: %s", versionConfig.ResourceName, versionConfig.JsonPath)
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q, versionConfig)
 		// The fist channel to send the message will resume this operation.
 		// The main purpose for using channels here is to be able to unlock
@@ -1489,7 +1483,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}
 
 	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
-		appVersions, err := getAppVersions(appPath, versionConfig)
+		appVersions, err := getAppVersions(appPath, versionConfig.ResourceName, versionConfig.JsonPath)
 		if err != nil {
 			log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
 		} else {

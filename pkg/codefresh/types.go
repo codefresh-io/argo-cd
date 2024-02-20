@@ -6,6 +6,12 @@ type VersionSource struct {
 	JsonPath string `json:"jsonPath"`
 }
 
+type ApplicationIdentity struct {
+	Cluster   string
+	Namespace string
+	Name      string
+}
+
 type ApplicationConfiguration struct {
 	VersionSource VersionSource `json:"versionSource"`
 }

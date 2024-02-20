@@ -94,9 +94,6 @@ func (c *CodefreshClient) SendGraphQL(query GraphQLQuery) (*json.RawMessage, err
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 400 {
-		return nil, errors.New(resp.Status)
-	}
 	defer resp.Body.Close()
 
 	var responseStruct struct {

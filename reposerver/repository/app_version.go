@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/util/jsonpath"
@@ -96,18 +95,13 @@ func readFileContent(result *Result, appPath, fileName, fieldName string) {
 	}
 }
 
-func getAppVersions(appPath string, versionConfig *version_config_manager.VersionConfig) (*Result, error) {
+func getAppVersions(appPath string, resourceName string, jsonPathExpression string) (*Result, error) {
 	// Defaults
-	resourceName := "Chart.yaml"
-	jsonPathExpression := "{.appVersion}"
-
-	if versionConfig != nil {
-		if versionConfig.ResourceName != "" {
-			resourceName = versionConfig.ResourceName
-		}
-		if versionConfig.JsonPath != "" {
-			jsonPathExpression = versionConfig.JsonPath
-		}
+	if resourceName == "" {
+		resourceName = "Chart.yaml"
+	}
+	if jsonPathExpression == "" {
+		jsonPathExpression = "{.appVersion}"
 	}
 
 	// Get version of root
