@@ -422,7 +422,6 @@ func validateRepo(ctx context.Context,
 		permittedHelmRepos,
 		helmOptions,
 		app.Name,
-		app.GetNamespace(),
 		app.Spec.Destination,
 		sources,
 		repoClient,
@@ -707,7 +706,6 @@ func verifyGenerateManifests(
 	helmRepos argoappv1.Repositories,
 	helmOptions *argoappv1.HelmOptions,
 	name string,
-	namespace string,
 	dest argoappv1.ApplicationDestination,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
@@ -775,11 +773,7 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
-			ApplicationIdentity: &apiclient.ApplicationIdentity{
-				Cluster:   dest.Server,
-				Namespace: namespace,
-				Name:      name,
-			},
+			VersionConfig:      apiclient.GetVersionConfig(),
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
