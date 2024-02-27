@@ -2819,6 +2819,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	syncedRevision := request.GetSyncedRevision()
 	refreshPaths := request.GetPaths()
 
+	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
+
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
@@ -2828,7 +2830,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
-	gitClientOpts := git.WithCache(s.cache, false)
+	gitClientOpts := git.WithCache(s.cache, true)
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
@@ -2863,7 +2865,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	changed := apppathutil.AppFilesHaveChanged(refreshPaths, files)
 
 	if !changed {
-		log.Infof("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
+		logCtx.Infof("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
 
 		err := s.updateCachedRevision(syncedRevision, revision, request, gitClientOpts)
 		if err != nil {
@@ -2875,7 +2877,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
-	log.Infof("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
+	logCtx.Infof("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
 	return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 }
 
@@ -2889,16 +2891,6 @@ func (s *Service) updateCachedRevision(oldRev, newRev string, request *apiclient
 		}
 	}
 
-	manifest := &cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, manifest, repoRefs)
-	if err != nil {
-		if err == cache.ErrCacheMiss {
-			log.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
-			return nil
-		}
-		return fmt.Errorf("manifest cache set error for %s: %w", request.AppName, err)
-	}
-
 	// Update revision in refSource
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		for normalizedURL := range repoRefs {
@@ -2906,12 +2898,16 @@ func (s *Service) updateCachedRevision(oldRev, newRev string, request *apiclient
 		}
 	}
 
-	err = s.cache.SetManifests(newRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, manifest, repoRefs)
+	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, repoRefs)
 	if err != nil {
-		return fmt.Errorf("manifest cache set error for %s: %w", request.AppName, err)
+		if err == cache.ErrCacheMiss {
+			log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
+			return nil
+		}
+		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
 	}
 
-	log.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
+	log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
 }
 
