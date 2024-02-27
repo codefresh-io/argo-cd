@@ -246,6 +246,7 @@ func Test_ChangedFiles(t *testing.T) {
 
 	// Not SHAs, error
 	_, err = client.ChangedFiles(previousSHA, "HEAD")
+	require.Error(t, err)
 
 	// Same commit, no changes
 	changedFiles, err := client.ChangedFiles(commitSHA, commitSHA)

@@ -646,7 +646,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{}{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -654,12 +654,11 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{},
 	}
 
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(&data)
 	revisions := make([]string, 0)
 	revisions = append(revisions, "abc123")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
 
-	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
