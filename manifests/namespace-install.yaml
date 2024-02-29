@@ -1807,24 +1807,6 @@ spec:
       - args:
         - /usr/local/bin/event-reporter-server
         env:
-        - name: RATE_LIMITER_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.rate-limiter.enabled
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: RATE_LIMITER_BUCKET_SIZE
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.rate-limiter.bucket-size
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: RATE_LIMITER_DURATION
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.rate-limiter.duration
-              name: argocd-cmd-params-cm
-              optional: true
         - name: EVENT_REPORTER_REPLICAS
           value: "5"
         - name: ARGOCD_TOKEN
