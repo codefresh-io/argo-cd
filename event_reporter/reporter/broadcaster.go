@@ -79,9 +79,9 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	for _, s := range subscribers {
 		if s.matches(event) {
 
-			limit, err, learningMode := b.rateLimiter.Limit(event.Application.Name)
+			limited, err, learningMode := b.rateLimiter.Limit(event.Application.Name)
 			errorInLearningMode := learningMode && err != nil
-			if err != nil || limit {
+			if err != nil || limited {
 				log.Errorf("adding application '%s' to channel failed, due to rate limit, learningMode %t", event.Application.Name, learningMode)
 				// if learning mode is enabled, we will continue to send events
 				if !learningMode {
