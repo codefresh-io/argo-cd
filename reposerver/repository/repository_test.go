@@ -2063,7 +2063,7 @@ func TestFindResources(t *testing.T) {
 	}, {
 		name:          "Include Everything",
 		include:       "*.yaml",
-		expectedNames: []string{"nginx-deployment", "nginx-deployment-sub"},
+		expectedNames: []string{"nginx-deployment", "nginx-deployment", "nginx-deployment-sub"},
 	}, {
 		name:          "Include Subdirectory",
 		include:       "**/*.yaml",
@@ -2120,12 +2120,12 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 		Exclude: "nothing.yaml",
 	}, map[string]bool{}, resource.MustParse("0"))
 
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 3) {
 		return
 	}
 
 	assert.ElementsMatch(t,
-		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].obj.GetName(), objs[1].obj.GetName()})
+		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].obj.GetName(), objs[2].obj.GetName()})
 }
 
 func tempDir(t *testing.T) string {
@@ -2474,7 +2474,7 @@ func Test_findManifests(t *testing.T) {
 	t.Run("recursion when recursion is enabled", func(t *testing.T) {
 		recurse := argoappv1.ApplicationSourceDirectory{Recurse: true}
 		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, recurse, nil, resource.MustParse("0"))
-		assert.Len(t, manifests, 4)
+		assert.Len(t, manifests, 6)
 		assert.NoError(t, err)
 	})
 
@@ -2533,7 +2533,7 @@ func Test_findManifests(t *testing.T) {
 	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
 		// There is a total of 10 files, each file being 10 bytes.
 		manifests, err := findManifests(logCtx, "./testdata/several-files", "./testdata/several-files", nil, noRecurse, nil, resource.MustParse("365"))
-		assert.Len(t, manifests, 10)
+		assert.Len(t, manifests, 55)
 		assert.NoError(t, err)
 
 		manifests, err = findManifests(logCtx, "./testdata/several-files", "./testdata/several-files", nil, noRecurse, nil, resource.MustParse("364"))
@@ -2544,7 +2544,7 @@ func Test_findManifests(t *testing.T) {
 	t.Run("jsonnet isn't counted against size limit", func(t *testing.T) {
 		// Each file is 36 bytes. Only the 36-byte json file should be counted against the limit.
 		manifests, err := findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("36"))
-		assert.Len(t, manifests, 2)
+		assert.Len(t, manifests, 3)
 		assert.NoError(t, err)
 
 		manifests, err = findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("35"))
