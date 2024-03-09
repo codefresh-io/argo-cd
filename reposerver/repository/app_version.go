@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
+	"regexp"
+	"strconv"
 
+	"github.com/PaesslerAG/jsonpath"
 	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-	"k8s.io/client-go/util/jsonpath"
 )
 
 type DependenciesMap struct {
@@ -26,6 +27,8 @@ type Result struct {
 }
 
 func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
+	jsonPathExpression = replaceBraces(jsonPathExpression)
+
 	content, err := os.ReadFile(appPath)
 	if err != nil {
 		return nil, err
@@ -42,7 +45,7 @@ func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 		if err := yaml.Unmarshal(content, &obj); err != nil {
 			return nil, err
 		}
-		// Convert YAML to Map[interface{}]interface{}
+		// Convert YAML to Map[string]interface{}
 		jsonObj, err = convertToJSONCompatible(obj)
 		if err != nil {
 			return nil, err
@@ -56,21 +59,28 @@ func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 		return nil, fmt.Errorf("Unsupported file format of %s", appPath)
 	}
 
-	jp := jsonpath.New("jsonpathParser")
-	jp.AllowMissingKeys(true)
-	if err := jp.Parse(jsonPathExpression); err != nil {
-		return nil, err
-	}
-
-	var buf strings.Builder
-	err = jp.Execute(&buf, jsonObj)
+	versionValue, err := jsonpath.Get(jsonPathExpression, jsonObj)
 	if err != nil {
 		return nil, err
 	}
+	appVersion, ok := versionValue.(string)
+	if !ok {
+		log.Infof("Version value is not a string")
+		appVersion = ""
+	}
 
-	appVersion := buf.String()
 	log.Infof("Extracted appVersion: %s", appVersion)
 	return &appVersion, nil
+}
+
+func replaceBraces(s string) string {
+	re := regexp.MustCompile(`^{(.+)}$`)
+	matches := re.FindStringSubmatch(s)
+	if len(matches) == 2 {
+		output := "$" + matches[1]
+		return output
+	}
+	return s
 }
 
 func convertToJSONCompatible(i interface{}) (interface{}, error) {
@@ -81,6 +91,36 @@ func convertToJSONCompatible(i interface{}) (interface{}, error) {
 	var obj interface{}
 	if err := yaml.Unmarshal(data, &obj); err != nil {
 		return nil, err
+	}
+
+	return convertMapKeysToString(obj)
+}
+
+func convertMapKeysToString(obj interface{}) (interface{}, error) {
+	switch m := obj.(type) {
+	case map[interface{}]interface{}:
+		result := make(map[string]interface{})
+		for k, v := range m {
+			strKey, ok := k.(string)
+			if !ok {
+				return nil, fmt.Errorf("Non-string key found in map: %v", k)
+			}
+			result[strKey], _ = convertMapKeysToString(v)
+		}
+		return result, nil
+	case []interface{}:
+		for i, v := range m {
+			var err error
+			m[i], err = convertMapKeysToString(v)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return m, nil
+	case float64:
+		obj = strconv.FormatFloat(m, 'f', -1, 64)
+	case int:
+		obj = strconv.Itoa(m)
 	}
 	return obj, nil
 }
