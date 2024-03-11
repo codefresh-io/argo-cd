@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 
 	"github.com/PaesslerAG/jsonpath"
@@ -27,8 +26,6 @@ type Result struct {
 }
 
 func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
-	jsonPathExpression = replaceBraces(jsonPathExpression)
-
 	content, err := os.ReadFile(appPath)
 	if err != nil {
 		return nil, err
@@ -71,16 +68,6 @@ func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 
 	log.Infof("Extracted appVersion: %s", appVersion)
 	return &appVersion, nil
-}
-
-func replaceBraces(s string) string {
-	re := regexp.MustCompile(`^{(.+)}$`)
-	matches := re.FindStringSubmatch(s)
-	if len(matches) == 2 {
-		output := "$" + matches[1]
-		return output
-	}
-	return s
 }
 
 func convertToJSONCompatible(i interface{}) (interface{}, error) {
