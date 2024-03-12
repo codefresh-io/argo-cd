@@ -62,7 +62,11 @@ func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 	}
 	appVersion, ok := versionValue.(string)
 	if !ok {
-		log.Infof("Version value is not a string. Got: %v", versionValue)
+		if versionValue == nil {
+			log.Info("Version value is not a string. Got: nil")
+		} else {
+			log.Infof("Version value is not a string. Got: %v", versionValue)
+		}
 		appVersion = ""
 	}
 
