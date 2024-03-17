@@ -1,2 +1,2 @@
 ### Features
-- feat: improve SessionManager logic
+- feat: improve SessionManager behavior
