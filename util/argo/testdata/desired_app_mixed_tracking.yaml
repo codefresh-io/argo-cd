@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'parent:argoproj.io/Application:argo/child'
+    some-annotation: 'some'
+  labels:
+    app.kubernetes.io/instance: parent
+  name: child
+  namespace: argo
+spec:
+  destination:
+    name: in-cluster
+    namespace: argo
+  project: default
+  source:
+    path: empty
+    repoURL: 'https://github.com/argoproj/argocd-example-apps'
+    targetRevision: main
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true

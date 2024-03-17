@@ -1,6 +1,8 @@
 package diff_test
 
 import (
+	"github.com/argoproj/argo-cd/v2/common"
+	argo2 "github.com/argoproj/argo-cd/v2/util/argo"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,6 +156,23 @@ func TestStateDiff(t *testing.T) {
 			assert.Equal(t, float64(tc.expectedPredictedReplicas), predictedReplicas)
 		})
 	}
+
+	t.Run("will find diff while moving from label tracking to annotation+label", func(t *testing.T) {
+		// given
+		params := defaultDiffConfigParams()
+		params.trackingMethod = string(argo2.TrackingMethodAnnotationAndLabel)
+		params.label = common.LabelKeyAppInstance
+		dc := diffConfig(t, params)
+
+		// when
+		result, err := argo.StateDiff(testutil.YamlToUnstructured(testdata.LiveAppWithOldLabelTrackingYaml), testutil.YamlToUnstructured(testdata.DesiredAppMixedTrackingYaml), dc)
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+	})
+
 }
 func TestDiffConfigBuilder(t *testing.T) {
 	type fixture struct {
