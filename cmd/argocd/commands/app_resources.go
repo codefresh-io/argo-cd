@@ -149,7 +149,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	return command
 }
 
-func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree) {
+func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 	fmtStr := "%s\t%s\t%s\t%s\t%s\n"
@@ -167,16 +167,17 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 		}
 	}
 	_ = w.Flush()
+
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var orphaned bool
+	var output string
 	var command = &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -190,9 +191,10 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 				AppNamespace:    &appNs,
 			})
 			errors.CheckError(err)
-			printResources(listAll, orphaned, appResourceTree)
+			printResources(listAll, orphaned, appResourceTree, output)
 		},
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
+	command.Flags().StringVar(&output, "output", "", "Provides the tree view of the resources")
 	return command
 }

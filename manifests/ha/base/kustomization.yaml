@@ -8,6 +8,7 @@ patches:
 - path: overlays/argocd-application-controller-statefulset.yaml
 - path: overlays/argocd-cmd-params-cm.yaml
 
+
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd

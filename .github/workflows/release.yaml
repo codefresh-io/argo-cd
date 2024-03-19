@@ -58,15 +58,9 @@ jobs:
           # where X must be a number.
           TARGET_VERSION=${SOURCE_TAG#*release-v}
 
-          # Codefresh change: add to filter below a check for `-cf.*` postfix
-          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+((-rc[0-9]+)|(-cap-.*))*$'; then
-            echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
-            exit 1
-          fi
-
           # Target branch is the release branch we're going to operate on
           # Its name is 'release-<major>.<minor>'
-          TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
+          TARGET_BRANCH=release-$(echo "$TARGET_VERSION" | grep -oE '^[0-9]+\.[0-9]+')
           # The release tag is the source tag, minus the release- prefix
           RELEASE_TAG="${SOURCE_TAG#*release-}"
           # Whether this is a pre-release (indicated by -rc suffix)
@@ -341,7 +335,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ needs.prepare-release.outputs.PRE_RELEASE }}
-          body: ${{ needs.prepare-release.outputs.RELEASE_NOTES }}
+          body_path: changelog/CHANGELOG-${{ needs.prepare-release.outputs.TARGET_VERSION }}.md
 
       - name: Update homebrew formula
         env:

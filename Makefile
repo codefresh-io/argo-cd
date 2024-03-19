@@ -9,7 +9,7 @@ GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
-TARGET_ARCH?=linux/amd64
+TARGET_ARCH?=linux/arm64
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
@@ -135,7 +135,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_NAMESPACE?=quay.io/codefresh
+IMAGE_NAMESPACE?=xeonalex/personal-argocd-dev
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -159,7 +159,7 @@ ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 else
-IMAGE_TAG?=latest
+IMAGE_TAG?=repo-server-v9
 endif
 
 ifeq (${DOCKER_PUSH},true)
@@ -169,7 +169,7 @@ endif
 endif
 
 ifdef IMAGE_NAMESPACE
-IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+IMAGE_PREFIX=${IMAGE_NAMESPACE}
 endif
 
 .PHONY: all
@@ -289,16 +289,16 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
+	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX):$(IMAGE_TAG) ; fi
 
 .PHONY: armimage
 armimage:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
+	docker build -t $(IMAGE_PREFIX):$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
@@ -337,7 +337,7 @@ lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 3000s
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --enable gofmt --fix --verbose --timeout 3000s --max-issues-per-linter 0 --max-same-issues 0
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -485,6 +485,9 @@ start-local: mod-vendor-local dep-ui-local cli-local
 run:
 	bash ./hack/goreman-start.sh
 
+.PHONY: cf-release
+cf-release:
+	go run ./hack/release
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit

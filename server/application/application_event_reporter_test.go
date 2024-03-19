@@ -3,11 +3,13 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"github.com/ghodss/yaml"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +62,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -95,7 +98,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -145,10 +148,10 @@ func TestGetApplicationLatestRevision(t *testing.T) {
 					Revision: appRevision,
 				},
 				History: []v1alpha1.RevisionHistory{
-					v1alpha1.RevisionHistory{
+					{
 						Revision: history1Revision,
 					},
-					v1alpha1.RevisionHistory{
+					{
 						Revision: history2Revision,
 					},
 				},
@@ -184,10 +187,10 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 		appMock := v1alpha1.Application{
 			Status: v1alpha1.ApplicationStatus{
 				History: []v1alpha1.RevisionHistory{
-					v1alpha1.RevisionHistory{
+					{
 						ID: history1Id,
 					},
-					v1alpha1.RevisionHistory{
+					{
 						ID: history2Id,
 					},
 				},
@@ -269,7 +272,8 @@ func fakeServer() *Server {
 		1*time.Minute,
 	)
 
-	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, nil, cache, nil, nil, nil, nil, nil, nil, nil)
+	enf := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, nil, cache, nil, nil, enf, nil, nil, nil, nil)
 	return server.(*Server)
 }
 
@@ -354,7 +358,7 @@ func TestStreamApplicationEvent(t *testing.T) {
 			return nil
 		}
 
-		_ = eventReporter.streamApplicationEvents(context.Background(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
+		_ = eventReporter.streamApplicationEvents(context.Background(), log.New(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
 	})
 
 }
@@ -374,7 +378,7 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
+	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
 	assert.NoError(t, err)
 
 }

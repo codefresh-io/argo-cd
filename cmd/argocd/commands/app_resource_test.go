@@ -1,9 +1,8 @@
 package commands
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -32,7 +31,7 @@ func TestPrintResourcesTree(t *testing.T) {
 		},
 	}
 	output, _ := captureOutput(func() error {
-		printResources(true, false, &tree)
+		printResources(true, false, &tree, "")
 		return nil
 	})
 

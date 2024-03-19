@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"reflect"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -80,21 +81,13 @@ func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	}
 }
 
-func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
+func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx log.FieldLogger) (*apiclient.ManifestResponse, error, bool) {
 	// get the desired state manifests of the application
 	desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:     &a.Name,
 		Revision: &a.Status.Sync.Revision,
 	})
 	if err != nil {
-		notManifestGenerationError := !strings.Contains(err.Error(), "Manifest generation error")
-		// when application deleted rbac also throws erorr with PermissionDenied
-		// we can ignore the error, as we check rbac access before reporting events
-		notPermissionDeniedError := !strings.Contains(err.Error(), "PermissionDenied")
-
-		if notManifestGenerationError && notPermissionDeniedError {
-			return nil, fmt.Errorf("failed to get application desired state manifests: %w", err), false
-		}
 		// if it's manifest generation error we need to still report the actual state
 		// of the resources, but since we can't get the desired state, we will report
 		// each resource with empty desired state
@@ -107,6 +100,7 @@ func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 
 func (s *applicationEventReporter) streamApplicationEvents(
 	ctx context.Context,
+	logCtx log.FieldLogger,
 	a *appv1.Application,
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
@@ -115,7 +109,6 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 ) error {
-	logCtx := log.WithField("app", a.Name)
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
@@ -160,13 +153,13 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return err
 		}
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
@@ -190,7 +183,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			continue
 		}
 
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
 			return err
 		}
@@ -227,7 +220,7 @@ func (s *applicationEventReporter) processResource(
 	ctx context.Context,
 	rs appv1.ResourceStatus,
 	parentApplication *appv1.Application,
-	logCtx *log.Entry,
+	logCtx log.FieldLogger,
 	ts string,
 	desiredManifests *apiclient.ManifestResponse,
 	stream events.Eventing_StartEventSourceServer,
@@ -239,6 +232,7 @@ func (s *applicationEventReporter) processResource(
 	ignoreResourceCache bool,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) error {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
@@ -296,7 +290,7 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
-	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod)
+	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
@@ -374,7 +368,7 @@ func isApp(rs appv1.ResourceStatus) bool {
 	return rs.GroupVersionKind().String() == appv1.ApplicationSchemaGroupVersionKind.String()
 }
 
-func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
+func logWithAppStatus(a *appv1.Application, logCtx log.FieldLogger, ts string) *log.Entry {
 	return logCtx.WithFields(log.Fields{
 		"sync":            a.Status.Sync.Status,
 		"health":          a.Status.Health.Status,
@@ -383,7 +377,7 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 	})
 }
 
-func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
+func logWithResourceStatus(logCtx log.FieldLogger, rs appv1.ResourceStatus) log.FieldLogger {
 	logCtx = logCtx.WithField("sync", rs.Status)
 	if rs.Health != nil {
 		logCtx = logCtx.WithField("health", rs.Health.Status)
@@ -427,9 +421,14 @@ func getOperationRevision(a *appv1.Application) string {
 }
 
 func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
+	name := a.GetName()
+	namespace := a.GetNamespace()
+	project := a.Spec.GetProject()
 	return s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
-		Name:     &a.Name,
-		Revision: &revision,
+		Name:         &name,
+		AppNamespace: &namespace,
+		Project:      &project,
+		Revision:     &revision,
 	})
 }
 
@@ -458,13 +457,21 @@ func getResourceEventPayload(
 	originalAppRevisionMetadata *appv1.RevisionMetadata, // passed when rs is application
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) (*events.Event, error) {
 	var (
 		err          error
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
 		errors       = []*events.ObjectError{}
+		logCtx       *log.Entry
 	)
+
+	if originalApplication != nil {
+		logCtx = log.WithField("application", originalApplication.Name)
+	} else {
+		logCtx = log.NewEntry(log.StandardLogger())
+	}
 
 	object := []byte(*actualState.Manifest)
 
@@ -554,6 +561,11 @@ func getResourceEventPayload(
 		}
 	}
 
+	applicationVersionsEvents, err := repoAppVersionsToEvent(applicationVersions)
+	if err != nil {
+		logCtx.Errorf("failed to convert appVersions: %v", err)
+	}
+
 	source := events.ObjectSource{
 		DesiredManifest:       desiredState.CompiledManifest,
 		ActualManifest:        *actualState.Manifest,
@@ -590,11 +602,14 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp: ts,
-		Object:    object,
-		Source:    &source,
-		Errors:    errors,
+		Timestamp:   ts,
+		Object:      object,
+		Source:      &source,
+		Errors:      errors,
+		AppVersions: applicationVersionsEvents,
 	}
+
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
@@ -611,6 +626,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	ts string,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
@@ -664,6 +680,11 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		logCtx.Info("reporting application deletion event")
 	}
 
+	applicationVersionsEvents, err := repoAppVersionsToEvent(applicationVersions)
+	if err != nil {
+		logCtx.Errorf("failed to convert appVersions: %v", err)
+	}
+
 	hs := string(a.Status.Health.Status)
 	source := &events.ObjectSource{
 		DesiredManifest:       "",
@@ -690,11 +711,14 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp: ts,
-		Object:    object,
-		Source:    source,
-		Errors:    parseApplicationSyncResultErrorsFromConditions(a.Status),
+		Timestamp:   ts,
+		Object:      object,
+		Source:      source,
+		Errors:      parseApplicationSyncResultErrorsFromConditions(a.Status),
+		AppVersions: applicationVersionsEvents,
 	}
+
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
@@ -704,7 +728,10 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
+func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger log.FieldLogger) *apiclient.Manifest {
+	if ds == nil {
+		return &apiclient.Manifest{}
+	}
 	for _, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
@@ -764,4 +791,21 @@ func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *ap
 	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Message, "metadata", "labels", "app.meta.commit-message")
 
 	return u
+}
+
+func repoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
+	applicationVersionsEvents := &events.ApplicationVersions{}
+	applicationVersionsData, _ := json.Marshal(applicationVersions)
+	err := json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+	if err != nil {
+		return nil, err
+	}
+	return applicationVersionsEvents, nil
+}
+
+func safeString(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }

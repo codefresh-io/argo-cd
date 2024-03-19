@@ -34,6 +34,11 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
     bool hasMultipleSources = 22;
     map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
+    k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta applicationMetadata = 24;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    repeated string projectSourceRepos = 25;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    string projectName = 26;
 }
 
 message ManifestRequestWithFiles {
@@ -92,6 +97,22 @@ message Manifest {
     int32 line = 4;
 }
 
+message Dependencies {
+    // Content of Chart.lock
+	string lock = 1;
+    // Content of Cart.yaml/dependencies
+	string deps = 2;
+    // Content of requirements.yaml
+	string requirements = 3;
+}
+
+message ApplicationVersions {
+    // Application version presented by single value
+    string appVersion = 1;
+    // Yaml content of dependencies
+    Dependencies dependencies = 2;
+}
+
 message ManifestResponse {
     repeated Manifest manifests = 1;
     string namespace = 2;
@@ -104,6 +125,8 @@ message ManifestResponse {
     string commitMessage = 8;
     string commitAuthor = 9;
     k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
+    // A version of the application and its dependencies
+    ApplicationVersions applicationVersions = 11;
 }
 
 message ListRefsRequest {
@@ -267,6 +290,28 @@ message GitDirectoriesResponse {
     repeated string paths = 1;
 }
 
+message UpdateRevisionForPathsRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+
+    string appLabelKey = 2;
+    string appName = 3;
+    string namespace = 4;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 5;
+    string trackingMethod = 6;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 7;
+    string kubeVersion = 8;
+    repeated string apiVersions = 9;
+    bool hasMultipleSources = 10;
+
+    string syncedRevision = 11;
+    string revision = 12;
+    repeated string paths = 13;
+}
+
+message UpdateRevisionForPathsResponse {
+    bool changes = 1;
+}
+
 // ManifestService
 service RepoServerService {
 
@@ -320,5 +365,9 @@ service RepoServerService {
 
     // GetGitDirectories returns a set of directory paths for the given repo
     rpc GetGitDirectories(GitDirectoriesRequest) returns (GitDirectoriesResponse) {
+    }
+
+    // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
+    rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
     }
 }
