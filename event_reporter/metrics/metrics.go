@@ -64,7 +64,7 @@ var (
 	droppedEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "codefresh_event_reporter_dropped_events_total",
-			Help: "Amount of specific application events queue of taken shard.",
+			Help: "Amount of dropped application events queue of taken shard.",
 		},
 		[]string{"reporter_shard", "application", "error_in_learning_mode"},
 	)
