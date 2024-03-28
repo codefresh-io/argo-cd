@@ -72,7 +72,7 @@ var (
 	erroredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "codefresh_event_reporter_errored_events_total",
-			Help: "Total amount of errored events.",
+			Help: "Amount of application events not accepted into the queue of a particular shard.",
 		},
 		[]string{"reporter_shard", "metric_event_type", "error_type", "application"},
 	)
