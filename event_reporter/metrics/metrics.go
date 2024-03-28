@@ -48,7 +48,7 @@ var (
 	queueSizeGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "codefresh_event_reporter_queue_size",
-			Help: "Size of application events queue of taked shard.",
+			Help: "Size of application events queue of a particular shard.",
 		},
 		[]string{"reporter_shard"},
 	)
@@ -56,7 +56,7 @@ var (
 	enqueuedEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "codefresh_event_reporter_enqueued_events_total",
-			Help: "Amount of specific application events queue of taken shard.",
+			Help: "Amount of application events not accepted into the queue of a particular shard.",
 		},
 		[]string{"reporter_shard", "application", "error_in_learning_mode"},
 	)
@@ -81,7 +81,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "codefresh_event_reporter_event_processing_duration",
 			Help:    "Application event processing duration.",
-			Buckets: []float64{0.25, .5, 1, 2, 3, 5, 10, 20, 50},
+			Buckets: []float64{0.25, .5, 1, 2, 5, 10, 20},
 		},
 		[]string{"reporter_shard", "application", "metric_event_type"},
 	)
