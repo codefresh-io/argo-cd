@@ -68,6 +68,7 @@ func NewCommand() *cobra.Command {
 		persistResourceHealth            bool
 		shardingAlgorithm                string
 		enableDynamicClusterDistribution bool
+		enableUpdateRevisionForPaths     bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -160,6 +161,7 @@ func NewCommand() *cobra.Command {
 				persistResourceHealth,
 				clusterFilter,
 				applicationNamespaces,
+				enableUpdateRevisionForPaths,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -206,6 +208,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
+	command.Flags().BoolVar(&enableUpdateRevisionForPaths, "update-revision-for-path-enabled", env.ParseBoolFromEnv(common.EnvEnableUpdateRevisionForPaths, false), "Enables updating revision for paths during application reconciliation.")
+
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
