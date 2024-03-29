@@ -93,19 +93,20 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer         *metrics.MetricsServer
-	db                    db.ArgoDB
-	settingsMgr           *settings.SettingsManager
-	appclientset          appclientset.Interface
-	projInformer          cache.SharedIndexInformer
-	kubectl               kubeutil.Kubectl
-	repoClientset         apiclient.Clientset
-	liveStateCache        statecache.LiveStateCache
-	cache                 *appstatecache.Cache
-	namespace             string
-	statusRefreshTimeout  time.Duration
-	resourceTracking      argo.ResourceTracking
-	persistResourceHealth bool
+	metricsServer                *metrics.MetricsServer
+	db                           db.ArgoDB
+	settingsMgr                  *settings.SettingsManager
+	appclientset                 appclientset.Interface
+	projInformer                 cache.SharedIndexInformer
+	kubectl                      kubeutil.Kubectl
+	repoClientset                apiclient.Clientset
+	liveStateCache               statecache.LiveStateCache
+	cache                        *appstatecache.Cache
+	namespace                    string
+	statusRefreshTimeout         time.Duration
+	resourceTracking             argo.ResourceTracking
+	persistResourceHealth        bool
+	enableUpdateRevisionForPaths bool
 }
 
 // getRepoObjs will generate the manifests for the given application delegating the
@@ -185,7 +186,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-		if app.Status.Sync.Revision != "" && ok && val != "" {
+		if app.Status.Sync.Revision != "" && ok && val != "" && m.enableUpdateRevisionForPaths {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			_, err = repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
@@ -918,21 +919,23 @@ func NewAppStateManager(
 	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
+	enableUpdateRevisionForPaths bool,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:        liveStateCache,
-		cache:                 cache,
-		db:                    db,
-		appclientset:          appclientset,
-		kubectl:               kubectl,
-		repoClientset:         repoClientset,
-		namespace:             namespace,
-		settingsMgr:           settingsMgr,
-		projInformer:          projInformer,
-		metricsServer:         metricsServer,
-		statusRefreshTimeout:  statusRefreshTimeout,
-		resourceTracking:      resourceTracking,
-		persistResourceHealth: persistResourceHealth,
+		liveStateCache:               liveStateCache,
+		cache:                        cache,
+		db:                           db,
+		appclientset:                 appclientset,
+		kubectl:                      kubectl,
+		repoClientset:                repoClientset,
+		namespace:                    namespace,
+		settingsMgr:                  settingsMgr,
+		projInformer:                 projInformer,
+		metricsServer:                metricsServer,
+		statusRefreshTimeout:         statusRefreshTimeout,
+		resourceTracking:             resourceTracking,
+		persistResourceHealth:        persistResourceHealth,
+		enableUpdateRevisionForPaths: enableUpdateRevisionForPaths,
 	}
 }
 
