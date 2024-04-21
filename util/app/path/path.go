@@ -152,4 +152,3 @@ func ensureAbsPath(input string) string {
 	}
 	return input
 }
-
