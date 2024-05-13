@@ -2614,6 +2614,24 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	return res, nil
 }
 
+func (s *Server) GetChangeRevision(ctx context.Context, in *application.ChangeRevisionRequest) (*application.ChangeRevisionResponse, error) {
+	closer, client, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(closer)
+
+	response, err := client.GetChangeRevision(ctx, &apiclient.ChangeRevisionRequest{})
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting change revision: %w", err)
+	}
+
+	return &application.ChangeRevisionResponse{
+		Revision: pointer.String(response.Revision),
+	}, nil
+}
+
 func (s *Server) inferResourcesStatusHealth(app *appv1.Application) {
 	if app.Status.ResourceHealthSource == appv1.ResourceHealthLocationAppTree {
 		tree := &appv1.ApplicationTree{}

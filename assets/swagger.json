@@ -251,6 +251,50 @@
         }
       }
     },
+    "/api/v1/application/changeRevision": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ApplicationService_GetChangeRevision",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "currentRevision",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "previousRevision",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationChangeRevisionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [
@@ -4422,6 +4466,14 @@
           "type": "string"
         },
         "error": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationChangeRevisionResponse": {
+      "type": "object",
+      "properties": {
+        "revision": {
           "type": "string"
         }
       }
@@ -8749,6 +8801,9 @@
       "type": "object",
       "title": "RevisionHistory contains history information about a previous sync",
       "properties": {
+        "changeRevision": {
+          "type": "string"
+        },
         "deployStartedAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -9101,6 +9156,9 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "changeRevision": {
+          "type": "string"
+        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
@@ -9178,6 +9236,9 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
+        "changeRevision": {
+          "type": "string"
+        },
         "managedNamespaceMetadata": {
           "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
         },
