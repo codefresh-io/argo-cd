@@ -74,7 +74,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 				Data: data,
 				Type: corev1.SecretTypeOpaque,
 			}
-			secret, err = kubeClientset.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
+			_, err = kubeClientset.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 			if err != nil && !apierr.IsAlreadyExists(err) {
 				errors.CheckError(err)
 			}

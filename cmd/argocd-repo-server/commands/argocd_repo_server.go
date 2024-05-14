@@ -69,7 +69,7 @@ func NewCommand() *cobra.Command {
 		streamedManifestMaxTarSize            string
 		streamedManifestMaxExtractedSize      string
 		helmManifestMaxExtractedSize          string
-		helmRegistryMaxIndexSize          string
+		helmRegistryMaxIndexSize              string
 		disableManifestMaxExtractedSize       bool
 		codefreshUrl                          string
 		codefreshToken                        string
@@ -140,7 +140,7 @@ func NewCommand() *cobra.Command {
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
 				},
-				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				HelmRegistryMaxIndexSize: helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
 			}, askPassServer)
 			errors.CheckError(err)
 
