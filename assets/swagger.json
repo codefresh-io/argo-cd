@@ -260,7 +260,7 @@
         "parameters": [
           {
             "type": "string",
-            "name": "name",
+            "name": "appName",
             "in": "query"
           },
           {
@@ -276,6 +276,15 @@
           {
             "type": "string",
             "name": "previousRevision",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "paths",
             "in": "query"
           }
         ],

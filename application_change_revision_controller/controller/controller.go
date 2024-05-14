@@ -64,6 +64,15 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 			return nil // ignore this event
 		}
 
+		val, ok := a.Annotations[appv1.AnnotationKeyManifestGeneratePaths]
+		if !ok || val == "" {
+			return nil
+		}
+
+		if a.Operation == nil || a.Operation.Sync == nil {
+			return nil
+		}
+
 		c.changeRevisionService.ChangeRevision(ctx, &a)
 
 		return nil

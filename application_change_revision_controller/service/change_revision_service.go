@@ -37,22 +37,22 @@ func (c *changeRevisionService) ChangeRevision(ctx context.Context, a *applicati
 		return err
 	}
 
-	patch, _ := json.Marshal(map[string]interface{}{
-		"status": map[string]interface{}{
-			"operationState": map[string]interface{}{
-				"syncResult": map[string]interface{}{
-					"changeRevision": *revision,
-				},
-			},
-		},
-	})
-	_, err = c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return err
+	if revision == nil || *revision == "" {
+		return nil
+	}
+
+	log.Infof("Change revision for application %s is %s", a.Name, *revision)
+
+	return c.patchStatusWithChangeRevision(ctx, a, *revision)
 }
 
 func (c *changeRevisionService) calculateRevision(ctx context.Context, a *application.Application) (*string, error) {
+	currentRevision, previousRevision := c.getRevisions(ctx, a)
 	changeRevisionResult, err := c.applicationServiceClient.GetChangeRevision(ctx, &appclient.ChangeRevisionRequest{
-		Name: pointer.String("test"),
+		AppName:          pointer.String(a.GetName()),
+		Namespace:        pointer.String(a.GetNamespace()),
+		CurrentRevision:  pointer.String(currentRevision),
+		PreviousRevision: pointer.String(previousRevision),
 	})
 	if err != nil {
 		return nil, err
@@ -72,4 +72,10 @@ func (c *changeRevisionService) patchStatusWithChangeRevision(ctx context.Contex
 	})
 	_, err := c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
+}
+
+func (c *changeRevisionService) getRevisions(ctx context.Context, a *application.Application) (string, string) {
+	currentRevision := a.Operation.Sync.Revision
+	previousRevision := a.Status.History[len(a.Status.History)-1].Revision
+	return currentRevision, previousRevision
 }

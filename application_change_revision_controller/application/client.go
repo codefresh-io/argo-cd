@@ -172,7 +172,7 @@ func (c *httpApplicationClient) List(ctx context.Context, in *appclient.Applicat
 }
 
 func (c *httpApplicationClient) GetChangeRevision(ctx context.Context, in *appclient.ChangeRevisionRequest, opts ...grpc.CallOption) (*appclient.ChangeRevisionResponse, error) {
-	params := fmt.Sprintf("?name=%s", in.GetName())
+	params := fmt.Sprintf("?appName=%s&namespace=%s&currentRevision=%s&previousRevision=%s", in.GetAppName(), in.GetNamespace(), in.GetCurrentRevision(), in.GetPreviousRevision())
 
 	url := fmt.Sprintf("%s/api/v1/application/changeRevision%s", c.baseUrl, params)
 
