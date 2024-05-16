@@ -5,7 +5,6 @@ import (
 	appclient "github.com/argoproj/argo-cd/v2/application_change_revision_controller/application"
 	"github.com/argoproj/argo-cd/v2/application_change_revision_controller/service"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"strings"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -57,25 +56,12 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 		logCtx log.FieldLogger = log.StandardLogger()
 	)
 
-	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
-	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string) error {
-		if eventType == watch.Bookmark {
+	calculateIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string) error {
+		if eventType == watch.Bookmark || eventType == watch.Deleted {
 			return nil // ignore this event
 		}
 
-		val, ok := a.Annotations[appv1.AnnotationKeyManifestGeneratePaths]
-		if !ok || val == "" {
-			return nil
-		}
-
-		if a.Operation == nil || a.Operation.Sync == nil {
-			return nil
-		}
-
-		c.changeRevisionService.ChangeRevision(ctx, &a)
-
-		return nil
+		return c.changeRevisionService.ChangeRevision(ctx, &a)
 	}
 
 	//TODO: move to abstraction
@@ -91,13 +77,9 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
 			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-			err := sendIfPermitted(ctx, event.Application, event.Type, ts)
+			err := calculateIfPermitted(ctx, event.Application, event.Type, ts)
 			if err != nil {
-				logCtx.WithError(err).Error("failed to stream application events")
-				if strings.Contains(err.Error(), "context deadline exceeded") {
-					logCtx.Info("Closing event-source connection")
-					cancel()
-				}
+				logCtx.WithError(err).Error("failed to calculate change revision")
 			}
 			cancel()
 		}
