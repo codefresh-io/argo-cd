@@ -60,6 +60,9 @@ const (
 
 	DefaultPortEventReporterServerMetrics = 8087
 	DefaultPortEventReporterServer        = 8088
+
+	DefaultPortCRCServerMetrics = 8089
+	DefaultPortCRCServer        = 8090
 )
 
 // DefaultAddressAPIServer for ArgoCD components

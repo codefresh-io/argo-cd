@@ -73,7 +73,7 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case event := <-eventsChannel:
-			logCtx.Infof("channel size is %d", len(eventsChannel))
+			// logCtx.Infof("channel size is %d", len(eventsChannel))
 
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
 			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
