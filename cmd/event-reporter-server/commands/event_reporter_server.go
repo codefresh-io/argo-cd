@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
+
 	"math"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -234,8 +236,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&rateLimiterBucketSize, "rate-limiter-bucket-size", env.ParseNumFromEnv("RATE_LIMITER_BUCKET_SIZE", math.MaxInt, 0, math.MaxInt), "The maximum amount of requests allowed per window.")
 	command.Flags().DurationVar(&rateLimiterDuration, "rate-limiter-period", env.ParseDurationFromEnv("RATE_LIMITER_DURATION", 24*time.Hour, 0, math.MaxInt64), "The rate limit window size.")
 	command.Flags().BoolVar(&rateLimiterLearningMode, "rate-limiter-learning-mode", env.ParseBoolFromEnv("RATE_LIMITER_LEARNING_MODE_ENABLED", false), "The rate limit enabled in learning mode ( not blocking sending to queue but logging it )")
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
-		redisClient = client
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
+		FlagPrefix: "event-reporter-",
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
 	return command
 }
