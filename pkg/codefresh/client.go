@@ -135,7 +135,7 @@ func (cfConfig *CodefreshConfig) getHttpClient() *http.Client {
 func (cfConfig *CodefreshConfig) getTlsConfig() *tls.Config {
 	c := &tls.Config{}
 
-	if cfConfig.TlsInsecure == true {
+	if cfConfig.TlsInsecure {
 		return &tls.Config{
 			InsecureSkipVerify: true,
 			ClientAuth:         0,
