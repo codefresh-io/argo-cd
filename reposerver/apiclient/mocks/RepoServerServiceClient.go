@@ -414,37 +414,6 @@ func (_m *RepoServerServiceClient) TestRepository(ctx context.Context, in *apicl
 	return r0, r1
 }
 
-// UpdateRevisionForPaths provides a mock function with given fields: ctx, in, opts
-func (_m *RepoServerServiceClient) UpdateRevisionForPaths(ctx context.Context, in *apiclient.UpdateRevisionForPathsRequest, opts ...grpc.CallOption) (*apiclient.UpdateRevisionForPathsResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *apiclient.UpdateRevisionForPathsResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.UpdateRevisionForPathsRequest, ...grpc.CallOption) *apiclient.UpdateRevisionForPathsResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*apiclient.UpdateRevisionForPathsResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.UpdateRevisionForPathsRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// UpdateRevisionForPaths provides a mock function with given fields: ctx, in, opts
 func (_m *RepoServerServiceClient) UpdateRevisionForPaths(ctx context.Context, in *apiclient.UpdateRevisionForPathsRequest, opts ...grpc.CallOption) (*apiclient.UpdateRevisionForPathsResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {

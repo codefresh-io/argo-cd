@@ -1929,6 +1929,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"forceNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Namespace sets the namespace that Kustomize adds to all resources",
@@ -3967,8 +3974,15 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"SetNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"BuildOptions", "BinaryPath"},
+				Required: []string{"BuildOptions", "BinaryPath", "SetNamespace"},
 			},
 		},
 	}
@@ -6328,6 +6342,38 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 					"createdAt": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "available for managed resource",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "available for managed resource without k8s-last-applied-configuration",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
