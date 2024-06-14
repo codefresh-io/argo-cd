@@ -237,7 +237,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&rateLimiterDuration, "rate-limiter-period", env.ParseDurationFromEnv("RATE_LIMITER_DURATION", 24*time.Hour, 0, math.MaxInt64), "The rate limit window size.")
 	command.Flags().BoolVar(&rateLimiterLearningMode, "rate-limiter-learning-mode", env.ParseBoolFromEnv("RATE_LIMITER_LEARNING_MODE_ENABLED", false), "The rate limit enabled in learning mode ( not blocking sending to queue but logging it )")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
-		FlagPrefix: "event-reporter-",
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client
 		},
