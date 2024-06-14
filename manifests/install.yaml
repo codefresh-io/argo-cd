@@ -322,7 +322,7 @@ spec:
                             type: object
                           components:
                             description: Components specifies a list of kustomize
-                              components to add to the kustmization before building
+                              components to add to the kustomization before building
                             items:
                               type: string
                             type: array
@@ -664,7 +664,7 @@ spec:
                               type: object
                             components:
                               description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
+                                components to add to the kustomization before building
                               items:
                                 type: string
                               type: array
@@ -1123,7 +1123,7 @@ spec:
                         type: object
                       components:
                         description: Components specifies a list of kustomize components
-                          to add to the kustmization before building
+                          to add to the kustomization before building
                         items:
                           type: string
                         type: array
@@ -1455,7 +1455,7 @@ spec:
                           type: object
                         components:
                           description: Components specifies a list of kustomize components
-                            to add to the kustmization before building
+                            to add to the kustomization before building
                           items:
                             type: string
                           type: array
@@ -1953,7 +1953,7 @@ spec:
                               type: object
                             components:
                               description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
+                                components to add to the kustomization before building
                               items:
                                 type: string
                               type: array
@@ -2299,7 +2299,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -2791,7 +2791,7 @@ spec:
                                     type: object
                                   components:
                                     description: Components specifies a list of kustomize
-                                      components to add to the kustmization before
+                                      components to add to the kustomization before
                                       building
                                     items:
                                       type: string
@@ -3157,7 +3157,7 @@ spec:
                                       type: object
                                     components:
                                       description: Components specifies a list of
-                                        kustomize components to add to the kustmization
+                                        kustomize components to add to the kustomization
                                         before building
                                       items:
                                         type: string
@@ -3638,7 +3638,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -3996,7 +3996,8 @@ spec:
                                   type: object
                                 components:
                                   description: Components specifies a list of kustomize
-                                    components to add to the kustmization before building
+                                    components to add to the kustomization before
+                                    building
                                   items:
                                     type: string
                                   type: array
@@ -4498,7 +4499,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -4856,7 +4857,8 @@ spec:
                                   type: object
                                 components:
                                   description: Components specifies a list of kustomize
-                                    components to add to the kustmization before building
+                                    components to add to the kustomization before
+                                    building
                                   items:
                                     type: string
                                   type: array
@@ -21082,30 +21084,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis
-rules:
-- apiGroups:
-  - ""
-  resourceNames:
-  - argocd-redis
-  resources:
-  - secrets
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
     app.kubernetes.io/component: event-reporter
     app.kubernetes.io/name: event-reporter
     app.kubernetes.io/part-of: argocd
@@ -21375,22 +21353,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: argocd-redis
-subjects:
-- kind: ServiceAccount
-  name: argocd-redis
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -21434,23 +21396,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-application-controller
-  namespace: argocd
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: applicationset-controller
-    app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-applicationset-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-applicationset-controller
-subjects:
-- kind: ServiceAccount
-  name: argocd-applicationset-controller
   namespace: argocd
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -21890,7 +21835,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -22100,7 +22045,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:v2.11.3
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
