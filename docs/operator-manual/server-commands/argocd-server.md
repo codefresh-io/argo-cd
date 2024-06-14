@@ -34,6 +34,7 @@ argocd-server [flags]
       --as-uid string                                   UID to impersonate for the operation
       --basehref string                                 Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                    Path to a cert file for the certificate authority
+      --cf-app-config-cache-expiration duration         Cache expiration for Codefresh application configs (default 3m0s)
       --client-certificate string                       Path to a client certificate file for TLS
       --client-key string                               Path to a client key file for TLS
       --cluster string                                  The name of the kubeconfig cluster to use
