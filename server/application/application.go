@@ -460,6 +460,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	}
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
+	manifestInfosAppVersionsIdx := -1 // defines index of spec source to take app appVersion
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
 
@@ -508,7 +509,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("failed to get ref sources: %v", err)
 		}
 
-		for _, source := range sources {
+		for sIdx, source := range sources {
 			repo, err := s.db.GetRepository(ctx, source.RepoURL)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
@@ -549,6 +550,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error generating manifests: %w", err)
 			}
 			manifestInfos = append(manifestInfos, manifestInfo)
+			if source.Ref == "" && manifestInfosAppVersionsIdx < 0 {
+				manifestInfosAppVersionsIdx = sIdx
+			}
 		}
 		return nil
 	})
@@ -578,6 +582,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 		}
 		manifests.Manifests = append(manifests.Manifests, manifestInfo.Manifests...)
+	}
+	if manifestInfosAppVersionsIdx >= 0 && manifestInfos[manifestInfosAppVersionsIdx] != nil {
+		manifests.ApplicationVersions = manifestInfos[manifestInfosAppVersionsIdx].ApplicationVersions
 	}
 
 	return manifests, nil
