@@ -1,2 +1,2 @@
 ### Features
-- feat: ability to bypass codefresh CA certificate
+- feat: ability to provide codefresh CA certificate or use insecure mode
