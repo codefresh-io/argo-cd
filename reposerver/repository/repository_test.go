@@ -212,7 +212,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 50
+	const countOfManifests = 48 // codefresh has only 48 because notification not included but we have event-reporter (count yamls in /manifests/base)
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
