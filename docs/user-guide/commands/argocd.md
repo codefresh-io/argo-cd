@@ -40,7 +40,6 @@ argocd [flags]
 ### SEE ALSO
 
 * [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
-* [argocd appset](argocd_appset.md)	 - Manage ApplicationSets
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
 * [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash or zsh)
