@@ -17,9 +17,11 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -50,6 +52,7 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -124,18 +127,20 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, err := r.generateApplications(logCtx, applicationSetInfo)
-	if err != nil {
+	desiredApplications, applicationSetReason, generatorsErr := r.generateApplications(logCtx, applicationSetInfo)
+	if generatorsErr != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
 				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: err.Error(),
+				Message: generatorsErr.Error(),
 				Reason:  string(applicationSetReason),
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{}, err
+		if len(desiredApplications) < 1 {
+			return ctrl.Result{}, generatorsErr
+		}
 	}
 
 	parametersGenerated = true
@@ -309,7 +314,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
-	if len(validateErrors) == 0 {
+	if len(validateErrors) == 0 && generatorsErr == nil {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
@@ -666,7 +671,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{}, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
@@ -711,6 +716,17 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 						generatedApp.Labels = map[string]string{}
 					}
 					generatedApp.Labels[key] = state
+				}
+			}
+
+			// Preserve post-delete finalizers:
+			//   https://github.com/argoproj/argo-cd/issues/17181
+			for _, finalizer := range found.ObjectMeta.Finalizers {
+				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
+					if generatedApp.Finalizers == nil {
+						generatedApp.Finalizers = []string{}
+					}
+					generatedApp.Finalizers = append(generatedApp.Finalizers, finalizer)
 				}
 			}
 
@@ -1526,10 +1542,14 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	}
 
 	// the applicationset controller owns the application spec, labels, annotations, and finalizers on the applications
-	if !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations()) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels()) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers()) {
+	// reflect.DeepEqual considers nil slices/maps not equal to empty slices/maps
+	// https://pkg.go.dev/reflect#DeepEqual
+	// ApplicationDestination has an unexported field so we can just use the == for comparsion
+	if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
+		!cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+
 		return true
 	}
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"reflect"
 	"strings"
 	goSync "sync"
@@ -34,8 +33,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -118,6 +119,7 @@ type appStateManager struct {
 	repoErrorCache        goSync.Map
 	repoErrorGracePeriod  time.Duration
 	serverSideDiff        bool
+	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
 // GetRepoObjs will generate the manifests for the given application delegating the
@@ -644,7 +646,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
@@ -935,7 +937,16 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	return true
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
+func (m *appStateManager) persistRevisionHistory(
+	app *v1alpha1.Application,
+	revision string,
+	source v1alpha1.ApplicationSource,
+	revisions []string,
+	sources []v1alpha1.ApplicationSource,
+	hasMultipleSources bool,
+	startedAt metav1.Time,
+	initiatedBy v1alpha1.OperationInitiator,
+) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History.LastRevisionHistory().ID + 1
@@ -948,6 +959,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			ID:              nextID,
 			Sources:         sources,
 			Revisions:       revisions,
+			InitiatedBy:     initiatedBy,
 		})
 	} else {
 		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
@@ -956,6 +968,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			DeployStartedAt: &startedAt,
 			ID:              nextID,
 			Source:          source,
+			InitiatedBy:     initiatedBy,
 		})
 	}
 
@@ -990,6 +1003,7 @@ func NewAppStateManager(
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
 	serverSideDiff bool,
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -1007,6 +1021,7 @@ func NewAppStateManager(
 		persistResourceHealth: persistResourceHealth,
 		repoErrorGracePeriod:  repoErrorGracePeriod,
 		serverSideDiff:        serverSideDiff,
+		ignoreNormalizerOpts:  ignoreNormalizerOpts,
 	}
 }
 
