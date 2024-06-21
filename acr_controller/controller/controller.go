@@ -2,8 +2,8 @@ package application_change_revision_controller
 
 import (
 	"context"
-	appclient "github.com/argoproj/argo-cd/v2/application_change_revision_controller/application"
-	"github.com/argoproj/argo-cd/v2/application_change_revision_controller/service"
+	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
+	"github.com/argoproj/argo-cd/v2/acr_controller/service"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"time"
 
@@ -47,7 +47,7 @@ func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInforme
 		applicationServiceClient: applicationServiceClient,
 		appLister:                appLister,
 		applicationClientset:     applicationClientset,
-		acrService:               service.NewChangeRevisionService(applicationClientset, applicationServiceClient),
+		acrService:               service.NewACRService(applicationClientset, applicationServiceClient),
 	}
 }
 

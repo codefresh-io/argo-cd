@@ -3,11 +3,11 @@ package commands
 import (
 	"context"
 	"fmt"
-	acr "github.com/argoproj/argo-cd/v2/application_change_revision_controller"
+	acr "github.com/argoproj/argo-cd/v2/acr_controller"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"time"
 
-	appclient "github.com/argoproj/argo-cd/v2/application_change_revision_controller/application"
+	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"

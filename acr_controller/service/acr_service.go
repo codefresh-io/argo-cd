@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	argoclient "github.com/argoproj/argo-cd/v2/application_change_revision_controller/application"
+	argoclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
 	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -18,14 +18,14 @@ type ACRService interface {
 	ChangeRevision(ctx context.Context, application *application.Application) error
 }
 
-type changeRevisionService struct {
+type acrService struct {
 	applicationClientset     appclientset.Interface
 	applicationServiceClient argoclient.ApplicationClient
 	lock                     sync.Mutex
 }
 
-func NewChangeRevisionService(applicationClientset appclientset.Interface, applicationServiceClient argoclient.ApplicationClient) ACRService {
-	return &changeRevisionService{
+func NewACRService(applicationClientset appclientset.Interface, applicationServiceClient argoclient.ApplicationClient) ACRService {
+	return &acrService{
 		applicationClientset:     applicationClientset,
 		applicationServiceClient: applicationServiceClient,
 	}
@@ -41,7 +41,7 @@ func getChangeRevision(app *application.Application) string {
 	return ""
 }
 
-func (c *changeRevisionService) ChangeRevision(ctx context.Context, a *application.Application) error {
+func (c *acrService) ChangeRevision(ctx context.Context, a *application.Application) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -79,15 +79,15 @@ func (c *changeRevisionService) ChangeRevision(ctx context.Context, a *applicati
 	}
 
 	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		log.Info("Patch operation sync result for application %s", app.Name)
+		log.Infof("Patch operation sync result for application %s", app.Name)
 		return c.patchOperationSyncResultWithChangeRevision(ctx, app, *revision)
 	}
 
-	log.Info("Patch operation for application %s", app.Name)
+	log.Infof("Patch operation for application %s", app.Name)
 	return c.patchOperationWithChangeRevision(ctx, app, *revision)
 }
 
-func (c *changeRevisionService) calculateRevision(ctx context.Context, a *application.Application) (*string, error) {
+func (c *acrService) calculateRevision(ctx context.Context, a *application.Application) (*string, error) {
 	currentRevision, previousRevision := c.getRevisions(ctx, a)
 	changeRevisionResult, err := c.applicationServiceClient.GetChangeRevision(ctx, &appclient.ChangeRevisionRequest{
 		AppName:          pointer.String(a.GetName()),
@@ -101,7 +101,7 @@ func (c *changeRevisionService) calculateRevision(ctx context.Context, a *applic
 	return changeRevisionResult.Revision, nil
 }
 
-func (c *changeRevisionService) patchOperationWithChangeRevision(ctx context.Context, a *application.Application, revision string) error {
+func (c *acrService) patchOperationWithChangeRevision(ctx context.Context, a *application.Application, revision string) error {
 	patch, _ := json.Marshal(map[string]interface{}{
 		"operation": map[string]interface{}{
 			"sync": map[string]interface{}{
@@ -113,7 +113,7 @@ func (c *changeRevisionService) patchOperationWithChangeRevision(ctx context.Con
 	return err
 }
 
-func (c *changeRevisionService) patchOperationSyncResultWithChangeRevision(ctx context.Context, a *application.Application, revision string) error {
+func (c *acrService) patchOperationSyncResultWithChangeRevision(ctx context.Context, a *application.Application, revision string) error {
 	patch, _ := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
 			"operationState": map[string]interface{}{
@@ -129,16 +129,20 @@ func (c *changeRevisionService) patchOperationSyncResultWithChangeRevision(ctx c
 	return err
 }
 
-func (c *changeRevisionService) getRevisions(ctx context.Context, a *application.Application) (string, string) {
-	// first sync operation happens
-	// TODO: implement scenraio when there is no history
+func (c *acrService) getRevisions(ctx context.Context, a *application.Application) (string, string) {
 	if a.Status.History == nil || len(a.Status.History) == 0 {
+		// it is first sync operation, and we dont need detect change revision in such case
 		return "", ""
 	}
-	currentRevision := a.Operation.Sync.Revision
+
+	// in case if sync is already done, we need to use revision from sync result and previous revision from history
 	if a.Status.Sync.Status == "Synced" {
-		return currentRevision, a.Status.History[len(a.Status.History)-1].Revision
+		currentRevision := a.Status.OperationState.SyncResult.Revision
+		return currentRevision, a.Status.History[len(a.Status.History)-2].Revision
 	}
+
+	// in case if sync is in progress, we need to use revision from operation and revision from latest history record
+	currentRevision := a.Operation.Sync.Revision
 	previousRevision := a.Status.History[len(a.Status.History)-1].Revision
 	return currentRevision, previousRevision
 }

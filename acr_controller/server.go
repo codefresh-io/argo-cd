@@ -1,11 +1,11 @@
-package application_change_revision_controller
+package acr_controller
 
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	appclient "github.com/argoproj/argo-cd/v2/application_change_revision_controller/application"
-	application_change_revision_controller "github.com/argoproj/argo-cd/v2/application_change_revision_controller/controller"
+	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
+	application_change_revision_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"net"
 	"net/http"
