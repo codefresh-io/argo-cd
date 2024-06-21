@@ -1919,6 +1919,8 @@ message RevisionHistory {
 
   // InitiatedBy contains information about who initiated the operations
   optional OperationInitiator initiatedBy = 10;
+
+  optional string changeRevision = 11;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
@@ -2171,6 +2173,8 @@ message SyncOperation {
   // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
   // If omitted, will use the revision specified in app spec.
   repeated string revisions = 11;
+
+  optional string changeRevision = 12;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -2203,6 +2207,8 @@ message SyncOperationResult {
 
   // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
   optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
+
+  optional string changeRevision = 7;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git

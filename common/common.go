@@ -74,6 +74,7 @@ const (
 	DefaultAddressRepoServerMetrics = "0.0.0.0"
 
 	DefaultAddressEventReporterServer        = "0.0.0.0"
+	DefaultAddressACRController              = "0.0.0.0"
 	DefaultAddressEventReporterServerMetrics = "0.0.0.0"
 )
 

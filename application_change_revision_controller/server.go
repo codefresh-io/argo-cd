@@ -7,7 +7,6 @@ import (
 	appclient "github.com/argoproj/argo-cd/v2/application_change_revision_controller/application"
 	application_change_revision_controller "github.com/argoproj/argo-cd/v2/application_change_revision_controller/controller"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	"net"
 	"net/http"
 	"strings"
@@ -17,12 +16,10 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
-	"github.com/argoproj/argo-cd/v2/util/io"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
@@ -44,8 +41,8 @@ var backoff = wait.Backoff{
 	Jitter:   0.1,
 }
 
-type ApplicationChangeRevisionServer struct {
-	ApplicationChangeRevisionServerOpts
+type ACRServer struct {
+	ACRServerOpts
 
 	settings             *settings_util.ArgoCDSettings
 	log                  *log.Entry
@@ -57,30 +54,25 @@ type ApplicationChangeRevisionServer struct {
 
 	// stopCh is the channel which when closed, will shutdown the Event Reporter server
 	stopCh         chan struct{}
-	serviceSet     *ApplicationChangeRevisionServerSet
+	serviceSet     *ACRServerSet
 	featureManager *reporter.FeatureManager
 }
 
-type ApplicationChangeRevisionServerSet struct {
+type ACRServerSet struct {
 }
 
-type ApplicationChangeRevisionServerOpts struct {
+type ACRServerOpts struct {
 	ListenPort               int
 	ListenHost               string
-	MetricsPort              int
-	MetricsHost              string
 	Namespace                string
 	KubeClientset            kubernetes.Interface
 	AppClientset             appclientset.Interface
-	RepoClientset            repoapiclient.Clientset
 	ApplicationServiceClient appclient.ApplicationClient
 	Cache                    *servercache.Cache
 	RedisClient              *redis.Client
 	ApplicationNamespaces    []string
 	BaseHRef                 string
 	RootPath                 string
-	CodefreshConfig          *codefresh.CodefreshConfig
-	RateLimiterOpts          *reporter.RateLimiterOpts
 }
 
 type handlerSwitcher struct {
@@ -90,8 +82,7 @@ type handlerSwitcher struct {
 }
 
 type Listeners struct {
-	Main    net.Listener
-	Metrics net.Listener
+	Main net.Listener
 }
 
 func (l *Listeners) Close() error {
@@ -100,12 +91,6 @@ func (l *Listeners) Close() error {
 			return err
 		}
 		l.Main = nil
-	}
-	if l.Metrics != nil {
-		if err := l.Metrics.Close(); err != nil {
-			return err
-		}
-		l.Metrics = nil
 	}
 	return nil
 }
@@ -120,7 +105,7 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *ApplicationChangeRevisionServer) healthCheck(r *http.Request) error {
+func (a *ACRServer) healthCheck(r *http.Request) error {
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 		_, err := argoDB.ListClusters(r.Context())
@@ -132,21 +117,21 @@ func (a *ApplicationChangeRevisionServer) healthCheck(r *http.Request) error {
 }
 
 // Init starts informers used by the API server
-func (a *ApplicationChangeRevisionServer) Init(ctx context.Context) {
+func (a *ACRServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
 	go a.featureManager.Watch()
 	svcSet := newApplicationChangeRevisionServiceSet()
 	a.serviceSet = svcSet
 }
 
-func (a *ApplicationChangeRevisionServer) RunController(ctx context.Context) {
+func (a *ACRServer) RunController(ctx context.Context) {
 	controller := application_change_revision_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
 	go controller.Run(ctx)
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *ApplicationChangeRevisionServer) newHTTPServer(ctx context.Context, port int) *http.Server {
+func (a *ACRServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
@@ -164,7 +149,7 @@ func (a *ApplicationChangeRevisionServer) newHTTPServer(ctx context.Context, por
 	return &httpS
 }
 
-func (a *ApplicationChangeRevisionServer) checkServeErr(name string, err error) {
+func (a *ACRServer) checkServeErr(name string, err error) {
 	if err != nil {
 		if a.stopCh == nil {
 			// a nil stopCh indicates a graceful shutdown
@@ -190,24 +175,19 @@ func startListener(host string, port int) (net.Listener, error) {
 	return conn, realErr
 }
 
-func (a *ApplicationChangeRevisionServer) Listen() (*Listeners, error) {
+func (a *ACRServer) Listen() (*Listeners, error) {
 	mainLn, err := startListener(a.ListenHost, a.ListenPort)
 	if err != nil {
 		return nil, err
 	}
-	metricsLn, err := startListener(a.MetricsHost, a.MetricsPort)
-	if err != nil {
-		io.Close(mainLn)
-		return nil, err
-	}
-	return &Listeners{Main: mainLn, Metrics: metricsLn}, nil
+	return &Listeners{Main: mainLn}, nil
 }
 
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ApplicationChangeRevisionServer) Run(ctx context.Context, lns *Listeners) {
+func (a *ACRServer) Run(ctx context.Context, lns *Listeners) {
 	var httpS = a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -225,7 +205,7 @@ func (a *ApplicationChangeRevisionServer) Run(ctx context.Context, lns *Listener
 }
 
 // NewServer returns a new instance of the Event Reporter server
-func NewApplicationChangeRevisionServer(ctx context.Context, opts ApplicationChangeRevisionServerOpts) *ApplicationChangeRevisionServer {
+func NewApplicationChangeRevisionServer(ctx context.Context, opts ACRServerOpts) *ACRServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(true)
 	errorsutil.CheckError(err)
@@ -241,16 +221,16 @@ func NewApplicationChangeRevisionServer(ctx context.Context, opts ApplicationCha
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 
-	server := &ApplicationChangeRevisionServer{
-		ApplicationChangeRevisionServerOpts: opts,
-		log:                                 log.NewEntry(log.StandardLogger()),
-		settings:                            settings,
-		settingsMgr:                         settingsMgr,
-		appInformer:                         appInformer,
-		appLister:                           appLister,
-		db:                                  dbInstance,
-		featureManager:                      reporter.NewFeatureManager(settingsMgr),
-		applicationClientset:                opts.AppClientset,
+	server := &ACRServer{
+		ACRServerOpts:        opts,
+		log:                  log.NewEntry(log.StandardLogger()),
+		settings:             settings,
+		settingsMgr:          settingsMgr,
+		appInformer:          appInformer,
+		appLister:            appLister,
+		db:                   dbInstance,
+		featureManager:       reporter.NewFeatureManager(settingsMgr),
+		applicationClientset: opts.AppClientset,
 	}
 
 	if err != nil {
@@ -261,6 +241,6 @@ func NewApplicationChangeRevisionServer(ctx context.Context, opts ApplicationCha
 	return server
 }
 
-func newApplicationChangeRevisionServiceSet() *ApplicationChangeRevisionServerSet {
-	return &ApplicationChangeRevisionServerSet{}
+func newApplicationChangeRevisionServiceSet() *ACRServerSet {
+	return &ACRServerSet{}
 }

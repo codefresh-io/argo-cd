@@ -6764,6 +6764,12 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator"),
 						},
 					},
+					"changeRevision": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"deployedAt", "id"},
 			},
@@ -7526,6 +7532,12 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							},
 						},
 					},
+					"changeRevision": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
@@ -7642,6 +7654,12 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 						SchemaProps: spec.SchemaProps{
 							Description: "ManagedNamespaceMetadata contains the current sync state of managed namespace metadata",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
+						},
+					},
+					"changeRevision": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},

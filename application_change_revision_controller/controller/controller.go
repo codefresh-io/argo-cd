@@ -20,7 +20,7 @@ var (
 	watchAPIBufferSize = 1000
 )
 
-type ApplicationChangeRevisionController interface {
+type ACRController interface {
 	Run(ctx context.Context)
 }
 
@@ -30,11 +30,11 @@ type applicationChangeRevisionController struct {
 	cache                    *servercache.Cache
 	appLister                applisters.ApplicationLister
 	applicationServiceClient appclient.ApplicationClient
-	changeRevisionService    service.ChangeRevisionService
+	acrService               service.ACRService
 	applicationClientset     appclientset.Interface
 }
 
-func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, applicationClientset appclientset.Interface) ApplicationChangeRevisionController {
+func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, applicationClientset appclientset.Interface) ACRController {
 	appBroadcaster := NewBroadcaster()
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
@@ -47,7 +47,7 @@ func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInforme
 		applicationServiceClient: applicationServiceClient,
 		appLister:                appLister,
 		applicationClientset:     applicationClientset,
-		changeRevisionService:    service.NewChangeRevisionService(applicationClientset, applicationServiceClient),
+		acrService:               service.NewChangeRevisionService(applicationClientset, applicationServiceClient),
 	}
 }
 
@@ -61,7 +61,7 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 			return nil // ignore this event
 		}
 
-		return c.changeRevisionService.ChangeRevision(ctx, &a)
+		return c.acrService.ChangeRevision(ctx, &a)
 	}
 
 	//TODO: move to abstraction

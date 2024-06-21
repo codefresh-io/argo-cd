@@ -14,7 +14,7 @@ import (
 	"sync"
 )
 
-type ChangeRevisionService interface {
+type ACRService interface {
 	ChangeRevision(ctx context.Context, application *application.Application) error
 }
 
@@ -24,7 +24,7 @@ type changeRevisionService struct {
 	lock                     sync.Mutex
 }
 
-func NewChangeRevisionService(applicationClientset appclientset.Interface, applicationServiceClient argoclient.ApplicationClient) ChangeRevisionService {
+func NewChangeRevisionService(applicationClientset appclientset.Interface, applicationServiceClient argoclient.ApplicationClient) ACRService {
 	return &changeRevisionService{
 		applicationClientset:     applicationClientset,
 		applicationServiceClient: applicationServiceClient,
@@ -55,7 +55,7 @@ func (c *changeRevisionService) ChangeRevision(ctx context.Context, a *applicati
 	}
 
 	if getChangeRevision(app) != "" {
-		log.Info("Change revision already calculated for application %s", app.Name)
+		log.Infof("Change revision already calculated for application %s", app.Name)
 		return nil
 	}
 
