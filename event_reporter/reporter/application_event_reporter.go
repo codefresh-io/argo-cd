@@ -467,6 +467,26 @@ func (s *applicationEventReporter) ShouldSendApplicationEvent(ae *appv1.Applicat
 		return true, false
 	}
 
+	if ae.Type == watch.Modified {
+		cachedAppMeta := cachedApp.ObjectMeta.DeepCopy()
+		newEventAppMeta := ae.Application.ObjectMeta.DeepCopy()
+
+		if newEventAppMeta.Annotations != nil {
+			delete(newEventAppMeta.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+			delete(cachedAppMeta.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		}
+		cachedAppMeta.ResourceVersion = newEventAppMeta.ResourceVersion // ignore those in the diff
+		cachedAppMeta.Generation = newEventAppMeta.Generation           // ignore those in the diff
+		cachedAppMeta.GenerateName = newEventAppMeta.GenerateName       // ignore those in the diff
+		newEventAppMeta.ManagedFields = nil                             // ignore those in the diff
+		cachedAppMeta.ManagedFields = nil                               // ignore those in the diff
+
+		if !reflect.DeepEqual(newEventAppMeta, cachedAppMeta) {
+			logCtx.Info("application metadata changed")
+			return true, false
+		}
+	}
+
 	return false, false
 }
 
