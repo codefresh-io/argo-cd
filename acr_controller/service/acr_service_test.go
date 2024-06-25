@@ -3,10 +3,15 @@ package service
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/acr_controller/application/mocks"
+	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 	"testing"
 )
@@ -83,7 +88,6 @@ status:
   operationState:
     operation:
       sync:
-        changeRevision: c732f4d2ef24c7eeb900e9211ff98f90bb646505
         prune: true
         revision: c732f4d2ef24c7eeb900e9211ff98f90bb646506
         syncOptions:
@@ -91,7 +95,6 @@ status:
     phase: Running
     startedAt: "2024-06-20T19:47:34Z"
     syncResult:
-      changeRevision: c732f4d2ef24c7eeb900e9211ff98f90bb646505
       revision: c732f4d2ef24c7eeb900e9211ff98f90bb646505
       source:
         path: apps/guestbook
@@ -102,12 +105,11 @@ status:
     status: Synced
 `
 
-func newTestACRService() *acrService {
-	fakeAppsClientset := apps.NewSimpleClientset(nil...)
-	applicationClient := &mocks.ApplicationClient{}
+func newTestACRService(client *mocks.ApplicationClient) *acrService {
+	fakeAppsClientset := apps.NewSimpleClientset(createTestApp(syncedAppWithHistory))
 	return &acrService{
 		applicationClientset:     fakeAppsClientset,
-		applicationServiceClient: applicationClient,
+		applicationServiceClient: client,
 	}
 }
 
@@ -125,14 +127,14 @@ func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv
 
 func Test_getRevisions(r *testing.T) {
 	r.Run("history list is empty", func(t *testing.T) {
-		acrService := newTestACRService()
+		acrService := newTestACRService(&mocks.ApplicationClient{})
 		current, previous := acrService.getRevisions(context.TODO(), createTestApp(fakeApp))
 		assert.Equal(t, "", current)
 		assert.Equal(t, "", previous)
 	})
 
 	r.Run("application is synced", func(t *testing.T) {
-		acrService := newTestACRService()
+		acrService := newTestACRService(&mocks.ApplicationClient{})
 		app := createTestApp(syncedAppWithHistory)
 		current, previous := acrService.getRevisions(context.TODO(), app)
 		assert.Equal(t, app.Status.OperationState.SyncResult.Revision, current)
@@ -140,12 +142,29 @@ func Test_getRevisions(r *testing.T) {
 	})
 
 	r.Run("application sync is in progress", func(t *testing.T) {
-		acrService := newTestACRService()
+		acrService := newTestACRService(&mocks.ApplicationClient{})
 		app := createTestApp(syncedAppWithHistory)
 		app.Status.Sync.Status = "Syncing"
 		current, previous := acrService.getRevisions(context.TODO(), app)
 		assert.Equal(t, app.Operation.Sync.Revision, current)
 		assert.Equal(t, app.Status.History[len(app.Status.History)-1].Revision, previous)
 	})
+}
 
+func Test_ChangeRevision(r *testing.T) {
+	r.Run("Change revision", func(t *testing.T) {
+		client := &mocks.ApplicationClient{}
+		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
+			Revision: pointer.String("new-revision"),
+		}, nil)
+		acrService := newTestACRService(client)
+		app := createTestApp(syncedAppWithHistory)
+
+		err := acrService.ChangeRevision(context.TODO(), app)
+
+		app, err = acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
+	})
 }
