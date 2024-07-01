@@ -89,6 +89,14 @@ func NewMetricsServer() *MetricsServer {
 	)
 	registry.MustRegister(redisRequestHistogram)
 
+	// Charts that important for customers
+	// 1. GetVersionConfig performance when cache is missed
+	// 2. GetVersionConfig amount of missed cache calls, this number should be pretty low
+	//
+	// 3. Amount of failed getAppVersions calls
+	// 4. getAppVersions performance
+	// 5. Generate manifests performance when cache is missed
+
 	return &MetricsServer{
 		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 		gitFetchFailCounter:      gitFetchFailCounter,

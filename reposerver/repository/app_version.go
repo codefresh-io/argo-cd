@@ -148,6 +148,7 @@ func getAppVersions(appPath string, versionConfig *version_config_manager.Versio
 		log.Errorf("Error in getVersionFromFile. %v", err)
 		return nil, err
 	}
+	// count empty appVersion as error
 	log.Infof("appVersion value: %v (appPath=%s)", *appVersion, appPath)
 
 	result := &Result{
