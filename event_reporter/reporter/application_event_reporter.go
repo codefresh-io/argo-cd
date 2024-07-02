@@ -32,7 +32,6 @@ import (
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -405,12 +404,9 @@ func (s *applicationEventReporter) processResource(
 
 func (s *applicationEventReporter) getResourceActualState(ctx context.Context, logCtx *log.Entry, metricsEventType metrics.MetricEventType, rs appv1.ResourceStatus, parentApplication *appv1.Application, childApplication *appv1.Application) (*application.ApplicationResourceResponse, error) {
 	if isApp(rs) {
-		if childApplication.TypeMeta.Size() == 0 || childApplication.TypeMeta.Kind == "" || childApplication.TypeMeta.APIVersion == "" {
+		if childApplication.IsEmptyTypeMeta() {
 			// make sure there is type meta on object
-			childApplication.TypeMeta = metav1.TypeMeta{
-				Kind:       appv1reg.ApplicationKind,
-				APIVersion: appv1.SchemeGroupVersion.String(),
-			}
+			childApplication.SetDefaultTypeMeta()
 		}
 
 		manifestBytes, err := json.Marshal(childApplication)
@@ -800,10 +796,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	a.DeepCopyInto(&obj)
 
 	// make sure there is type meta on object
-	obj.TypeMeta = metav1.TypeMeta{
-		Kind:       appv1reg.ApplicationKind,
-		APIVersion: appv1.SchemeGroupVersion.String(),
-	}
+	obj.SetDefaultTypeMeta()
 
 	if a.Status.OperationState != nil {
 		syncStarted = a.Status.OperationState.StartedAt

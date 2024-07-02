@@ -3,7 +3,9 @@ package reporter
 import (
 	"context"
 	"encoding/json"
-	mocks2 "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
+	"fmt"
+	appMocks "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
+	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/watch"
@@ -12,7 +14,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
-	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/gitops-engine/pkg/health"
 
 	"github.com/ghodss/yaml"
@@ -21,7 +22,6 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -243,7 +243,7 @@ func (cc *MockCodefreshClient) SendGraphQL(query codefresh.GraphQLQuery) (*json.
 	return nil, nil
 }
 
-func fakeReporter() *applicationEventReporter {
+func fakeReporter(customAppServiceClient *appMocks.ApplicationClient) *applicationEventReporter {
 	guestbookApp := &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
@@ -303,18 +303,10 @@ func fakeReporter() *applicationEventReporter {
 
 	metricsServ := metrics.NewMetricsServer("", 8099)
 
-	//clusterCacheMock := mocks.ClusterCache{}
-	//clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
-	//clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
-	//clusterCacheMock.On("GetGVKParser").Return(nil)
-
-	applicationServiceClient := mocks2.ApplicationClient{}
-	applicationServiceClient.On("GetResource", mock.Anything, mock.Anything, mock.Anything).Return(&appclient.ApplicationResourceResponse{}, nil)
-
-	closer, applicationServiceClient, _ := apiclient.NewClientOrDie(&apiclient.ClientOptions{
-		ServerAddr: "site.com",
-	}).NewApplicationClient()
-	defer io.Close(closer)
+	applicationServiceClient := &appMocks.ApplicationClient{}
+	if customAppServiceClient != nil {
+		applicationServiceClient = customAppServiceClient
+	}
 
 	return &applicationEventReporter{
 		cache,
@@ -326,7 +318,7 @@ func fakeReporter() *applicationEventReporter {
 }
 
 func TestShouldSendEvent(t *testing.T) {
-	eventReporter := fakeReporter()
+	eventReporter := fakeReporter(nil)
 	t.Run("should send because cache is missing", func(t *testing.T) {
 		app := &v1alpha1.Application{}
 		rs := v1alpha1.ResourceStatus{}
@@ -370,7 +362,7 @@ func (m *MockEventing_StartEventSourceServer) Send(event *events.Event) error {
 }
 
 func TestStreamApplicationEvent(t *testing.T) {
-	eventReporter := fakeReporter()
+	eventReporter := fakeReporter(nil)
 	t.Run("root application", func(t *testing.T) {
 		app := &v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
@@ -551,7 +543,7 @@ func TestGetParentAppIdentityWithinControllerNs(t *testing.T) {
 }
 
 func TestShouldSendApplicationEvent(t *testing.T) {
-	eventReporter := fakeReporter()
+	eventReporter := fakeReporter(nil)
 
 	t.Run("should send because cache is missing", func(t *testing.T) {
 		app := v1alpha1.Application{
@@ -660,12 +652,13 @@ func TestShouldSendApplicationEvent(t *testing.T) {
 }
 
 func TestGetResourceActualState(t *testing.T) {
-	eventReporter := fakeReporter()
 	ctx := context.Background()
 	// Create a new logrus entry (assuming you have a configured logger)
 	logEntry := logrus.NewEntry(logrus.StandardLogger())
 
-	t.Run("should use app event", func(t *testing.T) {
+	t.Run("should use existing app event for application", func(t *testing.T) {
+		eventReporter := fakeReporter(nil)
+
 		appEvent := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-app",
@@ -697,15 +690,35 @@ func TestGetResourceActualState(t *testing.T) {
 		}
 
 		assert.Equal(t, appEvent.ObjectMeta.Name, manifestApp.ObjectMeta.Name)
+		// should set type meta
+		assert.Equal(t, appEvent.TypeMeta.Kind, "Application")
+		assert.Equal(t, appEvent.TypeMeta.APIVersion, "argoproj.io/v1alpha1")
 	})
 
-	t.Run("should try to get app as resource actual state if failed to marshal event", func(t *testing.T) {
-		appEvent := v1alpha1.Application{
+	t.Run("should get resource actual state for non-app resources", func(t *testing.T) {
+		expectedAppSetName := "test-app-set"
+		appSetCurrentActualState := v1alpha1.ApplicationSet{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       appv1reg.ApplicationSetKind,
+				APIVersion: v1alpha1.SchemeGroupVersion.String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
+				Name:      expectedAppSetName,
 				Namespace: "test-app-ns",
 			},
 		}
+		manifestBytes, err := json.Marshal(appSetCurrentActualState)
+
+		if len(manifestBytes) == 0 && err != nil {
+			t.Fatalf("failed to Marshal manifest: %v", err)
+		}
+
+		manifest := string(manifestBytes)
+
+		appServiceClient := &appMocks.ApplicationClient{}
+		appServiceClient.On("GetResource", mock.Anything, mock.Anything).Return(&application.ApplicationResourceResponse{Manifest: &manifest}, nil)
+
+		eventReporter := fakeReporter(appServiceClient)
 
 		parentApp := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -719,10 +732,10 @@ func TestGetResourceActualState(t *testing.T) {
 		rs := v1alpha1.ResourceStatus{
 			Group:   v1alpha1.ApplicationSchemaGroupVersionKind.Group,
 			Version: v1alpha1.ApplicationSchemaGroupVersionKind.Version,
-			Kind:    v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+			Kind:    "ApplicationSet",
 		}
 
-		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, &appEvent)
+		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, nil)
 		assert.NoError(t, err)
 
 		var manifestApp v1alpha1.Application
@@ -730,9 +743,34 @@ func TestGetResourceActualState(t *testing.T) {
 			t.Fatalf("failed to unmarshal manifest: %v", err)
 		}
 
-		assert.Equal(t, appEvent.ObjectMeta.Name, manifestApp.ObjectMeta.Name)
+		assert.Equal(t, expectedAppSetName, manifestApp.ObjectMeta.Name)
+		assert.Equal(t, appv1reg.ApplicationSetKind, manifestApp.TypeMeta.Kind)
 	})
 
-	//t.Run("should get resource actual state", func(t *testing.T) {
-	//})
+	t.Run("should return empty manifest for not found resources", func(t *testing.T) {
+		appServiceClient := &appMocks.ApplicationClient{}
+		appServiceClient.On("GetResource", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("not found resource"))
+
+		eventReporter := fakeReporter(appServiceClient)
+
+		parentApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-parent-app",
+				Namespace: "test-app-ns",
+			},
+			Spec: appsv1.ApplicationSpec{
+				Project: appsv1.DefaultAppProjectName,
+			},
+		}
+		rs := v1alpha1.ResourceStatus{
+			Group:   v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+			Version: v1alpha1.ApplicationSchemaGroupVersionKind.Version,
+			Kind:    "ApplicationSet",
+		}
+
+		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, nil)
+		assert.NoError(t, err)
+		exprectedManifest := ""
+		assert.Equal(t, &exprectedManifest, res.Manifest)
+	})
 }
