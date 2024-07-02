@@ -3,6 +3,7 @@ package reporter
 import (
 	"context"
 	"encoding/json"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 	"net/http"
 	"testing"
@@ -299,7 +300,7 @@ func fakeReporter() *applicationEventReporter {
 	}
 
 	metricsServ := metrics.NewMetricsServer("", 8099)
-	closer, cdClient, _ := apiclient.NewClientOrDie(&apiclient.ClientOptions{
+	closer, applicationServiceClient, _ := apiclient.NewClientOrDie(&apiclient.ClientOptions{
 		ServerAddr: "site.com",
 	}).NewApplicationClient()
 	defer io.Close(closer)
@@ -308,7 +309,7 @@ func fakeReporter() *applicationEventReporter {
 		cache,
 		cfClient,
 		appLister,
-		cdClient,
+		applicationServiceClient,
 		metricsServ,
 	}
 }
@@ -645,4 +646,82 @@ func TestShouldSendApplicationEvent(t *testing.T) {
 		})
 		assert.False(t, shouldSend)
 	})
+}
+
+func TestGetResourceActualState(t *testing.T) {
+	eventReporter := fakeReporter()
+	ctx := context.Background()
+	// Create a new logrus entry (assuming you have a configured logger)
+	logEntry := logrus.NewEntry(logrus.StandardLogger())
+
+	t.Run("should use app event", func(t *testing.T) {
+		appEvent := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-app-ns",
+			},
+		}
+
+		parentApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-parent-app",
+				Namespace: "test-app-ns",
+			},
+			Spec: appsv1.ApplicationSpec{
+				Project: appsv1.DefaultAppProjectName,
+			},
+		}
+		rs := v1alpha1.ResourceStatus{
+			Group:   v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+			Version: v1alpha1.ApplicationSchemaGroupVersionKind.Version,
+			Kind:    v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+		}
+
+		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, &appEvent)
+		assert.NoError(t, err)
+
+		var manifestApp v1alpha1.Application
+		if err := json.Unmarshal([]byte(*res.Manifest), &manifestApp); err != nil {
+			t.Fatalf("failed to unmarshal manifest: %v", err)
+		}
+
+		assert.Equal(t, appEvent.ObjectMeta.Name, manifestApp.ObjectMeta.Name)
+	})
+
+	t.Run("should try to get app as resource actual state if failed to marshal event", func(t *testing.T) {
+		appEvent := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-app-ns",
+			},
+		}
+
+		parentApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-parent-app",
+				Namespace: "test-app-ns",
+			},
+			Spec: appsv1.ApplicationSpec{
+				Project: appsv1.DefaultAppProjectName,
+			},
+		}
+		rs := v1alpha1.ResourceStatus{
+			Group:   v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+			Version: v1alpha1.ApplicationSchemaGroupVersionKind.Version,
+			Kind:    v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+		}
+
+		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, &appEvent)
+		assert.NoError(t, err)
+
+		var manifestApp v1alpha1.Application
+		if err := json.Unmarshal([]byte(*res.Manifest), &manifestApp); err != nil {
+			t.Fatalf("failed to unmarshal manifest: %v", err)
+		}
+
+		assert.Equal(t, appEvent.ObjectMeta.Name, manifestApp.ObjectMeta.Name)
+	})
+
+	//t.Run("should get resource actual state", func(t *testing.T) {
+	//})
 }
