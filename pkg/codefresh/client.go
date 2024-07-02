@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -71,7 +70,7 @@ func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *
 			return err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "POST", url, ioutil.NopCloser(&buf))
+		req, err := http.NewRequestWithContext(ctx, "POST", url, io.NopCloser(&buf))
 		if err != nil {
 			return err
 		}

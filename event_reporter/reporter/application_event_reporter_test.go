@@ -4,10 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	appMocks "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	apiclientapppkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/aws/smithy-go/ptr"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/watch"
 	"net/http"
 	"testing"
@@ -243,7 +249,16 @@ func (cc *MockCodefreshClient) SendGraphQL(query codefresh.GraphQLQuery) (*json.
 	return nil, nil
 }
 
-func fakeReporter(customAppServiceClient *appMocks.ApplicationClient) *applicationEventReporter {
+func fakeAppServiceClient() apiclientapppkg.ApplicationServiceClient {
+	closer, applicationServiceClient, _ := apiclient.NewClientOrDie(&apiclient.ClientOptions{
+		ServerAddr: "site.com",
+	}).NewApplicationClient()
+	defer io.Close(closer)
+
+	return applicationServiceClient
+}
+
+func fakeReporter(customAppServiceClient appclient.ApplicationClient) *applicationEventReporter {
 	guestbookApp := &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
@@ -303,22 +318,17 @@ func fakeReporter(customAppServiceClient *appMocks.ApplicationClient) *applicati
 
 	metricsServ := metrics.NewMetricsServer("", 8099)
 
-	applicationServiceClient := &appMocks.ApplicationClient{}
-	if customAppServiceClient != nil {
-		applicationServiceClient = customAppServiceClient
-	}
-
 	return &applicationEventReporter{
 		cache,
 		cfClient,
 		appLister,
-		applicationServiceClient,
+		customAppServiceClient,
 		metricsServ,
 	}
 }
 
 func TestShouldSendEvent(t *testing.T) {
-	eventReporter := fakeReporter(nil)
+	eventReporter := fakeReporter(fakeAppServiceClient())
 	t.Run("should send because cache is missing", func(t *testing.T) {
 		app := &v1alpha1.Application{}
 		rs := v1alpha1.ResourceStatus{}
@@ -362,7 +372,7 @@ func (m *MockEventing_StartEventSourceServer) Send(event *events.Event) error {
 }
 
 func TestStreamApplicationEvent(t *testing.T) {
-	eventReporter := fakeReporter(nil)
+	eventReporter := fakeReporter(fakeAppServiceClient())
 	t.Run("root application", func(t *testing.T) {
 		app := &v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
@@ -543,7 +553,7 @@ func TestGetParentAppIdentityWithinControllerNs(t *testing.T) {
 }
 
 func TestShouldSendApplicationEvent(t *testing.T) {
-	eventReporter := fakeReporter(nil)
+	eventReporter := fakeReporter(fakeAppServiceClient())
 
 	t.Run("should send because cache is missing", func(t *testing.T) {
 		app := v1alpha1.Application{
@@ -657,7 +667,7 @@ func TestGetResourceActualState(t *testing.T) {
 	logEntry := logrus.NewEntry(logrus.StandardLogger())
 
 	t.Run("should use existing app event for application", func(t *testing.T) {
-		eventReporter := fakeReporter(nil)
+		eventReporter := fakeReporter(fakeAppServiceClient())
 
 		appEvent := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -682,7 +692,7 @@ func TestGetResourceActualState(t *testing.T) {
 		}
 
 		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, &appEvent)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var manifestApp v1alpha1.Application
 		if err := json.Unmarshal([]byte(*res.Manifest), &manifestApp); err != nil {
@@ -736,7 +746,7 @@ func TestGetResourceActualState(t *testing.T) {
 		}
 
 		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var manifestApp v1alpha1.Application
 		if err := json.Unmarshal([]byte(*res.Manifest), &manifestApp); err != nil {
@@ -769,8 +779,7 @@ func TestGetResourceActualState(t *testing.T) {
 		}
 
 		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, nil)
-		assert.NoError(t, err)
-		exprectedManifest := ""
-		assert.Equal(t, &exprectedManifest, res.Manifest)
+		require.NoError(t, err)
+		assert.Equal(t, "", ptr.ToString(res.Manifest))
 	})
 }

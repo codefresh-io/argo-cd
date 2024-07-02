@@ -411,7 +411,7 @@ func (s *applicationEventReporter) getResourceActualState(ctx context.Context, l
 
 		manifestBytes, err := json.Marshal(childApplication)
 
-		if len(manifestBytes) > 0 && err == nil {
+		if err == nil && len(manifestBytes) > 0 {
 			manifest := string(manifestBytes)
 			return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
 		}

@@ -9,10 +9,9 @@ func (a *Application) IsEmptyTypeMeta() bool {
 	return a.TypeMeta.Size() == 0 || a.TypeMeta.Kind == "" || a.TypeMeta.APIVersion == ""
 }
 
-func (a *Application) SetDefaultTypeMeta() *Application {
+func (a *Application) SetDefaultTypeMeta() {
 	a.TypeMeta = metav1.TypeMeta{
 		Kind:       appv1reg.ApplicationKind,
 		APIVersion: SchemeGroupVersion.String(),
 	}
-	return a
 }
