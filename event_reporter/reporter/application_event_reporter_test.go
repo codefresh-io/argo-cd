@@ -3,7 +3,9 @@ package reporter
 import (
 	"context"
 	"encoding/json"
+	mocks2 "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/watch"
 	"net/http"
 	"testing"
@@ -300,6 +302,15 @@ func fakeReporter() *applicationEventReporter {
 	}
 
 	metricsServ := metrics.NewMetricsServer("", 8099)
+
+	//clusterCacheMock := mocks.ClusterCache{}
+	//clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+	//clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
+	//clusterCacheMock.On("GetGVKParser").Return(nil)
+
+	applicationServiceClient := mocks2.ApplicationClient{}
+	applicationServiceClient.On("GetResource", mock.Anything, mock.Anything, mock.Anything).Return(&appclient.ApplicationResourceResponse{}, nil)
+
 	closer, applicationServiceClient, _ := apiclient.NewClientOrDie(&apiclient.ClientOptions{
 		ServerAddr: "site.com",
 	}).NewApplicationClient()
