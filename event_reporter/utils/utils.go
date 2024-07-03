@@ -1,4 +1,4 @@
-package reporter
+package utils
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func setHealthStatusIfMissing(rs *appv1.ResourceStatus) {
+func SetHealthStatusIfMissing(rs *appv1.ResourceStatus) {
 	if rs.Health == nil && rs.Status == appv1.SyncStatusCodeSynced {
 		// for resources without health status we need to add 'Healthy' status
 		// when they are synced because we might have sent an event with 'Missing'
@@ -19,11 +19,11 @@ func setHealthStatusIfMissing(rs *appv1.ResourceStatus) {
 	}
 }
 
-func isApp(rs appv1.ResourceStatus) bool {
+func IsApp(rs appv1.ResourceStatus) bool {
 	return rs.GroupVersionKind().String() == appv1.ApplicationSchemaGroupVersionKind.String()
 }
 
-func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
+func LogWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
 	return logCtx.WithFields(log.Fields{
 		"sync":            a.Status.Sync.Status,
 		"health":          a.Status.Health.Status,
@@ -32,7 +32,7 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 	})
 }
 
-func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
+func LogWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
 	logCtx = logCtx.WithField("sync", rs.Status)
 	if rs.Health != nil {
 		logCtx = logCtx.WithField("health", rs.Health.Status)
@@ -41,14 +41,14 @@ func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entr
 	return logCtx
 }
 
-func safeString(s *string) string {
+func SafeString(s *string) string {
 	if s == nil {
 		return "<nil>"
 	}
 	return *s
 }
 
-func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
+func GetAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	return &appv1.ResourceStatus{
 		Name:            a.Name,
 		Namespace:       a.Namespace,
@@ -61,7 +61,7 @@ func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	}
 }
 
-func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) (*unstructured.Unstructured, error) {
+func AddDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) (*unstructured.Unstructured, error) {
 	u, err := appv1.UnmarshalToUnstructured(string(resourceManifest))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)

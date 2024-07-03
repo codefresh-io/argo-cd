@@ -1,4 +1,4 @@
-package reporter
+package utils
 
 import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -10,8 +10,8 @@ import (
 const appInstanceNameDelimeter = "_"
 
 type AppIdentity struct {
-	name      string
-	namespace string
+	Name      string
+	Namespace string
 }
 
 // logic connected to /argo-cd/pkg/apis/application/v1alpha1/types.go - InstanceName
@@ -20,18 +20,18 @@ func instanceNameIncludesNs(instanceName string) bool {
 }
 
 // logic connected to /argo-cd/pkg/apis/application/v1alpha1/types.go - InstanceName
-func parseInstanceName(appNameString string) AppIdentity {
+func parseInstanceName(appNameString string) *AppIdentity {
 	parts := strings.Split(appNameString, appInstanceNameDelimeter)
 	namespace := parts[0]
 	app := parts[1]
 
-	return AppIdentity{
-		name:      app,
-		namespace: namespace,
+	return &AppIdentity{
+		Name:      app,
+		Namespace: namespace,
 	}
 }
 
-func getParentAppIdentity(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) AppIdentity {
+func GetParentAppIdentity(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) *AppIdentity {
 	resourceTracking := argo.NewResourceTracking()
 	unApp := kube.MustToUnstructured(&a)
 
@@ -39,14 +39,14 @@ func getParentAppIdentity(a *appv1.Application, appInstanceLabelKey string, trac
 
 	if instanceNameIncludesNs(instanceName) {
 		return parseInstanceName(instanceName)
-	} else {
-		return AppIdentity{
-			name:      instanceName,
-			namespace: "",
-		}
+	}
+
+	return &AppIdentity{
+		Name:      instanceName,
+		Namespace: "",
 	}
 }
 
-func isChildApp(parentApp AppIdentity) bool {
-	return parentApp.name != ""
+func IsChildApp(parentApp *AppIdentity) bool {
+	return parentApp.Name != ""
 }

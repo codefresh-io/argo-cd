@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -51,7 +52,7 @@ func getResourceEventPayload(
 		actualObject, err := appv1.UnmarshalToUnstructured(*actualState.Manifest)
 
 		if err == nil {
-			actualObject = addCommitDetailsToLabels(actualObject, originalAppRevisionMetadata)
+			actualObject = utils.AddCommitDetailsToLabels(actualObject, originalAppRevisionMetadata)
 			object, err = actualObject.MarshalJSON()
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
@@ -72,7 +73,7 @@ func getResourceEventPayload(
 			u.SetName(rs.Name)
 			u.SetNamespace(rs.Namespace)
 			if originalAppRevisionMetadata != nil {
-				u = addCommitDetailsToLabels(u, originalAppRevisionMetadata)
+				u = utils.AddCommitDetailsToLabels(u, originalAppRevisionMetadata)
 			}
 
 			object, err = u.MarshalJSON()
@@ -81,12 +82,12 @@ func getResourceEventPayload(
 			}
 		} else {
 			// no actual state, use desired state as event object
-			unstructuredWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
+			unstructuredWithNamespace, err := utils.AddDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
 			}
 			if originalAppRevisionMetadata != nil {
-				unstructuredWithNamespace = addCommitDetailsToLabels(unstructuredWithNamespace, originalAppRevisionMetadata)
+				unstructuredWithNamespace = utils.AddCommitDetailsToLabels(unstructuredWithNamespace, originalAppRevisionMetadata)
 			}
 
 			object, _ = unstructuredWithNamespace.MarshalJSON()
@@ -133,7 +134,7 @@ func getResourceEventPayload(
 		}
 	}
 
-	applicationVersionsEvents, err := repoAppVersionsToEvent(applicationVersions)
+	applicationVersionsEvents, err := utils.RepoAppVersionsToEvent(applicationVersions)
 	if err != nil {
 		logCtx.Errorf("failed to convert appVersions: %v", err)
 	}
@@ -144,9 +145,9 @@ func getResourceEventPayload(
 		GitManifest:           desiredState.RawManifest,
 		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:                  desiredState.Path,
-		Revision:              getApplicationLatestRevision(parentApplication),
-		OperationSyncRevision: getOperationRevision(parentApplication),
-		HistoryId:             getLatestAppHistoryId(parentApplication),
+		Revision:              utils.GetApplicationLatestRevision(parentApplication),
+		OperationSyncRevision: utils.GetOperationRevision(parentApplication),
+		HistoryId:             utils.GetLatestAppHistoryId(parentApplication),
 		AppName:               parentApplication.Name,
 		AppNamespace:          parentApplication.Namespace,
 		AppUID:                string(parentApplication.ObjectMeta.UID),
@@ -181,7 +182,7 @@ func getResourceEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
@@ -218,7 +219,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 
 	applicationSource := a.Spec.GetSource()
 	if !applicationSource.IsHelm() && (a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0)) {
-		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
+		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, utils.GetOperationRevision(a))
 
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
@@ -248,7 +249,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		logCtx.Info("reporting application deletion event")
 	}
 
-	applicationVersionsEvents, err := repoAppVersionsToEvent(applicationVersions)
+	applicationVersionsEvents, err := utils.RepoAppVersionsToEvent(applicationVersions)
 	if err != nil {
 		logCtx.Errorf("failed to convert appVersions: %v", err)
 	}
@@ -286,7 +287,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {

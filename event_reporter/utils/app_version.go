@@ -1,4 +1,4 @@
-package reporter
+package utils
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
-func repoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
+func RepoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
 	applicationVersionsEvents := &events.ApplicationVersions{}
 	applicationVersionsData, _ := json.Marshal(applicationVersions)
 	err := json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
