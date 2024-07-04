@@ -18,6 +18,12 @@ type MetricsServer struct {
 	repoPendingRequestsGauge *prometheus.GaugeVec
 	redisRequestCounter      *prometheus.CounterVec
 	redisRequestHistogram    *prometheus.HistogramVec
+
+	getVersionConfigHistogram  *prometheus.HistogramVec
+	getVersionConfigCounter    *prometheus.CounterVec
+	getAppVersionsHistogram    *prometheus.HistogramVec
+	getAppVersionsCounter      *prometheus.CounterVec
+	generateManifestsHistogram *prometheus.HistogramVec
 }
 
 type GitRequestType string
@@ -89,22 +95,67 @@ func NewMetricsServer() *MetricsServer {
 	)
 	registry.MustRegister(redisRequestHistogram)
 
-	// Charts that important for customers
-	// 1. GetVersionConfig performance when cache is missed
-	// 2. GetVersionConfig amount of missed cache calls, this number should be pretty low
-	//
-	// 3. Amount of failed getAppVersions calls
-	// 4. getAppVersions performance
-	// 5. Generate manifests performance when cache is missed
+	getVersionConfigHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_get_version_config_duration_seconds",
+			Help:    "Get version config duration seconds.",
+			Buckets: []float64{.5, 1, 2, 3, 5},
+		},
+		[]string{},
+	)
+	registry.MustRegister(getVersionConfigHistogram)
+
+	getVersionConfigCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_get_version_config_total",
+			Help: "Number of get version config requests.",
+		},
+		[]string{"application", "cached"},
+	)
+	registry.MustRegister(getVersionConfigCounter)
+
+	getAppVersionsHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_get_app_versions_duration_seconds",
+			Help:    "Get version config duration seconds.",
+			Buckets: []float64{.5, 1, 2, 3, 5},
+		},
+		[]string{},
+	)
+	registry.MustRegister(getAppVersionsHistogram)
+
+	getAppVersionsCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_get_app_versions_total",
+			Help: "Number of getAppVersions requests.",
+		},
+		[]string{"failed"},
+	)
+	registry.MustRegister(getAppVersionsCounter)
+
+	generateManifestsHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_generate_manifests_duration_seconds",
+			Help:    "Generate manifests duration seconds.",
+			Buckets: []float64{1, 3, 5, 7, 10},
+		},
+		[]string{},
+	)
+	registry.MustRegister(generateManifestsHistogram)
 
 	return &MetricsServer{
-		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-		gitFetchFailCounter:      gitFetchFailCounter,
-		gitRequestCounter:        gitRequestCounter,
-		gitRequestHistogram:      gitRequestHistogram,
-		repoPendingRequestsGauge: repoPendingRequestsGauge,
-		redisRequestCounter:      redisRequestCounter,
-		redisRequestHistogram:    redisRequestHistogram,
+		handler:                    promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		gitFetchFailCounter:        gitFetchFailCounter,
+		gitRequestCounter:          gitRequestCounter,
+		gitRequestHistogram:        gitRequestHistogram,
+		repoPendingRequestsGauge:   repoPendingRequestsGauge,
+		redisRequestCounter:        redisRequestCounter,
+		redisRequestHistogram:      redisRequestHistogram,
+		getVersionConfigHistogram:  getVersionConfigHistogram,
+		getVersionConfigCounter:    getVersionConfigCounter,
+		getAppVersionsHistogram:    getAppVersionsHistogram,
+		getAppVersionsCounter:      getAppVersionsCounter,
+		generateManifestsHistogram: generateManifestsHistogram,
 	}
 }
 
@@ -139,4 +190,24 @@ func (m *MetricsServer) IncRedisRequest(failed bool) {
 
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues("argocd-repo-server").Observe(duration.Seconds())
+}
+
+func (m *MetricsServer) IncGetVersionConfigCounter(application string, cached bool) {
+	m.getVersionConfigCounter.WithLabelValues("argocd-repo-server", application, strconv.FormatBool(cached)).Inc()
+}
+
+func (m *MetricsServer) ObserveGetVersionConfigDuration(duration time.Duration) {
+	m.getVersionConfigHistogram.WithLabelValues("argocd-repo-server").Observe(duration.Seconds())
+}
+
+func (m *MetricsServer) ObserveGetAppVersionsDuration(duration time.Duration) {
+	m.getAppVersionsHistogram.WithLabelValues("argocd-repo-server").Observe(duration.Seconds())
+}
+
+func (m *MetricsServer) IncGetAppVersionsCounter(failed bool) {
+	m.getAppVersionsCounter.WithLabelValues("argocd-repo-server", strconv.FormatBool(failed)).Inc()
+}
+
+func (m *MetricsServer) ObserveGenerateManifestDuration(duration time.Duration) {
+	m.generateManifestsHistogram.WithLabelValues("argocd-repo-server").Observe(duration.Seconds())
 }

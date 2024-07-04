@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sigs.k8s.io/yaml"
 	"strconv"
+	"time"
 
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
+	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 type DependenciesMap struct {
@@ -127,7 +129,23 @@ func readFileContent(result *Result, appPath, fileName, fieldName string) {
 	}
 }
 
-func getAppVersions(appPath string, versionConfig *version_config_manager.VersionConfig) (*Result, error) {
+type AppVersionService interface {
+	GetAppVersions(appPath string, versionConfig *version_config_manager.VersionConfig) (*Result, error)
+}
+
+type appVersionService struct {
+	metricsServer *metrics.MetricsServer
+}
+
+func NewAppVersionService(metricsServer *metrics.MetricsServer) AppVersionService {
+	return &appVersionService{
+		metricsServer: metricsServer,
+	}
+}
+
+func (appVersionSvc *appVersionService) GetAppVersions(appPath string, versionConfig *version_config_manager.VersionConfig) (*Result, error) {
+	startedTime := time.Now()
+
 	// Defaults
 	resourceName := "Chart.yaml"
 	jsonPathExpression := "$.appVersion"
@@ -145,6 +163,7 @@ func getAppVersions(appPath string, versionConfig *version_config_manager.Versio
 	log.Infof("appVersion get from file: %s, jsonPath: %s", filepath.Join(appPath, resourceName), jsonPathExpression)
 	appVersion, err := getVersionFromFile(filepath.Join(appPath, resourceName), jsonPathExpression)
 	if err != nil {
+		appVersionSvc.metricsServer.IncGetAppVersionsCounter(true)
 		log.Errorf("Error in getVersionFromFile. %v", err)
 		return nil, err
 	}
@@ -159,6 +178,9 @@ func getAppVersions(appPath string, versionConfig *version_config_manager.Versio
 	readFileContent(result, appPath, "Chart.lock", "Lock")
 	readFileContent(result, appPath, "Chart.yaml", "Deps")
 	readFileContent(result, appPath, "requirements.yaml", "Requirements")
+
+	appVersionSvc.metricsServer.IncGetAppVersionsCounter(false)
+	appVersionSvc.metricsServer.ObserveGetAppVersionsDuration(time.Since(startedTime))
 
 	log.Infof("Return appVersion as: %v", result)
 	return result, nil

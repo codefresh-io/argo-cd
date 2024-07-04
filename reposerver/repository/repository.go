@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -24,7 +23,6 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
@@ -133,7 +131,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 
 	codefreshClient := codefresh.NewCodefreshClient(&initConstants.CodefreshConfig)
 	codefreshGraphQLRequests := codefresh.NewCodefreshGraphQLRequests(codefreshClient)
-	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshGraphQLRequests, cache)
+	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshGraphQLRequests, cache, metricsServer)
 
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
@@ -592,6 +590,11 @@ func (s *Service) GetVersionConfig(app *metav1.ObjectMeta) *version_config_manag
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	startTime := time.Now()
+	defer func() {
+		s.metricsServer.ObserveGenerateManifestDuration(time.Since(startTime))
+	}()
+
 	var res *apiclient.ManifestResponse
 	var err error
 
@@ -912,7 +915,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, s.initConstants.CodefreshApplicationVersioningEnabled, versionConfig, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, s.initConstants.CodefreshApplicationVersioningEnabled, versionConfig, s.metricsServer, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1516,7 +1519,9 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, codefreshApplicationVersioningEnabled bool, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, codefreshApplicationVersioningEnabled bool, versionConfig *version_config_manager.VersionConfig, metricsServer *metrics.MetricsServer, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+	appVersionSvc := NewAppVersionService(metricsServer)
+
 	opt := newGenerateManifestOpt(opts...)
 
 	var (
@@ -1599,7 +1604,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
 		if codefreshApplicationVersioningEnabled {
-			appVersions, err := getAppVersions(appPath, versionConfig)
+			appVersions, err := appVersionSvc.GetAppVersions(appPath, versionConfig)
 			if err != nil {
 				log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
 			} else {
