@@ -277,7 +277,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 
 			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
 				ProjectSourceRepos: []string{"*"}}
-			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
 			assert.Contains(t, err.Error(), "illegal filepath")
@@ -293,7 +293,7 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"}}
-	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 }
 
@@ -1554,7 +1554,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, nil, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
