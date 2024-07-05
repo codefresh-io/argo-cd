@@ -165,6 +165,6 @@ func Test_ChangeRevision(r *testing.T) {
 		app, err = acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 
-		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
+		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevisions[0])
 	})
 }

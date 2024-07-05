@@ -9200,8 +9200,11 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
-        "changeRevision": {
-          "type": "string"
+        "changeRevisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "dryRun": {
           "type": "boolean",
@@ -9280,8 +9283,11 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
-        "changeRevision": {
-          "type": "string"
+        "changeRevisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "managedNamespaceMetadata": {
           "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"

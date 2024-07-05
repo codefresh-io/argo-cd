@@ -4097,6 +4097,11 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ChangeRevisions != nil {
+		in, out := &in.ChangeRevisions, &out.ChangeRevisions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -4157,6 +4162,11 @@ func (in *SyncOperationResult) DeepCopyInto(out *SyncOperationResult) {
 		in, out := &in.ManagedNamespaceMetadata, &out.ManagedNamespaceMetadata
 		*out = new(ManagedNamespaceMetadata)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.ChangeRevisions != nil {
+		in, out := &in.ChangeRevisions, &out.ChangeRevisions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 	return
 }

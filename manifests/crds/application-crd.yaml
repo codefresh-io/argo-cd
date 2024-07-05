@@ -105,8 +105,10 @@ spec:
               sync:
                 description: Sync contains parameters for the operation
                 properties:
-                  changeRevision:
-                    type: string
+                  changeRevisions:
+                    items:
+                      type: string
+                    type: array
                   dryRun:
                     description: DryRun specifies to perform a `kubectl apply --dry-run`
                       without actually performing the sync
@@ -2562,8 +2564,10 @@ spec:
                       sync:
                         description: Sync contains parameters for the operation
                         properties:
-                          changeRevision:
-                            type: string
+                          changeRevisions:
+                            items:
+                              type: string
+                            type: array
                           dryRun:
                             description: DryRun specifies to perform a `kubectl apply
                               --dry-run` without actually performing the sync
@@ -3391,8 +3395,10 @@ spec:
                   syncResult:
                     description: SyncResult is the result of a Sync operation
                     properties:
-                      changeRevision:
-                        type: string
+                      changeRevisions:
+                        items:
+                          type: string
+                        type: array
                       managedNamespaceMetadata:
                         description: ManagedNamespaceMetadata contains the current
                           sync state of managed namespace metadata
