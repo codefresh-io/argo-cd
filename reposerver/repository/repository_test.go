@@ -220,7 +220,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, nil, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
