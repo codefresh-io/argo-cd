@@ -1959,8 +1959,11 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 			return false, ""
 		}
 	} else {
-		if app.Status.OperationState.SyncResult.Revision != commitSHA {
-			return false, ""
+		manifestsChangedMap := app.Status.Sync.ManifestsChanged
+		if manifestsChangedMap[commitSHA] {
+			if app.Status.OperationState.SyncResult.Revision != commitSHA {
+				return false, ""
+			}
 		}
 	}
 
