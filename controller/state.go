@@ -184,7 +184,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	manifestsChanges := make(map[string]bool)
-	
+
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
@@ -451,7 +451,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	targetNsExists := false
 
 	var manifestChanged map[string]bool
-	
+
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
 		// we take the revisions from the sources directly for all the sources.
@@ -461,7 +461,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				revisions = append(revisions, source.TargetRevision)
 			}
 		}
-		
+
 		targetObjs, manifestInfos, manifestChanged, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
@@ -836,8 +836,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Sources:           sources,
 				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
-			Status:    syncCode,
-			Revisions: manifestRevisions,
+			Status:           syncCode,
+			Revisions:        manifestRevisions,
 			ManifestsChanged: manifestChanged,
 		}
 	} else {
@@ -847,8 +847,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Source:            app.Spec.GetSource(),
 				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
-			Status:   syncCode,
-			Revision: revision,
+			Status:           syncCode,
+			Revision:         revision,
 			ManifestsChanged: manifestChanged,
 		}
 	}

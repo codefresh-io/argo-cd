@@ -1929,3 +1929,28 @@ func TestAddControllerNamespace(t *testing.T) {
 		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
 }
+
+func TestAlreadyAttemptSync(t *testing.T) {
+	app := newFakeApp()
+	t.Run("same manifest with sync result", func(t *testing.T) {
+
+		manifestChangedMap := make(map[string]bool)
+		manifestChangedMap["sha"] = false
+
+		app.Status.Sync.ManifestsChanged = manifestChangedMap
+
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		assert.True(t, attempted)
+	})
+
+	t.Run("different manifest with sync result", func(t *testing.T) {
+
+		manifestChangedMap := make(map[string]bool)
+		manifestChangedMap["sha"] = true
+
+		app.Status.Sync.ManifestsChanged = manifestChangedMap
+
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		assert.False(t, attempted)
+	})
+}
