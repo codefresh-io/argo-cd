@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -1960,7 +1961,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 		}
 	} else {
 		manifestsChangedMap := app.Status.Sync.ManifestsChanged
-		if manifestsChangedMap[commitSHA] {
+		if os.Getenv("PERSIST_CHANGE_REVISIONS") != "1" || manifestsChangedMap[commitSHA] {
 			if app.Status.OperationState.SyncResult.Revision != commitSHA {
 				return false, ""
 			}

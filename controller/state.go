@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	goSync "sync"
@@ -226,8 +227,9 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
+
 			// not need to change, if we already found at least one cached revision that has no changes
-			if updateRevisionResponse != nil {
+			if updateRevisionResponse != nil && os.Getenv("PERSIST_CHANGE_REVISIONS") == "1" {
 				manifestsChanges[syncedRevision] = updateRevisionResponse.Changes
 			}
 			if err != nil {

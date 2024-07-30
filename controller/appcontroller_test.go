@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -1932,7 +1933,20 @@ func TestAddControllerNamespace(t *testing.T) {
 
 func TestAlreadyAttemptSync(t *testing.T) {
 	app := newFakeApp()
-	t.Run("same manifest with sync result", func(t *testing.T) {
+	t.Run("same manifest with sync result, with disabled flag", func(t *testing.T) {
+
+		manifestChangedMap := make(map[string]bool)
+		manifestChangedMap["sha"] = false
+
+		app.Status.Sync.ManifestsChanged = manifestChangedMap
+
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		assert.False(t, attempted)
+	})
+
+	t.Run("same manifest with sync result, with enabled flag", func(t *testing.T) {
+
+		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 
 		manifestChangedMap := make(map[string]bool)
 		manifestChangedMap["sha"] = false
@@ -1943,7 +1957,20 @@ func TestAlreadyAttemptSync(t *testing.T) {
 		assert.True(t, attempted)
 	})
 
-	t.Run("different manifest with sync result", func(t *testing.T) {
+	t.Run("different manifest with sync result, with disabled flag", func(t *testing.T) {
+
+		manifestChangedMap := make(map[string]bool)
+		manifestChangedMap["sha"] = true
+
+		app.Status.Sync.ManifestsChanged = manifestChangedMap
+
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		assert.False(t, attempted)
+	})
+
+	t.Run("different manifest with sync result, with enabled flag", func(t *testing.T) {
+
+		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 
 		manifestChangedMap := make(map[string]bool)
 		manifestChangedMap["sha"] = true
