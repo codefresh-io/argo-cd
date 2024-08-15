@@ -1,29 +1,29 @@
-FROM golang:1.16.5 AS go
+ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 
-RUN go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph 
+FROM docker.io/library/golang:1.22.0@sha256:7b297d9abee021bab9046e492506b3c2da8a3722cbf301653186545ecc1e00bb AS go
 
-FROM ubuntu:21.04
+RUN go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest
+
+FROM $BASE_IMAGE
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN  apt-get update && apt-get install -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        make \
-        wget \
-        gcc \
-        sudo \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN mkdir -p /etc/certs
+RUN  apt-get update && apt-get install --no-install-recommends -y \
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    make \
+    wget \
+    gcc \
+    sudo \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
@@ -36,7 +36,7 @@ COPY ./test/fixture/certs/argocd-e2e-server.key /etc/certs/argocd-test-server.ke
 COPY ./test/fixture/certs/argocd-test-ca.crt /etc/certs/argocd-test-ca.crt
 
 # Entrypoint is required for container's user management
-COPY ./test/remote/uid_entrypoint.sh /usr/local/bin
+COPY ./test/remote/entrypoint.sh /usr/local/bin
 COPY ./test/remote/Procfile /Procfile
 
 # We need goreman
@@ -83,4 +83,4 @@ RUN echo "[http]" >> /tmp/argo-e2e/submodule.git/config && \
 RUN echo "[http]" >> /tmp/argo-e2e/submoduleParent.git/config && \
     echo "  receivepack = true" >> /tmp/argo-e2e/submoduleParent.git/config 
 
-ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

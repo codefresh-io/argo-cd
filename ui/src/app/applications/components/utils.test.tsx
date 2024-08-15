@@ -22,7 +22,7 @@ test('getAppOperationState.Operation', () => {
 test('getAppOperationState.Status', () => {
     const state = getAppOperationState({
         metadata: {},
-        status: {operationState: {phase: OperationPhases.Error, startedAt: zero}}
+        status: {operationState: {phase: OperationPhases.Error, startedAt: zero}},
     } as Application);
 
     expect(state.phase).toBe(OperationPhases.Error);
@@ -38,6 +38,12 @@ test('getOperationType.Sync.Operation', () => {
     const state = getOperationType({metadata: {}, operation: {sync: {}}} as Application);
 
     expect(state).toBe('Sync');
+});
+
+test('getOperationType.DeleteAndRecentSync', () => {
+    const state = getOperationType({metadata: {deletionTimestamp: '123'}, status: {operationState: {operation: {sync: {}}}}} as Application);
+
+    expect(state).toBe('Delete');
 });
 
 test('getOperationType.Sync.Status', () => {
@@ -182,10 +188,10 @@ test('ResourceResultIcon.Hook.Running', () => {
                     {
                         hookType: 'Sync',
                         hookPhase: OperationPhases.Running,
-                        message: 'my-message'
+                        message: 'my-message',
                     } as ResourceResult
                 }
-            />
+            />,
         )
         .toJSON();
 

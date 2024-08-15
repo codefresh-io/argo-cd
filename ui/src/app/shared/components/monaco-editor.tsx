@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
+import {services} from '../services';
 
 export interface EditorInput {
     text: string;
@@ -9,6 +10,7 @@ export interface EditorInput {
 
 export interface MonacoProps {
     minHeight?: number;
+    vScrollBar: boolean;
     editor?: {
         options?: monacoEditor.editor.IEditorOptions;
         input: EditorInput;
@@ -24,14 +26,25 @@ const DEFAULT_LINE_HEIGHT = 18;
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
-        require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
-
-        const component = (props: MonacoProps) => {
+        const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
+
+            React.useEffect(() => {
+                const subscription = services.viewPreferences.getPreferences().subscribe(preferences => {
+                    monaco.editor.setTheme(preferences.theme === 'dark' ? 'vs-dark' : 'vs');
+                });
+
+                return () => {
+                    subscription.unsubscribe();
+                };
+            }, []);
 
             return (
                 <div
-                    style={{height: `${Math.max(props.minHeight || 0, height)}px`}}
+                    style={{
+                        height: `${Math.max(props.minHeight || 0, height + 100)}px`,
+                        overflowY: 'hidden'
+                    }}
                     ref={el => {
                         if (el) {
                             const container = el as {
@@ -40,7 +53,16 @@ const MonacoEditorLazy = React.lazy(() =>
                             };
                             if (props.editor) {
                                 if (!container.editorApi) {
-                                    container.editorApi = monaco.editor.create(el, props.editor.options);
+                                    const editor = monaco.editor.create(el, {
+                                        ...props.editor.options,
+                                        scrollBeyondLastLine: props.vScrollBar,
+                                        scrollbar: {
+                                            handleMouseWheel: false,
+                                            vertical: props.vScrollBar ? 'visible' : 'hidden'
+                                        }
+                                    });
+
+                                    container.editorApi = editor;
                                 }
 
                                 const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
@@ -64,7 +86,7 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: component
+            default: Component
         };
     })
 );

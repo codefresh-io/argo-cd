@@ -14,6 +14,7 @@ export class YamlEditor<T> extends React.Component<
         input: T;
         hideModeButtons?: boolean;
         initialEditMode?: boolean;
+        vScrollbar?: boolean;
         onSave?: (patch: string, patchType: string) => Promise<any>;
         onCancel?: () => any;
         minHeight?: number;
@@ -31,7 +32,7 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const yaml = props.input ? jsYaml.safeDump(props.input) : '';
+        const yaml = props.input ? jsYaml.dump(props.input) : '';
 
         return (
             <div className='yaml-editor'>
@@ -46,13 +47,24 @@ export class YamlEditor<T> extends React.Component<
                                                 try {
                                                     const updated = jsYaml.load(this.model.getLinesContent().join('\n'));
                                                     const patch = jsonMergePatch.generate(props.input, updated);
-                                                    const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/merge-patch+json');
-                                                    if (unmounted !== true) {
-                                                        this.setState({editing: false});
+                                                    try {
+                                                        const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/merge-patch+json');
+                                                        if (unmounted !== true) {
+                                                            this.setState({editing: false});
+                                                        }
+                                                    } catch (e) {
+                                                        ctx.notifications.show({
+                                                            content: (
+                                                                <div className='yaml-editor__error'>
+                                                                    <ErrorNotification title='Unable to save changes' e={e} />
+                                                                </div>
+                                                            ),
+                                                            type: NotificationType.Error
+                                                        });
                                                     }
                                                 } catch (e) {
                                                     ctx.notifications.show({
-                                                        content: <ErrorNotification title='Unable to save changes' e={e} />,
+                                                        content: <ErrorNotification title='Unable to validate changes' e={e} />,
                                                         type: NotificationType.Error
                                                     });
                                                 }
@@ -62,7 +74,7 @@ export class YamlEditor<T> extends React.Component<
                                         </button>{' '}
                                         <button
                                             onClick={() => {
-                                                this.model.setValue(jsYaml.safeDump(props.input));
+                                                this.model.setValue(jsYaml.dump(props.input));
                                                 this.setState({editing: !this.state.editing});
                                                 if (props.onCancel) {
                                                     props.onCancel();
@@ -83,6 +95,7 @@ export class YamlEditor<T> extends React.Component<
                 )}
                 <MonacoEditor
                     minHeight={props.minHeight}
+                    vScrollBar={props.vScrollbar}
                     editor={{
                         input: {text: yaml, language: 'yaml'},
                         options: {readOnly: !this.state.editing, minimap: {enabled: false}},

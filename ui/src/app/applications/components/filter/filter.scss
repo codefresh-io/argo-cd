@@ -1,25 +1,46 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+$sidebar-color: #30303d;
+$slate: #191826;
 
 .filter {
-    background-color: white;
-    padding: 10px;
-    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     margin-bottom: 1em;
+    width: 100%;
+    color: #818d94;
+    font-weight: 500;
 
     &__header {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
         font-size: 13px;
         color: $argo-color-gray-5;
         font-weight: 500;
         margin-bottom: 0.5em;
         height: 28px;
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
+
+            &:hover {
+                background: $sidebar-color !important;
+            }
+        }
     }
 
     &__collapse {
+        position: absolute;
+        right: 0;
         cursor: pointer;
         margin-left: auto;
         color: $argo-color-gray-7;
@@ -44,69 +65,79 @@
         text-align: center;
     }
 
-    &--wrap {
-        overflow: auto;
-        .checkbox__item {
-            min-width: 4.5em;
-            float: left;
+    &__item {
+        height: 2em;
+        padding: 0 5px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        margin: 0.15em 0;
+        cursor: pointer;
+        flex-wrap: nowrap;
+
+        i.fa {
+            width: 25px;
+            text-align: center;
+        }
+
+        &__label {
+            text-overflow: ellipsis;
+            flex-grow: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        &--selected {
+            background-color: $slate;
+            color: white;
+            font-weight: 500;
         }
     }
 }
 
 .filters-group {
-    &__container {
-        display: flex;
-        &__title {
-            margin-bottom: 1em;
-            font-size: 13px;
-            color: $argo-color-gray-6;
-            display: flex;
-            align-items: center;
-            width: 200px;
-        }
-
-        .filter {
-            margin-right: 15px;
-            height: max-content;
-            min-width: 200px;
-            max-width: 200px;
-        }
-
-        &__subgroup {
-            align-self: start;
-            display: flex;
-            flex-wrap: wrap;
-        }
-    }
-
-    &__container--hidden {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 2em;
+    &__toggle {
         display: none;
+        cursor: pointer;
+        position: absolute;
+        left: 16em;
+        color: $argo-color-gray-6;
     }
-}
 
-@include breakpoint(xxlarge up) {
-    .filter {
+    .fa-filter {
+        float: left;
+        margin-right: 1em;
+    }
+
+    &__content {
+        margin-left: 220px;
         width: 100%;
-        margin-right: 0;
     }
 
-    .filters-group {
-        &__container {
-            width: 260px;
-            flex-wrap: wrap;
-            padding-bottom: 6em;
+    &__header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        height: 1.5em;
+        margin-bottom: 0em;
+        margin-top: -1.5em;
 
-            &__title .action-button {
-                display: none;
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
             }
 
-            &__text-filters {
-                width: 100%;
+            &:hover {
+                background: $sidebar-color !important;
             }
-        }
-
-        &__container--hidden {
-            display: flex;
         }
     }
 }

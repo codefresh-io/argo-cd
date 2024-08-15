@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -11,10 +10,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -42,6 +42,7 @@ type SessionManager struct {
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
+	failedLock                    sync.RWMutex
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -70,7 +71,7 @@ const (
 	// Maximum length of username, too keep the cache's memory signature low
 	maxUsernameLength = 32
 	// The default maximum session cache size
-	defaultMaxCacheSize = 1000
+	defaultMaxCacheSize = 10000
 	// The default number of maximum login failures before delay kicks in
 	defaultMaxLoginFailures = 5
 	// The default time in seconds for the failure window
@@ -112,7 +113,7 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
@@ -124,24 +125,27 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	if err != nil {
 		panic(err)
 	}
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
+
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
+
 	s.client = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport: transport,
 	}
+
 	if settings.DexConfig != "" {
-		s.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, s.client.Transport)
+		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
+	} else {
+		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
@@ -157,63 +161,28 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.StandardClaims{
-		IssuedAt:  jwt.At(now),
+	claims := jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: jwt.At(now),
+		NotBefore: jwt.NewNumericDate(now),
 		Subject:   subject,
 		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims.ExpiresAt = jwt.At(expires)
+		claims.ExpiresAt = jwt.NewNumericDate(expires)
 	}
 
 	return mgr.signClaims(claims)
 }
 
-type standardClaims struct {
-	Audience  jwt.ClaimStrings `json:"aud,omitempty"`
-	ExpiresAt int64            `json:"exp,omitempty"`
-	ID        string           `json:"jti,omitempty"`
-	IssuedAt  int64            `json:"iat,omitempty"`
-	Issuer    string           `json:"iss,omitempty"`
-	NotBefore int64            `json:"nbf,omitempty"`
-	Subject   string           `json:"sub,omitempty"`
-}
-
-func unixTimeOrZero(t *jwt.Time) int64 {
-	if t == nil {
-		return 0
-	}
-	return t.Unix()
-}
-
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
-	// log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return "", err
 	}
-	// workaround for https://github.com/argoproj/argo-cd/issues/5217
-	// According to https://tools.ietf.org/html/rfc7519#section-4.1.6 "iat" and other time fields must contain
-	// number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time.
-	// The https://github.com/dgrijalva/jwt-go marshals time as non integer.
-	return token.SignedString(settings.ServerSignature, jwt.WithMarshaller(func(ctx jwt.CodingContext, v interface{}) ([]byte, error) {
-		if std, ok := v.(jwt.StandardClaims); ok {
-			return json.Marshal(standardClaims{
-				Audience:  std.Audience,
-				ExpiresAt: unixTimeOrZero(std.ExpiresAt),
-				ID:        std.ID,
-				IssuedAt:  unixTimeOrZero(std.IssuedAt),
-				Issuer:    std.Issuer,
-				NotBefore: unixTimeOrZero(std.NotBefore),
-				Subject:   std.Subject,
-			})
-		}
-		return json.Marshal(v)
-	}))
+	return token.SignedString(settings.ServerSignature)
 }
 
 // GetSubjectAccountAndCapability analyzes Argo CD account token subject and extract account name
@@ -246,7 +215,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return argoCDSettings.ServerSignature, nil
 	})
@@ -298,7 +267,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", fmt.Errorf("Account password has changed since token issued")
+		return nil, "", fmt.Errorf("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -317,7 +286,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	return token.Claims, newToken, nil
 }
 
-// GetLoginFailures retrieves the login failure information from the cache
+// GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
 	var failures map[string]LoginAttempts
@@ -332,25 +301,43 @@ func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	return failures
 }
 
-func expireOldFailedAttempts(maxAge time.Duration, failures *map[string]LoginAttempts) int {
+func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
 	expiredCount := 0
-	for key, attempt := range *failures {
+	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
 			expiredCount += 1
-			delete(*failures, key)
+			delete(failures, key)
 		}
 	}
 	return expiredCount
 }
 
+// Protect admin user from login attempt reset caused by attempts to overflow cache in a brute force attack. Instead remove random non-admin to make room in cache.
+func pickRandomNonAdminLoginFailure(failures map[string]LoginAttempts, username string) *string {
+	idx := rand.Intn(len(failures) - 1)
+	i := 0
+	for key := range failures {
+		if i == idx {
+			if key == common.ArgoCDAdminUsername || key == username {
+				return pickRandomNonAdminLoginFailure(failures, username)
+			}
+			return &key
+		}
+		i++
+	}
+	return nil
+}
+
 // Updates the failure count for a given username. If failed is true, increases the counter. Otherwise, sets counter back to 0.
 func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
+	mgr.failedLock.Lock()
+	defer mgr.failedLock.Unlock()
 
 	failures := mgr.GetLoginFailures()
 
 	// Expire old entries in the cache if we have a failure window defined.
 	if window := getLoginFailureWindow(); window > 0 {
-		count := expireOldFailedAttempts(window, &failures)
+		count := expireOldFailedAttempts(window, failures)
 		if count > 0 {
 			log.Infof("Expired %d entries from session cache due to max age reached", count)
 		}
@@ -360,23 +347,13 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	// prevent overbloating the cache with fake entries, as this could lead to
 	// memory exhaustion and ultimately in a DoS. We remove a single entry to
 	// replace it with the new one.
-	//
-	// Chances are that we remove the one that is under active attack, but this
-	// chance is low (1:cache_size)
 	if failed && len(failures) >= getMaximumCacheSize() {
 		log.Warnf("Session cache size exceeds %d entries, removing random entry", getMaximumCacheSize())
-		idx := rand.Intn(len(failures) - 1)
-		var rmUser string
-		i := 0
-		for key := range failures {
-			if i == idx {
-				rmUser = key
-				delete(failures, key)
-				break
-			}
-			i++
+		rmUser := pickRandomNonAdminLoginFailure(failures, username)
+		if rmUser != nil {
+			delete(failures, *rmUser)
+			log.Infof("Deleted entry for user %s from cache", *rmUser)
 		}
-		log.Infof("Deleted entry for user %s from cache", rmUser)
 	}
 
 	attempt, ok := failures[username]
@@ -407,6 +384,8 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 
 // Get the current login failure attempts for given username
 func (mgr *SessionManager) getFailureCount(username string) LoginAttempts {
+	mgr.failedLock.RLock()
+	defer mgr.failedLock.RUnlock()
 	failures := mgr.GetLoginFailures()
 	attempt, ok := failures[username]
 	if !ok {
@@ -452,7 +431,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			// introduces random delay to protect from timing-based user enumeration attack
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
-				// take into account amount of time spent since the request start
+			// take into account amount of time spent since the request start
 			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
@@ -496,13 +475,52 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	return nil
 }
 
+// AuthMiddlewareFunc returns a function that can be used as an
+// authentication middleware for HTTP requests.
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return WithAuthMiddleware(disabled, mgr, h)
+	}
+}
+
+// TokenVerifier defines the contract to invoke token
+// verification logic
+type TokenVerifier interface {
+	VerifyToken(token string) (jwt.Claims, string, error)
+}
+
+// WithAuthMiddleware is an HTTP middleware used to ensure incoming
+// requests are authenticated before invoking the target handler. If
+// disabled is true, it will just invoke the next handler in the chain.
+func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !disabled {
+			cookies := r.Cookies()
+			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err != nil {
+				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+				return
+			}
+			claims, _, err := authn.VerifyToken(tokenString)
+			if err != nil {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+			ctx := r.Context()
+			// Add claims to the context to inspect for RBAC
+			// nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", claims)
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err
@@ -515,28 +533,40 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		// IDP signed token
 		prov, err := mgr.provider()
 		if err != nil {
-			return claims, "", err
+			return nil, "", err
 		}
 
-		// Token must be verified for at least one audience
-		// TODO(jannfis): Is this the right way? Shouldn't we know our audience and only validate for the correct one?
-		var idToken *oidc.IDToken
-		for _, aud := range claims.Audience {
-			idToken, err = prov.Verify(aud, tokenString)
-			if err == nil {
-				break
-			}
-		}
+		argoSettings, err := mgr.settingsMgr.GetSettings()
 		if err != nil {
-			return claims, "", err
+			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
-		if idToken == nil {
-			return claims, "", fmt.Errorf("No audience found in the token")
+		if argoSettings == nil {
+			return nil, "", fmt.Errorf("settings are not available while verifying the token")
+		}
+
+		idToken, err := prov.Verify(tokenString, argoSettings)
+
+		// The token verification has failed. If the token has expired, we will
+		// return a dummy claims only containing a value for the issuer, so the
+		// UI can handle expired tokens appropriately.
+		if err != nil {
+			log.Warnf("Failed to verify token: %s", err)
+			tokenExpiredError := &oidc.TokenExpiredError{}
+			if errors.As(err, &tokenExpiredError) {
+				claims = jwt.RegisteredClaims{
+					Issuer: "sso",
+				}
+				return claims, "", common.TokenVerificationErr
+			}
+			return nil, "", common.TokenVerificationErr
 		}
 
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
-		return claims, "", err
+		if err != nil {
+			return nil, "", err
+		}
+		return claims, "", nil
 	}
 }
 

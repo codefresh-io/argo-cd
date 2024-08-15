@@ -3,13 +3,15 @@ package db
 import (
 	"fmt"
 	"hash/fnv"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"context"
+
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -76,7 +78,11 @@ func updateSecretString(secret *apiv1.Secret, key, value string) {
 	}
 }
 
-func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1.Secret) (*apiv1.Secret, error) {
+func (db *db) createSecret(ctx context.Context, secret *apiv1.Secret) (*apiv1.Secret, error) {
+	return db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
+}
+
+func addSecretMetadata(secret *apiv1.Secret, secretType string) {
 	if secret.Annotations == nil {
 		secret.Annotations = map[string]string{}
 	}
@@ -86,9 +92,6 @@ func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1
 		secret.Labels = map[string]string{}
 	}
 	secret.Labels[common.LabelKeySecretType] = secretType
-
-	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
-	return secret, err
 }
 
 func (db *db) deleteSecret(ctx context.Context, secret *apiv1.Secret) error {
@@ -137,7 +140,10 @@ func (db *db) watchSecrets(ctx context.Context,
 
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, secretListOptions)
-	clusterSecretInformer.AddEventHandler(secretEventHandler)
+	_, err := clusterSecretInformer.AddEventHandler(secretEventHandler)
+	if err != nil {
+		log.Error(err)
+	}
 
 	log.Info("Starting secretInformer for", secretType)
 	go func() {
@@ -154,8 +160,24 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	host := parsedURI.Host
+	if strings.HasPrefix(host, "[") {
+		last := strings.Index(host, "]")
+		if last >= 0 {
+			addr, err := netip.ParseAddr(host[1:last])
+			if err != nil {
+				return "", err
+			}
+			host = strings.ReplaceAll(addr.String(), ":", "-")
+		}
+	} else {
+		last := strings.Index(host, ":")
+		if last >= 0 {
+			host = host[0:last]
+		}
+	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
-	host := strings.ToLower(strings.Split(parsedURI.Host, ":")[0])
+	host = strings.ToLower(host)
 	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
 }

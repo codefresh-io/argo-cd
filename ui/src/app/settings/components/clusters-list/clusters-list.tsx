@@ -1,18 +1,58 @@
-import {DropDownMenu} from 'argo-ui';
+import {DropDownMenu, ErrorNotification, NotificationType} from 'argo-ui';
+import {Tooltip, Toolbar} from 'argo-ui';
 import * as React from 'react';
-import {RouteComponentProps} from 'react-router-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {AddAuthToToolbar} from '../../../shared/components';
+import {Observable} from 'rxjs';
 
-export const ClustersList = (props: RouteComponentProps<{}>) => {
+import './cluster-list.scss';
+
+// CustomTopBar component similar to FlexTopBar in application-list panel
+const CustomTopBar = (props: {toolbar?: Toolbar | Observable<Toolbar>}) => {
+    const ctx = React.useContext(Context);
+    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
+    return (
+        <React.Fragment>
+            <div className='top-bar row top-bar' key='tool-bar'>
+                <DataLoader load={() => loadToolbar}>
+                    {toolbar => (
+                        <React.Fragment>
+                            <div className='column small-11 flex-top-bar_center'>
+                                <div className='top-bar'>
+                                    <div className='text-center'>
+                                        <span className='help-text'>
+                                            Refer to CLI{' '}
+                                            <a
+                                                href='https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster'
+                                                target='_blank'
+                                                rel='noopener noreferrer'>
+                                                <i className='fa fa-external-link-alt' /> Documentation{' '}
+                                            </a>{' '}
+                                            for adding clusters.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='columns small-1 top-bar__right-side'>{toolbar.tools}</div>
+                        </React.Fragment>
+                    )}
+                </DataLoader>
+            </div>
+        </React.Fragment>
+    );
+};
+
+export const ClustersList = () => {
     const clustersLoaderRef = React.useRef<DataLoader>();
     return (
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
+                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}} hideAuth={true}>
+                        <CustomTopBar />
                         <div className='repos-list'>
                             <div className='argo-container'>
                                 <DataLoader
@@ -36,9 +76,16 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                         onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
                                                         <div className='row'>
                                                             <div className='columns small-3'>
-                                                                <i className='icon argo-icon-hosts' /> {clusterName(cluster.name)}
+                                                                <i className='icon argo-icon-hosts' />
+                                                                <Tooltip content={clusterName(cluster.name)}>
+                                                                    <span>{clusterName(cluster.name)}</span>
+                                                                </Tooltip>
                                                             </div>
-                                                            <div className='columns small-5'>{cluster.server}</div>
+                                                            <div className='columns small-5'>
+                                                                <Tooltip content={cluster.server}>
+                                                                    <span>{cluster.server}</span>
+                                                                </Tooltip>
+                                                            </div>
                                                             <div className='columns small-2'>{cluster.info.serverVersion}</div>
                                                             <div className='columns small-2'>
                                                                 <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
@@ -51,13 +98,27 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                                     items={[
                                                                         {
                                                                             title: 'Delete',
-                                                                            action: () =>
-                                                                                services.clusters.delete(cluster.server).finally(() => {
-                                                                                    ctx.navigation.goto('.', {new: null});
-                                                                                    if (clustersLoaderRef.current) {
-                                                                                        clustersLoaderRef.current.reload();
+                                                                            action: async () => {
+                                                                                const confirmed = await ctx.popup.confirm(
+                                                                                    'Delete cluster?',
+                                                                                    `Are you sure you want to delete cluster: ${cluster.name}`
+                                                                                );
+                                                                                if (confirmed) {
+                                                                                    try {
+                                                                                        await services.clusters.delete(cluster.server).finally(() => {
+                                                                                            ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                                                            if (clustersLoaderRef.current) {
+                                                                                                clustersLoaderRef.current.reload();
+                                                                                            }
+                                                                                        });
+                                                                                    } catch (e) {
+                                                                                        ctx.notifications.show({
+                                                                                            content: <ErrorNotification title='Unable to delete cluster' e={e} />,
+                                                                                            type: NotificationType.Error
+                                                                                        });
                                                                                     }
-                                                                                })
+                                                                                }
+                                                                            }
                                                                         }
                                                                     ]}
                                                                 />

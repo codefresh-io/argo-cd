@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -18,6 +17,7 @@ import (
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	terminal "golang.org/x/term"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
@@ -52,21 +52,30 @@ func NewVersionCmd(cliName string) *cobra.Command {
 			fmt.Printf("  GoVersion: %s\n", version.GoVersion)
 			fmt.Printf("  Compiler: %s\n", version.Compiler)
 			fmt.Printf("  Platform: %s\n", version.Platform)
+			if version.ExtraBuildInfo != "" {
+				fmt.Printf("  ExtraBuildInfo: %s\n", version.ExtraBuildInfo)
+			}
 		},
 	}
 	versionCmd.Flags().BoolVar(&short, "short", false, "print just the version number")
 	return &versionCmd
 }
 
-// AddKubectlFlagsToCmd adds kubectl like flags to a command and returns the ClientConfig interface
+// AddKubectlFlagsToCmd adds kubectl like flags to a persistent flags of a command and returns the ClientConfig interface
 // for retrieving the values.
 func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
+	return AddKubectlFlagsToSet(cmd.PersistentFlags())
+}
+
+// AddKubectlFlagsToSet adds kubectl like flags to a provided flag set and returns the ClientConfig interface
+// for retrieving the values.
+func AddKubectlFlagsToSet(flags *pflag.FlagSet) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
+	flags.StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	clientcmd.BindOverrideFlags(&overrides, flags, kflags)
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 
@@ -105,7 +114,7 @@ func PromptPassword(password string) string {
 }
 
 // AskToProceed prompts the user with a message (typically a yes or no question) and returns whether
-// or not they responded in the affirmative or negative.
+// they responded in the affirmative or negative.
 func AskToProceed(message string) bool {
 	for {
 		fmt.Print(message)
@@ -121,16 +130,35 @@ func AskToProceed(message string) bool {
 	}
 }
 
-// ReadAndConfirmPassword is a helper to read and confirm a password from stdin
-func ReadAndConfirmPassword() (string, error) {
+// AskToProceedS prompts the user with a message (typically a yes, no or all question) and returns string
+// "a", "y" or "n".
+func AskToProceedS(message string) string {
 	for {
-		fmt.Print("*** Enter new password: ")
+		fmt.Print(message)
+		reader := bufio.NewReader(os.Stdin)
+		proceedRaw, err := reader.ReadString('\n')
+		errors.CheckError(err)
+		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
+		case "y", "yes":
+			return "y"
+		case "n", "no":
+			return "n"
+		case "a", "all":
+			return "a"
+		}
+	}
+}
+
+// ReadAndConfirmPassword is a helper to read and confirm a password from stdin
+func ReadAndConfirmPassword(username string) (string, error) {
+	for {
+		fmt.Printf("*** Enter new password for user %s: ", username)
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Print("\n")
-		fmt.Print("*** Confirm new password: ")
+		fmt.Printf("*** Confirm new password for user %s: ", username)
 		confirmPassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
@@ -173,7 +201,7 @@ func SetGLogLevel(glogLevel int) {
 }
 
 func writeToTempFile(pattern string, data []byte) string {
-	f, err := ioutil.TempFile("", pattern)
+	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
 	defer io.Close(f)
 	_, err = f.Write(data)
@@ -245,10 +273,10 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(cmd.Run)
 		errors.CheckError(err)
 
-		updated, err := ioutil.ReadFile(tempFile)
+		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("Edit cancelled, no valid changes were saved."))
+			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
 			break
 		} else {
 			data = stripComments(updated)
@@ -265,7 +293,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 // PrintDiff prints a diff between two unstructured objects to stdout using an external diff utility
 // Honors the diff utility set in the KUBECTL_EXTERNAL_DIFF environment variable
 func PrintDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
 		return err
 	}
@@ -277,7 +305,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0644)
 	if err != nil {
 		return err
 	}
@@ -289,7 +317,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0644)
 	if err != nil {
 		return err
 	}

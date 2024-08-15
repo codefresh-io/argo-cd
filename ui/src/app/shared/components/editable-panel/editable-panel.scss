@@ -3,10 +3,34 @@
 .editable-panel {
     position: relative;
 
+    input {
+        z-index: 10;
+    }
+
     &__buttons {
         position: absolute;
         top: 30px;
         right: 3em;
+    }
+
+    &__collapsible-button {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+    }
+
+    &__sticky-title {
+        z-index: 10;
+        opacity: 75%;
+        position: sticky;
+        padding-left: 15px;
+        padding-right: 15px;
+        margin-bottom: 5px;
+        text-align: center;
+        top: 0px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;        
     }
 
     .form-field__select {
@@ -28,7 +52,7 @@
         border-radius: 4px;
         position: absolute;
         display: block;
-        background: rgba($argo-color-gray-6, .2);
+        background: rgba($argo-color-gray-6, 0.2);
         left: 0;
         right: 0;
         top: 0;
