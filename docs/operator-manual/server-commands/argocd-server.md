@@ -34,7 +34,6 @@ argocd-server [flags]
       --as-uid string                                   UID to impersonate for the operation
       --basehref string                                 Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                    Path to a cert file for the certificate authority
-      --cf-app-config-cache-expiration duration         Cache expiration for Codefresh application configs (default 3m0s)
       --client-certificate string                       Path to a client certificate file for TLS
       --client-key string                               Path to a client key file for TLS
       --cluster string                                  The name of the kubeconfig cluster to use
@@ -101,7 +100,7 @@ argocd-server [flags]
       --server string                                   The address and port of the Kubernetes API server
       --staticassets string                             Directory path that contains additional static assets (default "/shared/app")
       --tls-server-name string                          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
-      --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
+      --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                    Bearer token for authentication to the API server

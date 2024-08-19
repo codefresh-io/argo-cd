@@ -95,7 +95,6 @@ func mapToEditAddArgs(val map[string]string) []string {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, namespace string) ([]*unstructured.Unstructured, []Image, error) {
-
 	env := os.Environ()
 	if envVars != nil {
 		env = append(env, envVars.Environ()...)
@@ -471,7 +470,7 @@ func Version(shortForm bool) (string, error) {
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
-		return "", fmt.Errorf("could not get kustomize version: %s", err)
+		return "", fmt.Errorf("could not get kustomize version: %w", err)
 	}
 	version = strings.TrimSpace(version)
 	if shortForm {
@@ -485,7 +484,6 @@ func Version(shortForm bool) (string, error) {
 
 		// remove extra 'kustomize/' before version
 		version = strings.TrimPrefix(version, "kustomize/")
-
 	}
 	return version, nil
 }
