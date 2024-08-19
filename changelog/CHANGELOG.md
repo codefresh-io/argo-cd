@@ -1,2 +1,2 @@
 ### Chore
--  chore: removed v1 reporter
+-  chore: selfheal additional logs in CompareAppState
