@@ -208,6 +208,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 		}
 
+		var updateRevision string
+
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
@@ -226,10 +228,15 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
+
+			if updateRevisionResponse != nil && updateRevisionResponse.Revision != "" {
+				updateRevision = updateRevisionResponse.Revision
+			}
+
 			// not need to change, if we already found at least one cached revision that has no changes
 			if updateRevisionResponse != nil && updateRevisionResponse.Revision != "" && os.Getenv("PERSIST_CHANGE_REVISIONS") == "1" {
 				manifestsChanges[updateRevisionResponse.Revision] = updateRevisionResponse.Changes
-				log.WithField("application", app.Name).Debugf("Persisting revision %s with changes exists %t", syncedRevision, updateRevisionResponse.Changes)
+				log.WithField("application", app.Name).Debugf("Persisting revision %s with changes exists %t", updateRevisionResponse.Revision, updateRevisionResponse.Changes)
 			}
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
@@ -237,7 +244,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		ts.AddCheckpoint("version_ms")
-		log.Debugf("Generating Manifest for source %s revision %s, cache %t, revisionCache %t", source, revisions[i], !noCache, noRevisionCache)
+		log.WithField("application", app.Name).Debugf("Generating Manifest for source %s revision %s, cache %t, revisionCache %t", source, revisions[i], !noCache, noRevisionCache)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:                repo,
 			Repos:               permittedHelmRepos,
@@ -264,6 +271,10 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		})
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+		}
+
+		if updateRevision != "" && manifestInfo.Revision != updateRevision {
+			log.WithField("application", app.Name).Warnf("Generated revision %s is different from the updated revision %s", manifestInfo.Revision, updateRevision)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
