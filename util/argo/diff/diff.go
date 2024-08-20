@@ -250,10 +250,6 @@ func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
 	return c.ignoreNormalizerOpts
 }
 
-func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
-	return c.ignoreNormalizerOpts
-}
-
 // Validate will check the current state of this diffConfig and return
 // error if it finds any required configuration missing.
 func (c *diffConfig) Validate() error {

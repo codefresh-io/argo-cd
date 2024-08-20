@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"

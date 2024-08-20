@@ -6,8 +6,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"

@@ -37,6 +37,10 @@ func (_m *RepoServerServiceClient) GenerateManifest(ctx context.Context, in *api
 	}
 
 	var r0 *apiclient.ManifestResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ManifestRequest, ...grpc.CallOption) (*apiclient.ManifestResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ManifestRequest, ...grpc.CallOption) *apiclient.ManifestResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -45,7 +49,6 @@ func (_m *RepoServerServiceClient) GenerateManifest(ctx context.Context, in *api
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ManifestRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -71,6 +74,10 @@ func (_m *RepoServerServiceClient) GenerateManifestWithFiles(ctx context.Context
 	}
 
 	var r0 apiclient.RepoServerService_GenerateManifestWithFilesClient
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, ...grpc.CallOption) (apiclient.RepoServerService_GenerateManifestWithFilesClient, error)); ok {
+		return rf(ctx, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, ...grpc.CallOption) apiclient.RepoServerService_GenerateManifestWithFilesClient); ok {
 		r0 = rf(ctx, opts...)
 	} else {
@@ -79,7 +86,6 @@ func (_m *RepoServerServiceClient) GenerateManifestWithFiles(ctx context.Context
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, opts...)
 	} else {
@@ -105,6 +111,10 @@ func (_m *RepoServerServiceClient) GetAppDetails(ctx context.Context, in *apicli
 	}
 
 	var r0 *apiclient.RepoAppDetailsResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerAppDetailsQuery, ...grpc.CallOption) (*apiclient.RepoAppDetailsResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerAppDetailsQuery, ...grpc.CallOption) *apiclient.RepoAppDetailsResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -113,7 +123,6 @@ func (_m *RepoServerServiceClient) GetAppDetails(ctx context.Context, in *apicli
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.RepoServerAppDetailsQuery, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -139,6 +148,10 @@ func (_m *RepoServerServiceClient) GetGitDirectories(ctx context.Context, in *ap
 	}
 
 	var r0 *apiclient.GitDirectoriesResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.GitDirectoriesRequest, ...grpc.CallOption) (*apiclient.GitDirectoriesResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.GitDirectoriesRequest, ...grpc.CallOption) *apiclient.GitDirectoriesResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -147,7 +160,6 @@ func (_m *RepoServerServiceClient) GetGitDirectories(ctx context.Context, in *ap
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.GitDirectoriesRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -173,6 +185,10 @@ func (_m *RepoServerServiceClient) GetGitFiles(ctx context.Context, in *apiclien
 	}
 
 	var r0 *apiclient.GitFilesResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.GitFilesRequest, ...grpc.CallOption) (*apiclient.GitFilesResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.GitFilesRequest, ...grpc.CallOption) *apiclient.GitFilesResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -181,7 +197,6 @@ func (_m *RepoServerServiceClient) GetGitFiles(ctx context.Context, in *apiclien
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.GitFilesRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -207,6 +222,10 @@ func (_m *RepoServerServiceClient) GetHelmCharts(ctx context.Context, in *apicli
 	}
 
 	var r0 *apiclient.HelmChartsResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.HelmChartsRequest, ...grpc.CallOption) (*apiclient.HelmChartsResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.HelmChartsRequest, ...grpc.CallOption) *apiclient.HelmChartsResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -215,7 +234,6 @@ func (_m *RepoServerServiceClient) GetHelmCharts(ctx context.Context, in *apicli
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.HelmChartsRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -278,6 +296,10 @@ func (_m *RepoServerServiceClient) GetRevisionMetadata(ctx context.Context, in *
 	}
 
 	var r0 *v1alpha1.RevisionMetadata
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerRevisionMetadataRequest, ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerRevisionMetadataRequest, ...grpc.CallOption) *v1alpha1.RevisionMetadata); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -286,7 +308,6 @@ func (_m *RepoServerServiceClient) GetRevisionMetadata(ctx context.Context, in *
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.RepoServerRevisionMetadataRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -312,6 +333,10 @@ func (_m *RepoServerServiceClient) ListApps(ctx context.Context, in *apiclient.L
 	}
 
 	var r0 *apiclient.AppList
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ListAppsRequest, ...grpc.CallOption) (*apiclient.AppList, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ListAppsRequest, ...grpc.CallOption) *apiclient.AppList); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -320,7 +345,6 @@ func (_m *RepoServerServiceClient) ListApps(ctx context.Context, in *apiclient.L
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ListAppsRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -346,6 +370,10 @@ func (_m *RepoServerServiceClient) ListPlugins(ctx context.Context, in *emptypb.
 	}
 
 	var r0 *apiclient.PluginList
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *emptypb.Empty, ...grpc.CallOption) (*apiclient.PluginList, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *emptypb.Empty, ...grpc.CallOption) *apiclient.PluginList); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -354,7 +382,6 @@ func (_m *RepoServerServiceClient) ListPlugins(ctx context.Context, in *emptypb.
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *emptypb.Empty, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -380,6 +407,10 @@ func (_m *RepoServerServiceClient) ListRefs(ctx context.Context, in *apiclient.L
 	}
 
 	var r0 *apiclient.Refs
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ListRefsRequest, ...grpc.CallOption) (*apiclient.Refs, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ListRefsRequest, ...grpc.CallOption) *apiclient.Refs); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -388,7 +419,6 @@ func (_m *RepoServerServiceClient) ListRefs(ctx context.Context, in *apiclient.L
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ListRefsRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -414,6 +444,10 @@ func (_m *RepoServerServiceClient) ResolveRevision(ctx context.Context, in *apic
 	}
 
 	var r0 *apiclient.ResolveRevisionResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ResolveRevisionRequest, ...grpc.CallOption) (*apiclient.ResolveRevisionResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ResolveRevisionRequest, ...grpc.CallOption) *apiclient.ResolveRevisionResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -422,7 +456,6 @@ func (_m *RepoServerServiceClient) ResolveRevision(ctx context.Context, in *apic
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ResolveRevisionRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
@@ -448,6 +481,10 @@ func (_m *RepoServerServiceClient) TestRepository(ctx context.Context, in *apicl
 	}
 
 	var r0 *apiclient.TestRepositoryResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.TestRepositoryRequest, ...grpc.CallOption) (*apiclient.TestRepositoryResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.TestRepositoryRequest, ...grpc.CallOption) *apiclient.TestRepositoryResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
@@ -456,7 +493,6 @@ func (_m *RepoServerServiceClient) TestRepository(ctx context.Context, in *apicl
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.TestRepositoryRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {

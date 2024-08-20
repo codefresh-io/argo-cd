@@ -502,7 +502,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		for sIdx, source := range sources {
-			repo, err := s.db.GetRepository(ctx, source.RepoURL)
+			repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
@@ -2444,11 +2444,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
-	if err != nil {
-		return nil, err
 	}
 
 	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
