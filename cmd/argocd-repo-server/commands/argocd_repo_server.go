@@ -53,29 +53,29 @@ func NewCommand() *cobra.Command {
 		codefreshToken                        string
 		codefreshApplicationVersioningEnabled bool
 		codefreshUseApplicationConfiguration  bool
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		otlpInsecure                      bool
-		otlpHeaders                       map[string]string
-		otlpAttrs                         []string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-		helmManifestMaxExtractedSize      string
-		helmRegistryMaxIndexSize          string
-		disableManifestMaxExtractedSize   bool
-		includeHiddenDirectories          bool
+		parallelismLimit                      int64
+		listenPort                            int
+		listenHost                            string
+		metricsPort                           int
+		metricsHost                           string
+		otlpAddress                           string
+		otlpInsecure                          bool
+		otlpHeaders                           map[string]string
+		otlpAttrs                             []string
+		cacheSrc                              func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer                   tls.ConfigCustomizer
+		tlsConfigCustomizerSrc                func() (tls.ConfigCustomizer, error)
+		redisClient                           *redis.Client
+		disableTLS                            bool
+		maxCombinedDirectoryManifestsSize     string
+		cmpTarExcludedGlobs                   []string
+		allowOutOfBoundsSymlinks              bool
+		streamedManifestMaxTarSize            string
+		streamedManifestMaxExtractedSize      string
+		helmManifestMaxExtractedSize          string
+		helmRegistryMaxIndexSize              string
+		disableManifestMaxExtractedSize       bool
+		includeHiddenDirectories              bool
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -124,8 +124,8 @@ func NewCommand() *cobra.Command {
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
-				CodefreshApplicationVersioningEnabled:        codefreshApplicationVersioningEnabled,
-				CodefreshUseApplicationConfiguration:         codefreshUseApplicationConfiguration,
+				CodefreshApplicationVersioningEnabled: codefreshApplicationVersioningEnabled,
+				CodefreshUseApplicationConfiguration:  codefreshUseApplicationConfiguration,
 				CodefreshConfig: codefresh.CodefreshConfig{
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,

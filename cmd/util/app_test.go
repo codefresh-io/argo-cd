@@ -283,54 +283,6 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	})
 }
 
-func newMultiSourceAppOptionsFixture() *appOptionsFixture {
-	fixture := &appOptionsFixture{
-		spec: &v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				v1alpha1.ApplicationSource{},
-				v1alpha1.ApplicationSource{},
-			},
-		},
-		command: &cobra.Command{},
-		options: &AppOptions{},
-	}
-	AddAppFlags(fixture.command, fixture.options)
-	return fixture
-}
-
-func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
-	f := newMultiSourceAppOptionsFixture()
-	sourcePosition := 0
-	sourcePosition1 := 1
-	sourcePosition2 := 2
-	t.Run("SyncPolicy", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automated", sourcePosition1))
-		assert.NotNil(t, f.spec.SyncPolicy.Automated)
-
-		f.spec.SyncPolicy = nil
-		assert.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automatic", sourcePosition1))
-		assert.NotNil(t, f.spec.SyncPolicy.Automated)
-	})
-	t.Run("Helm - SourcePosition 0", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
-		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[sourcePosition].Helm.Version, "v2")
-	})
-	t.Run("Kustomize", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=2", sourcePosition1))
-		assert.Equal(t, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
-		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=4", sourcePosition2))
-		assert.Equal(t, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
-	})
-	t.Run("Helm", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
-		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
-		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[sourcePosition1-1].Helm.Version, "v2")
-		assert.Equal(t, f.spec.GetSources()[sourcePosition2-1].Helm.Version, "v3")
-	})
-}
-
 func Test_setAnnotations(t *testing.T) {
 	t.Run("Annotations", func(t *testing.T) {
 		app := v1alpha1.Application{}

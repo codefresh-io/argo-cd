@@ -362,7 +362,11 @@ func (k *kustomize) GetCacheKeyWithComponents(revision string, source *v1alpha1.
 
 		cleanRepoURL := c
 		if path != "" {
-			cleanRepoURL = strings.TrimSuffix(c[:strings.Index(c, path)], "/")
+			suffixToTrim := c
+			if searchedValueIndex := strings.Index(c, path); searchedValueIndex != -1 {
+				suffixToTrim = c[:searchedValueIndex]
+			}
+			cleanRepoURL = strings.TrimSuffix(suffixToTrim, "/")
 		}
 
 		revisionsToResolve[cleanRepoURL] = ref

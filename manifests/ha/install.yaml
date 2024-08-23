@@ -21452,23 +21452,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: applicationset-controller
-    app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-applicationset-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-applicationset-controller
-subjects:
-- kind: ServiceAccount
-  name: argocd-applicationset-controller
-  namespace: argocd
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -22689,15 +22672,6 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -23158,12 +23132,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.disable.helm.manifest.max.extracted.size
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.revision.cache.lock.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
@@ -23972,7 +23940,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -24032,7 +24000,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -24090,7 +24058,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -24125,7 +24093,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

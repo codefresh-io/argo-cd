@@ -498,7 +498,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		// Store the map of all sources having ref field into a map for applications with sources field
 		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{}, false)
 		if err != nil {
-			return fmt.Errorf("failed to get ref sources: %v", err)
+			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
 
 		for sIdx, source := range sources {

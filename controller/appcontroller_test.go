@@ -20,7 +20,6 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -1876,7 +1875,7 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponses: []*apiclient.ManifestResponse{{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 		}},
 	}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -2100,7 +2099,6 @@ func TestAddControllerNamespace(t *testing.T) {
 func TestAlreadyAttemptSync(t *testing.T) {
 	app := newFakeApp()
 	t.Run("same manifest with sync result, with disabled flag", func(t *testing.T) {
-
 		manifestChangedMap := make(map[string]bool)
 		manifestChangedMap["sha"] = false
 
@@ -2111,7 +2109,6 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	})
 
 	t.Run("same manifest with sync result, with enabled flag", func(t *testing.T) {
-
 		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 
 		manifestChangedMap := make(map[string]bool)
@@ -2124,7 +2121,6 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	})
 
 	t.Run("different manifest with sync result, with disabled flag", func(t *testing.T) {
-
 		manifestChangedMap := make(map[string]bool)
 		manifestChangedMap["sha"] = true
 
@@ -2135,7 +2131,6 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	})
 
 	t.Run("different manifest with sync result, with enabled flag", func(t *testing.T) {
-
 		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 
 		manifestChangedMap := make(map[string]bool)
@@ -2148,7 +2143,6 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	})
 
 	t.Run("different manifest with sync result, with enabled flag", func(t *testing.T) {
-
 		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 
 		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
@@ -2156,7 +2150,6 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	})
 
 	t.Run("different manifest with sync result, with enabled flag v2", func(t *testing.T) {
-
 		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 
 		manifestChangedMap := make(map[string]bool)

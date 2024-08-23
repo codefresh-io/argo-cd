@@ -176,27 +176,15 @@ func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.Resourc
 }
 
 func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
-	for uid := range parentNodes {
-		detailedTreeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
-	}
 }
 
 func printDetailedTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
-	for uid := range parentNodes {
-		detailedTreeViewAppResourcesOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
-	}
 }
 
 func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
-	for uid := range parentNodes {
-		treeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
-	}
 }
 
 func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
-	for uid := range parentNodes {
-		treeViewAppResourcesOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
-	}
 }
 
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {

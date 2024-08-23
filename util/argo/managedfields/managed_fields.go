@@ -152,8 +152,10 @@ func resolverFromStaticParser(gvk schema.GroupVersionKind, parser *k8smanagedfie
 	return nil
 }
 
-var gvkMap map[schema.GroupVersionKind]string
-var extractOnce sync.Once
+var (
+	gvkMap      map[schema.GroupVersionKind]string
+	extractOnce sync.Once
+)
 
 func getGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
 	extractOnce.Do(func() {

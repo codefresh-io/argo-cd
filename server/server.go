@@ -5,9 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	"github.com/argoproj/argo-cd/v2/server/applicationset"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	goio "io"
 	"io/fs"
 	"math"
@@ -24,6 +21,10 @@ import (
 	"strings"
 	gosync "sync"
 	"time"
+
+	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
+	"github.com/argoproj/argo-cd/v2/server/applicationset"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"

@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -517,73 +516,6 @@ go_threads
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	log.Println(body)
-	assertMetricsPrinted(t, expectedMetrics, body)
-}
-
-func TestWorkqueueMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
-	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
-
-	expectedMetrics := `
-# TYPE workqueue_adds_total counter
-workqueue_adds_total{name="test"}
-
-# TYPE workqueue_depth gauge
-workqueue_depth{name="test"}
-
-# TYPE workqueue_longest_running_processor_seconds gauge
-workqueue_longest_running_processor_seconds{name="test"}
-
-# TYPE workqueue_queue_duration_seconds histogram
-
-# TYPE workqueue_unfinished_work_seconds gauge
-workqueue_unfinished_work_seconds{name="test"}
-
-# TYPE workqueue_work_duration_seconds histogram
-`
-	workqueue.NewNamed("test")
-
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
-	rr := httptest.NewRecorder()
-	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
-	body := rr.Body.String()
-	log.Println(body)
-	assertMetricsPrinted(t, expectedMetrics, body)
-}
-
-func TestGoMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
-	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
-
-	expectedMetrics := `
-# TYPE go_gc_duration_seconds summary
-go_gc_duration_seconds_sum
-go_gc_duration_seconds_count
-# TYPE go_goroutines gauge
-go_goroutines
-# TYPE go_info gauge
-go_info
-# TYPE go_memstats_alloc_bytes gauge
-go_memstats_alloc_bytes
-# TYPE go_memstats_sys_bytes gauge
-go_memstats_sys_bytes
-# TYPE go_threads gauge
-go_threads
-`
-
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
-	rr := httptest.NewRecorder()
-	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, expectedMetrics, body)

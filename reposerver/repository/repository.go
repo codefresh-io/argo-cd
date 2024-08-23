@@ -499,7 +499,6 @@ func (s *Service) getCacheKeyWithKustomizeComponents(
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -777,7 +776,6 @@ type generateManifestCh struct {
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
 func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, versionConfig *version_config_manager.VersionConfig) *ManifestResponsePromise {
-
 	responseCh := make(chan *apiclient.ManifestResponse)
 	tarDoneCh := make(chan bool)
 	errCh := make(chan error)
@@ -1870,7 +1868,6 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 					line:        1, // TODO: can add later
 				})
 			}
-
 		} else {
 			err := getObjsFromYAMLOrJson(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
 			if err != nil {

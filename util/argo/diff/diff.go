@@ -246,6 +246,7 @@ func (c *diffConfig) ServerSideDiff() bool {
 func (c *diffConfig) IgnoreMutationWebhook() bool {
 	return c.ignoreMutationWebhook
 }
+
 func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
 	return c.ignoreNormalizerOpts
 }

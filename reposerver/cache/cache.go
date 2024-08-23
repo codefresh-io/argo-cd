@@ -31,10 +31,10 @@ var (
 )
 
 type Cache struct {
-	cache                    *cacheutil.Cache
-	repoCacheExpiration      time.Duration
-	revisionCacheExpiration  time.Duration
-	revisionCacheLockTimeout time.Duration
+	cache                      *cacheutil.Cache
+	repoCacheExpiration        time.Duration
+	revisionCacheExpiration    time.Duration
+	revisionCacheLockTimeout   time.Duration
 	cfAppConfigCacheExpiration time.Duration
 }
 

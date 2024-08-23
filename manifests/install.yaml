@@ -21137,30 +21137,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis
-rules:
-- apiGroups:
-  - ""
-  resourceNames:
-  - argocd-redis
-  resources:
-  - secrets
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
     app.kubernetes.io/component: event-reporter
     app.kubernetes.io/name: event-reporter
     app.kubernetes.io/part-of: argocd
@@ -21409,22 +21385,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-dex-server
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: argocd-redis
-subjects:
-- kind: ServiceAccount
-  name: argocd-redis
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -22893,12 +22853,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: timeout.hard.reconciliation
-              name: argocd-cm
-              optional: true
-        - name: ARGOCD_RECONCILIATION_JITTER
-          valueFrom:
-            configMapKeyRef:
-              key: timeout.reconciliation.jitter
               name: argocd-cm
               optional: true
         - name: ARGOCD_RECONCILIATION_JITTER

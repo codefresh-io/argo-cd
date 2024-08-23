@@ -1520,27 +1520,6 @@ func TestCreateAppWithOperation(t *testing.T) {
 	assert.Nil(t, app.Operation)
 }
 
-// TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
-// Avoids regressions of https://github.com/argoproj/argo-cd/security/advisories/GHSA-g623-jcgg-mhmm
-func TestCreateAppWithOperation(t *testing.T) {
-	appServer := newTestAppServer(t)
-	testApp := newTestAppWithDestName()
-	testApp.Operation = &appsv1.Operation{
-		Sync: &appsv1.SyncOperation{
-			Manifests: []string{
-				"test",
-			},
-		},
-	}
-	createReq := application.ApplicationCreateRequest{
-		Application: testApp,
-	}
-	app, err := appServer.Create(context.Background(), &createReq)
-	require.NoError(t, err)
-	require.NotNil(t, app)
-	assert.Nil(t, app.Operation)
-}
-
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
@@ -2239,108 +2218,6 @@ func TestMaxPodLogsRender(t *testing.T) {
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		require.Error(t, err)
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
-	})
-}
-
-// createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
-func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
-	runtimeObjects := make([]runtime.Object, podNumber+1)
-	resources := make([]appsv1.ResourceStatus, podNumber)
-
-	for i := 0; i < podNumber; i++ {
-		pod := v1.Pod{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Pod",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("pod-%d", i),
-				Namespace: "test",
-			},
-		}
-		resources[i] = appsv1.ResourceStatus{
-			Group:     pod.GroupVersionKind().Group,
-			Kind:      pod.GroupVersionKind().Kind,
-			Version:   pod.GroupVersionKind().Version,
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-			Status:    "Synced",
-		}
-		runtimeObjects[i] = kube.MustToUnstructured(&pod)
-	}
-
-	testApp := newTestApp(func(app *appsv1.Application) {
-		app.Name = "test"
-		app.Status.Resources = resources
-	})
-	runtimeObjects[podNumber] = testApp
-
-	noRoleCtx := context.Background()
-	// nolint:staticcheck
-	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
-
-	if len(maxPodLogsToRender) > 0 {
-		f := func(enf *rbac.Enforcer) {
-			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-			enf.SetDefaultRole("role:admin")
-		}
-		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
-		appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
-		return appServer, adminCtx
-	} else {
-		appServer := newTestAppServer(t, runtimeObjects...)
-		return appServer, adminCtx
-	}
-}
-
-func TestMaxPodLogsRender(t *testing.T) {
-
-	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
-
-	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
-	podNumber := int(defaultMaxPodLogsToRender - 1)
-	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.OK, statusCode.Code())
-	})
-
-	// Case: number of pods higher than defaultMaxPodLogsToRender
-	podNumber = int(defaultMaxPodLogsToRender + 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.NotNil(t, err)
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
-	})
-
-	// Case: number of pods to view logs is less than customMaxPodLogsToRender
-	customMaxPodLogsToRender := int64(15)
-	podNumber = int(customMaxPodLogsToRender - 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.OK, statusCode.Code())
-	})
-
-	// Case: number of pods higher than customMaxPodLogsToRender
-	customMaxPodLogsToRender = int64(15)
-	podNumber = int(customMaxPodLogsToRender + 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())

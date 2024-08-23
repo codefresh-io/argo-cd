@@ -754,7 +754,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
 		} else if !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil) {
-
 			// logging for precisely, can be removed in future
 			if diffResult.Modified {
 				logCtx.Debugf("Resource %s is out of sync, because diff between live and desired state", resState.Name)

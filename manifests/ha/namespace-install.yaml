@@ -240,20 +240,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - secrets
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resourceNames:
-  - argocd-redis
-  resources:
-  - secrets
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
   - endpoints
   verbs:
   - get
@@ -2628,12 +2614,6 @@ spec:
               key: timeout.reconciliation.jitter
               name: argocd-cm
               optional: true
-        - name: ARGOCD_RECONCILIATION_JITTER
-          valueFrom:
-            configMapKeyRef:
-              key: timeout.reconciliation.jitter
-              name: argocd-cm
-              optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -2879,7 +2859,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2939,7 +2919,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2997,7 +2977,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -3032,7 +3012,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/haproxy:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

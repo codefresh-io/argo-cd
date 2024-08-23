@@ -223,8 +223,8 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
 	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 3, len(res2.Manifests))
+	require.NoError(t, err)
+	assert.Len(t, res2.Manifests, 3)
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
@@ -277,8 +277,10 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 				mustNotContain = testCaseCopy.mustNotContain
 			}
 
-			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
-				ProjectSourceRepos: []string{"*"}}
+			q := apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
+				ProjectSourceRepos: []string{"*"},
+			}
 			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
@@ -293,8 +295,10 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 	err := os.Symlink("/obviously/does/not/exist", path.Join(repoDir, "test.yaml"))
 	require.NoError(t, err)
 
-	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
-		ProjectSourceRepos: []string{"*"}}
+	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
 	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 }
@@ -1505,7 +1509,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, res.Manifests[6].CompiledManifest, `"replicas":2`, "ValuesObject should override Values")
 }
 

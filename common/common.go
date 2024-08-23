@@ -219,8 +219,6 @@ const (
 	EnvEventReporterReplicas = "EVENT_REPORTER_REPLICAS"
 	// EnvEventReporterShard is the shard number that should be handled by reporter
 	EnvEventReporterShard = "EVENT_REPORTER_SHARD"
-
-
 	// EnvVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
