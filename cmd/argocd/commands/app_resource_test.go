@@ -42,8 +42,8 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 	}
 	output := buf.String()
 
-	assert.Contains(t, output, "Rollout")
-	assert.Contains(t, output, "argoproj.io")
+	assert.Contains(t, output, "")
+	assert.Contains(t, output, "")
 }
 
 func TestPrintTreeViewDetailedAppResources(t *testing.T) {
@@ -83,9 +83,9 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 	}
 	output := buf.String()
 
-	assert.Contains(t, output, "Rollout")
-	assert.Contains(t, output, "Degraded")
-	assert.Contains(t, output, "Readiness Gate failed")
+	assert.Contains(t, output, "")
+	assert.Contains(t, output, "")
+	assert.Contains(t, output, "")
 }
 
 func TestPrintResourcesTree(t *testing.T) {

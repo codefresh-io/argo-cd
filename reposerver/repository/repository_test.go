@@ -1526,7 +1526,7 @@ func TestGenerateNullList(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Len(t, res1.Manifests, 2)
-		assert.Contains(t, res1.Manifests[0].CompiledManifest, "prometheus-operator-operator")
+		assert.Contains(t, res1.Manifests[1].CompiledManifest, "prometheus-operator-operator")
 	})
 
 	t.Run("empty list", func(t *testing.T) {
@@ -1539,7 +1539,7 @@ func TestGenerateNullList(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Len(t, res1.Manifests, 2)
-		assert.Contains(t, res1.Manifests[0].CompiledManifest, "prometheus-operator-operator")
+		assert.Contains(t, res1.Manifests[1].CompiledManifest, "prometheus-operator-operator")
 	})
 
 	t.Run("weird list", func(t *testing.T) {
