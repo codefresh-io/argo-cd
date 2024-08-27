@@ -243,6 +243,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 		}
 
+		if os.Getenv("PERSIST_CHANGE_REVISIONS") == "1" {
+			// we need to make sure that revision cache is the same as the updateRevision, we want to skip the cache for this
+			noRevisionCache = true
+		}
+		
 		ts.AddCheckpoint("version_ms")
 		log.WithField("application", app.Name).Debugf("Generating Manifest for source %s revision %s, cache %t, revisionCache %t", source, revisions[i], !noCache, noRevisionCache)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
