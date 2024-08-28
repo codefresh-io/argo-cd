@@ -807,7 +807,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/applicationset:latest
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
