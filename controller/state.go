@@ -228,6 +228,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
+				NoRevisionCache:    noRevisionCache,
 			})
 			
 			if updateRevisionResponse != nil && updateRevisionResponse.Revision != "" {
@@ -245,9 +246,6 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		if os.Getenv("PERSIST_CHANGE_REVISIONS") == "1" {
-			// we need to make sure that revision cache is the same as the updateRevision, we want to skip the cache for this
-			noRevisionCache = true
-			
 			if updateRevision != "" {
 				revisions[i] = updateRevision
 			}
