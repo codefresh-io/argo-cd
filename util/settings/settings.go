@@ -218,14 +218,6 @@ type KustomizeSettings struct {
 	Versions     []KustomizeVersion
 }
 
-// CodefreshReporterVersion includes all cf reporter versions
-type CodefreshReporterVersion string
-
-const (
-	CodefreshV1ReporterVersion CodefreshReporterVersion = "v1"
-	CodefreshV2ReporterVersion CodefreshReporterVersion = "v2"
-)
-
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj interface{}) ([]string, error) {
@@ -442,10 +434,10 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
+	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
+	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
-	// settingsCodefreshReporterVersion is the key to configure injected app instance label key
-	settingsCodefreshReporterVersion = "codefresh.reporterVersion"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
@@ -523,6 +515,11 @@ const (
 	RespectRBACValueNormal = "normal"
 	// kustomizeSetNamespaceEnabledKey is the key to configure if kustomize set namespace should be executed
 	kustomizeSetNamespaceEnabledKey = "kustomize.setNamespace.enabled"
+)
+
+const (
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
 )
 
 var (
@@ -770,18 +767,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
-	}
-	return label, nil
-}
-
-func (mgr *SettingsManager) GetCodefreshReporterVersion() (string, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return "", err
-	}
-	label := argoCDCM.Data[settingsCodefreshReporterVersion]
-	if label == "" {
-		return string(CodefreshV1ReporterVersion), nil
 	}
 	return label, nil
 }
@@ -2261,4 +2246,23 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 		return strings.Split(labels, ","), nil
 	}
 	return []string{}, nil
+}
+
+func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	if argoCDCM.Data[settingsWebhookMaxPayloadSizeMB] == "" {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	maxPayloadSizeMB, err := strconv.ParseInt(argoCDCM.Data[settingsWebhookMaxPayloadSizeMB], 10, 64)
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookMaxPayloadSizeMB, err)
+		return defaultMaxWebhookPayloadSize
+	}
+
+	return maxPayloadSizeMB * 1024 * 1024
 }

@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -1868,7 +1869,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	desiredCommitSHA := syncStatus.Revision
 	desiredCommitSHAsMS := syncStatus.Revisions
-	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources())
+	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources(), syncStatus.ManifestsChanged)
 	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
@@ -1961,7 +1962,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 // alreadyAttemptedSync returns whether the most recent sync was performed against the
 // commitSHA and with the same app source config which are currently set in the app
-func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources bool) (bool, synccommon.OperationPhase) {
+func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources bool, manifestsChangedMap map[string]bool) (bool, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
 		return false, ""
 	}
@@ -1970,8 +1971,17 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 			return false, ""
 		}
 	} else {
-		if app.Status.OperationState.SyncResult.Revision != commitSHA {
-			return false, ""
+		manifestChanged, ok := manifestsChangedMap[commitSHA]
+		featureFlagDisabled := os.Getenv("PERSIST_CHANGE_REVISIONS") != "1"
+		// If record not exists, we need to do sync
+		if featureFlagDisabled || !ok || manifestChanged {
+			log.WithField("application", app.Name).Infof("Executing compare of syncResult.Revision and commitSha because of feature flag disabled or manifest changed: %v", commitSHA)
+			log.WithField("application", app.Name).Infof("Executing compare of syncResult.Revision and commitSha with context, map: %v, flag: %t, record exists: %t", manifestsChangedMap, featureFlagDisabled, ok)
+			if app.Status.OperationState.SyncResult.Revision != commitSHA {
+				return false, ""
+			}
+		} else {
+			log.WithField("application", app.Name).Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
 		}
 	}
 
@@ -1994,7 +2004,11 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 		specSource.TargetRevision = ""
 		syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 		syncResSource.TargetRevision = ""
-		return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+		equalSource, phase := reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+		if !equalSource {
+			log.WithField("application", app.Name).Infof("spec.source and syncResult.source are different")
+		}
+		return equalSource, phase
 	}
 }
 

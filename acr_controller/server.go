@@ -119,7 +119,6 @@ func (a *ACRServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *ACRServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	go a.featureManager.Watch()
 	svcSet := newApplicationChangeRevisionServiceSet()
 	a.serviceSet = svcSet
 }
