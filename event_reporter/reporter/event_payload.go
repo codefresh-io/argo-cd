@@ -128,6 +128,16 @@ func getResourceEventPayload(
 		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status)...)
 	}
 
+	if originalApplication != nil && originalApplication.Status.Resources != nil {
+		for _, rs := range originalApplication.Status.Resources {
+			if rs.Health != nil {
+				if rs.Health.Status != health.HealthStatusHealthy {
+					errors = append(errors, parseAggregativeHealthErrors(&rs, apptree, true)...)
+				}
+			}
+		}
+	}
+
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
 		// for handling helm defined resources, etc...
 		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
@@ -172,7 +182,7 @@ func getResourceEventPayload(
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
 		if rs.Health.Status != health.HealthStatusHealthy {
-			errors = append(errors, parseAggregativeHealthErrors(rs, apptree)...)
+			errors = append(errors, parseAggregativeHealthErrors(rs, apptree, false)...)
 		}
 	}
 

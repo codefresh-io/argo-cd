@@ -92,7 +92,7 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 	return errors
 }
 
-func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.ApplicationTree) []*events.ObjectError {
+func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.ApplicationTree, addReference bool) []*events.ObjectError {
 	errs := make([]*events.ObjectError, 0)
 
 	if apptree == nil {
@@ -108,12 +108,24 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 
 	for _, cn := range childNodes {
 		if cn.Health != nil && cn.Health.Status == health.HealthStatusDegraded {
-			errs = append(errs, &events.ObjectError{
+			newErr := events.ObjectError{
 				Type:     "health",
 				Level:    "error",
 				Message:  cn.Health.Message,
 				LastSeen: *cn.CreatedAt,
-			})
+			}
+
+			if addReference {
+				newErr.SourceReference = events.ErrorSourceReference{
+					Group:     rs.Group,
+					Version:   rs.Version,
+					Kind:      rs.Kind,
+					Namespace: rs.Namespace,
+					Name:      rs.Name,
+				}
+			}
+
+			errs = append(errs, &newErr)
 		}
 	}
 
