@@ -249,7 +249,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				revisions[i] = updateRevision
 			}
 		}
-		
+
 		ts.AddCheckpoint("version_ms")
 		log.WithField("application", app.Name).Debugf("Generating Manifest for source %s revision %s, cache %t, revisionCache %t", source, revisions[i], !noCache, noRevisionCache)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
