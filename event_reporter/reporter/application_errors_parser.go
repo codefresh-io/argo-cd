@@ -92,6 +92,23 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 	return errors
 }
 
+func parseAggregativeHealthErrorsOfApplication(a *appv1.Application, appTree *appv1.ApplicationTree) []*events.ObjectError {
+	var errors []*events.ObjectError
+	if a.Status.Resources == nil {
+		return errors
+	}
+
+	for _, rs := range a.Status.Resources {
+		if rs.Health != nil {
+			if rs.Health.Status != health.HealthStatusHealthy {
+				errors = append(errors, parseAggregativeHealthErrors(&rs, appTree, true)...)
+			}
+		}
+	}
+
+	return errors
+}
+
 func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.ApplicationTree, addReference bool) []*events.ObjectError {
 	errs := make([]*events.ObjectError, 0)
 

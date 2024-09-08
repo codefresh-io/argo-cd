@@ -128,14 +128,8 @@ func getResourceEventPayload(
 		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status)...)
 	}
 
-	if originalApplication != nil && originalApplication.Status.Resources != nil {
-		for _, rs := range originalApplication.Status.Resources {
-			if rs.Health != nil {
-				if rs.Health.Status != health.HealthStatusHealthy {
-					errors = append(errors, parseAggregativeHealthErrors(&rs, apptree, true)...)
-				}
-			}
-		}
+	if originalApplication != nil {
+		errors = append(errors, parseAggregativeHealthErrorsOfApplication(originalApplication, apptree)...)
 	}
 
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
@@ -207,6 +201,7 @@ func getResourceEventPayload(
 func (s *applicationEventReporter) getApplicationEventPayload(
 	ctx context.Context,
 	a *appv1.Application,
+	appTree *appv1.ApplicationTree,
 	ts string,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
@@ -216,6 +211,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
 		logCtx       = log.WithField("application", a.Name)
+		errors       = []*events.ObjectError{}
 	)
 
 	obj := appv1.Application{}
@@ -291,11 +287,14 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		TrackingMethod:        string(trackingMethod),
 	}
 
+	errors = append(errors, parseApplicationSyncResultErrorsFromConditions(a.Status)...)
+	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
+
 	payload := events.EventPayload{
 		Timestamp:   ts,
 		Object:      object,
 		Source:      source,
-		Errors:      parseApplicationSyncResultErrorsFromConditions(a.Status),
+		Errors:      errors,
 		AppVersions: applicationVersionsEvents,
 	}
 
