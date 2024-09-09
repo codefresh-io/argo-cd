@@ -2,10 +2,12 @@ package reporter
 
 import (
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
+
+
+	"github.com/argoproj/gitops-engine/pkg/health"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -236,7 +238,7 @@ func TestParseAggregativeHealthErrors(t *testing.T) {
 
 		appTree := v1alpha1.ApplicationTree{
 			Nodes: []v1alpha1.ResourceNode{
-				v1alpha1.ResourceNode{ // Pod
+				{ // Pod
 					Health: &v1alpha1.HealthStatus{
 						Status:  health.HealthStatusDegraded,
 						Message: errMessage,
@@ -253,7 +255,7 @@ func TestParseAggregativeHealthErrors(t *testing.T) {
 						Time: time.Now(),
 					},
 				},
-				v1alpha1.ResourceNode{ // ReplicaSet
+				{ // ReplicaSet
 					Health: &v1alpha1.HealthStatus{
 						Status:  health.HealthStatusProgressing,
 						Message: "",
@@ -264,7 +266,7 @@ func TestParseAggregativeHealthErrors(t *testing.T) {
 						Time: time.Now(),
 					},
 				},
-				v1alpha1.ResourceNode{ // Deployment
+				{ // Deployment
 					Health: &v1alpha1.HealthStatus{
 						Status:  health.HealthStatusDegraded,
 						Message: "",
