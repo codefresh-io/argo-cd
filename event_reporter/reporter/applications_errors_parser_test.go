@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
