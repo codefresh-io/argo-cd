@@ -8,14 +8,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
-	project := a.Spec.GetProject()
-	return s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
-		Name:         &a.Name,
-		AppNamespace: &a.Namespace,
-		Revision:     &revision,
-		Project:      &project,
-	})
+// treats multi-sourced apps as single source and gets first revision details
+func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsMetadata *utils.AppSyncRevisionsMetadata) *appv1.RevisionMetadata {
+	_, sourceIdx := a.Spec.GetNonRefSource()
+
+	if sourceIdx == -1 { // single source app
+		sourceIdx = 0
+	}
+
+	if revisionsMetadata.SyncRevisions == nil || len(revisionsMetadata.SyncRevisions) == 0 {
+		return nil
+	}
+
+	return revisionsMetadata.SyncRevisions[sourceIdx]
 }
 
 func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*appv1.RevisionMetadata, error) {
@@ -41,21 +46,27 @@ func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context
 func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *appv1.Application) (*utils.AppSyncRevisionsMetadata, error) {
 	result := &utils.AppSyncRevisionsMetadata{}
 
-	// can be the latest revision of repository
-	operationSyncRevisionsMetadata, err := s.getCommitRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
+	if source, _ := a.Spec.GetNonRefSource(); !source.IsHelm() && (a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0)) {
+		// can be the latest revision of repository
+		operationSyncRevisionsMetadata, err := s.getCommitRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
 
-	if err != nil {
-		logCtx.WithError(err).Warnf("failed to get application(%s) revisions metadata, resuming", a.GetName())
-	}
+		if err != nil {
+			logCtx.WithError(err).Warnf("failed to get application(%s) sync revisions metadata, resuming", a.GetName())
+		}
 
-	if operationSyncRevisionsMetadata != nil {
-		result.SyncRevisions = operationSyncRevisionsMetadata
-	}
-	// latest revision of repository where changes to app resource were actually made; empty if no changeRevisionі present
-	operationChangeRevisionsMetadata, err := s.getCommitRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
+		if err == nil && operationSyncRevisionsMetadata != nil {
+			result.SyncRevisions = operationSyncRevisionsMetadata
+		}
+		// latest revision of repository where changes to app resource were actually made; empty if no changeRevisionі present
+		operationChangeRevisionsMetadata, err := s.getCommitRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
 
-	if err == nil && operationChangeRevisionsMetadata != nil {
-		result.ChangeRevisions = operationChangeRevisionsMetadata
+		if err != nil {
+			logCtx.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())
+		}
+
+		if err == nil && operationChangeRevisionsMetadata != nil {
+			result.ChangeRevisions = operationChangeRevisionsMetadata
+		}
 	}
 
 	return result, nil

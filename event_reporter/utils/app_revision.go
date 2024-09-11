@@ -127,6 +127,8 @@ func AddCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *ap
 	return u
 }
 
+var annotationRevisionKey = "app.meta.revisions-metadata"
+
 func AddCommitsDetailsToAnnotations(unstrApp *unstructured.Unstructured, revisionsMetadata *AppSyncRevisionsMetadata) *unstructured.Unstructured {
 	if revisionsMetadata == nil || unstrApp == nil {
 		return unstrApp
@@ -142,7 +144,43 @@ func AddCommitsDetailsToAnnotations(unstrApp *unstructured.Unstructured, revisio
 		return unstrApp
 	}
 
-	_ = unstructured.SetNestedField(unstrApp.Object, jsonRevisionsMetadata, "metadata", "annotations", "app.meta.revisions-metadata")
+	_ = unstructured.SetNestedField(unstrApp.Object, string(jsonRevisionsMetadata), "metadata", "annotations", annotationRevisionKey)
 
 	return unstrApp
+}
+
+func AddCommitsDetailsToAppAnnotations(app appv1.Application, revisionsMetadata *AppSyncRevisionsMetadata) appv1.Application {
+	if revisionsMetadata == nil {
+		return app
+	}
+
+	if app.ObjectMeta.Annotations == nil {
+		app.ObjectMeta.Annotations = map[string]string{}
+	}
+
+	jsonRevisionsMetadata, err := json.Marshal(revisionsMetadata)
+
+	if err != nil {
+		return app
+	}
+
+	app.ObjectMeta.Annotations[annotationRevisionKey] = string(jsonRevisionsMetadata)
+
+	return app
+}
+
+func AddCommitsDetailsToAppLabels(app *appv1.Application, revisionMetadata *appv1.RevisionMetadata) *appv1.Application {
+	if revisionMetadata == nil {
+		return app
+	}
+
+	if app.ObjectMeta.Labels == nil {
+		app.ObjectMeta.Labels = map[string]string{}
+	}
+
+	app.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
+	app.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
+	app.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+
+	return app
 }
