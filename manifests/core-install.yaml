@@ -1751,8 +1751,6 @@ spec:
                   description: RevisionHistory contains history information about
                     a previous sync
                   properties:
-                    changeRevision:
-                      type: string
                     deployStartedAt:
                       description: DeployStartedAt holds the time the sync operation
                         started
