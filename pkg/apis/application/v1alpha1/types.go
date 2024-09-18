@@ -1112,7 +1112,9 @@ type SyncOperation struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,10,opt,name=sources"`
 	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
 	// If omitted, will use the revision specified in app spec.
-	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
+	Revisions       []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
+	ChangeRevisions []string `json:"changeRevisions,omitempty" protobuf:"bytes,12,opt,name=changeRevisions"`
+	ChangeRevision  string   `json:"changeRevision,omitempty" protobuf:"bytes,13,opt,name=changeRevision"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1425,7 +1427,8 @@ type RevisionHistory struct {
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
 	// InitiatedBy contains information about who initiated the operations
-	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
+	InitiatedBy    OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
+	ChangeRevision string             `json:"changeRevision,omitempty" protobuf:"bytes,11,opt,name=changeRevision"`
 }
 
 // ApplicationWatchEvent contains information about application change.

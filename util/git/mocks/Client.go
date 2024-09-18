@@ -12,6 +12,16 @@ type Client struct {
 	mock.Mock
 }
 
+func (_m *Client) ListRevisions(revision string, targetRevision string) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (_m *Client) DiffTree(targetRevision string) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 // ChangedFiles provides a mock function with given fields: revision, targetRevision
 func (_m *Client) ChangedFiles(revision string, targetRevision string) ([]string, error) {
 	ret := _m.Called(revision, targetRevision)

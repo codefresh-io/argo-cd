@@ -539,6 +539,28 @@ func (_m *RepoServerServiceClient) UpdateRevisionForPaths(ctx context.Context, i
 	return r0, r1
 }
 
+func (_m *RepoServerServiceClient) GetChangeRevision(ctx context.Context, request *apiclient.ChangeRevisionRequest, opts ...grpc.CallOption) (*apiclient.ChangeRevisionResponse, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 *apiclient.ChangeRevisionResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ChangeRevisionRequest) *apiclient.ChangeRevisionResponse); ok {
+		r0 = rf(ctx, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*apiclient.ChangeRevisionResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ChangeRevisionRequest) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewRepoServerServiceClient creates a new instance of RepoServerServiceClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewRepoServerServiceClient(t interface {
