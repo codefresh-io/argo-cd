@@ -1919,6 +1919,8 @@ message RevisionHistory {
 
   // InitiatedBy contains information about who initiated the operations
   optional OperationInitiator initiatedBy = 10;
+
+  optional string changeRevision = 11;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
@@ -2171,6 +2173,10 @@ message SyncOperation {
   // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
   // If omitted, will use the revision specified in app spec.
   repeated string revisions = 11;
+
+  repeated string changeRevisions = 12;
+
+  optional string changeRevision = 13;
 }
 
 // SyncOperationResource contains resources to sync.

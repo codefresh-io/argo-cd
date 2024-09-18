@@ -106,6 +106,12 @@ spec:
               sync:
                 description: Sync contains parameters for the operation
                 properties:
+                  changeRevision:
+                    type: string
+                  changeRevisions:
+                    items:
+                      type: string
+                    type: array
                   dryRun:
                     description: DryRun specifies to perform a `kubectl apply --dry-run`
                       without actually performing the sync
@@ -1745,6 +1751,8 @@ spec:
                   description: RevisionHistory contains history information about
                     a previous sync
                   properties:
+                    changeRevision:
+                      type: string
                     deployStartedAt:
                       description: DeployStartedAt holds the time the sync operation
                         started
@@ -2559,6 +2567,12 @@ spec:
                       sync:
                         description: Sync contains parameters for the operation
                         properties:
+                          changeRevision:
+                            type: string
+                          changeRevisions:
+                            items:
+                              type: string
+                            type: array
                           dryRun:
                             description: DryRun specifies to perform a `kubectl apply
                               --dry-run` without actually performing the sync
