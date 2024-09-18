@@ -1103,6 +1103,7 @@ type SyncOperation struct {
 	// If omitted, will use the revision specified in app spec.
 	Revisions       []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 	ChangeRevisions []string `json:"changeRevisions,omitempty" protobuf:"bytes,12,opt,name=changeRevisions"`
+	ChangeRevision  string `json:"changeRevision,omitempty" protobuf:"bytes,13,opt,name=changeRevision"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1340,7 +1341,6 @@ type SyncOperationResult struct {
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
 	// ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,6,opt,name=managedNamespaceMetadata"`
-	ChangeRevisions          []string                  `json:"changeRevisions,omitempty" protobuf:"bytes,7,opt,name=changeRevisions"`
 }
 
 // ResourceResult holds the operation result details of a specific resource

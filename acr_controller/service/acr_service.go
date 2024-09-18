@@ -68,8 +68,6 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 		return nil
 	}
 
-	log.Infof("Calculate revision for application %s", app.Name)
-
 	revision, err := c.calculateRevision(ctx, app)
 	if err != nil {
 		return err
@@ -100,6 +98,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 
 func (c *acrService) calculateRevision(ctx context.Context, a *application.Application) (*string, error) {
 	currentRevision, previousRevision := c.getRevisions(ctx, a)
+	log.Infof("Calculate revision for application %s, current revision %s, previous revision %s", a.Name, currentRevision, previousRevision)
 	changeRevisionResult, err := c.applicationServiceClient.GetChangeRevision(ctx, &appclient.ChangeRevisionRequest{
 		AppName:          pointer.String(a.GetName()),
 		Namespace:        pointer.String(a.GetNamespace()),
@@ -113,6 +112,18 @@ func (c *acrService) calculateRevision(ctx context.Context, a *application.Appli
 }
 
 func (c *acrService) patchOperationWithChangeRevision(ctx context.Context, a *application.Application, revisions []string) error {
+	if len(revisions) == 1 {
+		patch, _ := json.Marshal(map[string]interface{}{
+			"operation": map[string]interface{}{
+				"sync": map[string]interface{}{
+					"changeRevision": revisions[0],
+				},
+			},
+		})
+		_, err := c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		return err
+	}
+	
 	patch, _ := json.Marshal(map[string]interface{}{
 		"operation": map[string]interface{}{
 			"sync": map[string]interface{}{
@@ -125,6 +136,22 @@ func (c *acrService) patchOperationWithChangeRevision(ctx context.Context, a *ap
 }
 
 func (c *acrService) patchOperationSyncResultWithChangeRevision(ctx context.Context, a *application.Application, revisions []string) error {
+	if len(revisions) == 1 {
+		patch, _ := json.Marshal(map[string]interface{}{
+			"status": map[string]interface{}{
+				"operationState": map[string]interface{}{
+					"operation": map[string]interface{}{
+						"sync": map[string]interface{}{
+							"changeRevision": revisions[0],
+						},
+					},
+				},
+			},
+		})
+		_, err := c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		return err
+	}
+	
 	patch, _ := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
 			"operationState": map[string]interface{}{
