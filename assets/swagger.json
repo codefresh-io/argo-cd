@@ -9139,6 +9139,9 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "changeRevision": {
+          "type": "string"
+        },
         "changeRevisions": {
           "type": "array",
           "items": {
@@ -9222,12 +9225,6 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
-        "changeRevisions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "managedNamespaceMetadata": {
           "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
         },

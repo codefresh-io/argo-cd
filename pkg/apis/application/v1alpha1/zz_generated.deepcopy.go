@@ -4163,11 +4163,6 @@ func (in *SyncOperationResult) DeepCopyInto(out *SyncOperationResult) {
 		*out = new(ManagedNamespaceMetadata)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ChangeRevisions != nil {
-		in, out := &in.ChangeRevisions, &out.ChangeRevisions
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 

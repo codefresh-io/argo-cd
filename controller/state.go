@@ -210,7 +210,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		var updateRevision string
-		
+
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
@@ -230,7 +230,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 				NoRevisionCache:    noRevisionCache,
 			})
-			
+
 			if updateRevisionResponse != nil && updateRevisionResponse.Revision != "" {
 				updateRevision = updateRevisionResponse.Revision
 			}
@@ -250,7 +250,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				revisions[i] = updateRevision
 			}
 		}
-		
+
 		ts.AddCheckpoint("version_ms")
 		log.WithField("application", app.Name).Debugf("Generating Manifest for source %s revision %s, cache %t, revisionCache %t", source, revisions[i], !noCache, noRevisionCache)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -280,7 +280,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
-		
+
 		if updateRevision != "" && manifestInfo.Revision != updateRevision {
 			log.WithField("application", app.Name).Warnf("Generated revision %s is different from the updated revision %s", manifestInfo.Revision, updateRevision)
 		}

@@ -2175,6 +2175,8 @@ message SyncOperation {
   repeated string revisions = 11;
 
   repeated string changeRevisions = 12;
+
+  optional string changeRevision = 13;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -2207,8 +2209,6 @@ message SyncOperationResult {
 
   // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
   optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
-
-  repeated string changeRevisions = 7;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git

@@ -1103,7 +1103,7 @@ type SyncOperation struct {
 	// If omitted, will use the revision specified in app spec.
 	Revisions       []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 	ChangeRevisions []string `json:"changeRevisions,omitempty" protobuf:"bytes,12,opt,name=changeRevisions"`
-	ChangeRevision  string `json:"changeRevision,omitempty" protobuf:"bytes,13,opt,name=changeRevision"`
+	ChangeRevision  string   `json:"changeRevision,omitempty" protobuf:"bytes,13,opt,name=changeRevision"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"

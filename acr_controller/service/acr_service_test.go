@@ -161,6 +161,7 @@ func Test_ChangeRevision(r *testing.T) {
 		app := createTestApp(syncedAppWithHistory)
 
 		err := acrService.ChangeRevision(context.TODO(), app)
+		require.NoError(t, err)
 
 		app, err = acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)

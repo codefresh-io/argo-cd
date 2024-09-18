@@ -32,7 +32,7 @@ func NewACRService(applicationClientset appclientset.Interface, applicationServi
 }
 
 func getChangeRevisionFromRevisions(revisions []string) string {
-	if revisions != nil && len(revisions) > 0 {
+	if len(revisions) > 0 {
 		return revisions[0]
 	}
 	return ""
@@ -84,9 +84,9 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 	if err != nil {
 		return err
 	}
-	
+
 	revisions := []string{*revision}
-	
+
 	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
 		log.Infof("Patch operation sync result for application %s", app.Name)
 		return c.patchOperationSyncResultWithChangeRevision(ctx, app, revisions)
@@ -123,7 +123,7 @@ func (c *acrService) patchOperationWithChangeRevision(ctx context.Context, a *ap
 		_, err := c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		return err
 	}
-	
+
 	patch, _ := json.Marshal(map[string]interface{}{
 		"operation": map[string]interface{}{
 			"sync": map[string]interface{}{
@@ -151,7 +151,7 @@ func (c *acrService) patchOperationSyncResultWithChangeRevision(ctx context.Cont
 		_, err := c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		return err
 	}
-	
+
 	patch, _ := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
 			"operationState": map[string]interface{}{
