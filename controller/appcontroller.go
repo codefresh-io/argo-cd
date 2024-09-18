@@ -1502,16 +1502,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	origApp = origApp.DeepCopy()
 
-	if origApp.GetName() == "guestbook" {
-		logCtx2 := log.WithField("application", origApp.GetName())
-		logCtx2.Warningf("[Monorepo] Processing app refresh, revision: %s", origApp.Status.Sync.Revision)
-		if origApp.Status.OperationState != nil {
-			if origApp.Status.OperationState.SyncResult != nil {
-				logCtx2.Warningf("[Monorepo] Processing app refresh, sync result: %s", origApp.Status.OperationState.SyncResult.Revision)
-			}
-		}
-	}
-
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {

@@ -1919,8 +1919,6 @@ message RevisionHistory {
 
   // InitiatedBy contains information about who initiated the operations
   optional OperationInitiator initiatedBy = 10;
-
-  optional string changeRevision = 11;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
