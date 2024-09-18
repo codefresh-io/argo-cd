@@ -8917,9 +8917,6 @@
       "type": "object",
       "title": "RevisionHistory contains history information about a previous sync",
       "properties": {
-        "changeRevision": {
-          "type": "string"
-        },
         "deployStartedAt": {
           "$ref": "#/definitions/v1Time"
         },

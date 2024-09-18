@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/event_reporter/handlers"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -141,10 +140,6 @@ func (a *ACRServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	}
 
 	healthz.ServeHealthCheck(mux, a.healthCheck)
-
-	rH := handlers.GetRequestHandlers(a.ApplicationServiceClient)
-	mux.HandleFunc("/app-distribution", rH.GetAppDistribution)
-
 	return &httpS
 }
 

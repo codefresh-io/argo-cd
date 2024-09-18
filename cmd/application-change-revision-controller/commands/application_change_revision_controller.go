@@ -146,7 +146,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&argocdToken, "argocd-token", env.StringFromEnv("ARGOCD_TOKEN", ""), "ArgoCD server JWT token")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ACR_CONTROLLER_LISTEN_ADDRESS", common.DefaultAddressACRController), "Listen on given address")
-	command.Flags().IntVar(&listenPort, "port", common.DefaultPortCRCServer, "Listen on given port")
+	command.Flags().IntVar(&listenPort, "port", common.DefaultPortACRServer, "Listen on given port")
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ACR_CONTROLLER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
