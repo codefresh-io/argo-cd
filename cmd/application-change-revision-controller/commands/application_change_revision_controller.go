@@ -49,7 +49,6 @@ func getApplicationClient(address, token string, path string) appclient.Applicat
 func NewCommand() *cobra.Command {
 	var (
 		redisClient              *redis.Client
-		insecure                 bool
 		listenHost               string
 		listenPort               int
 		glogLevel                int
@@ -138,7 +137,6 @@ func NewCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&rootpath, "argocd-server-path", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
-	command.Flags().BoolVar(&insecure, "insecure", env.ParseBoolFromEnv("ACR_CONTROLLER_INSECURE", false), "Run server without TLS")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ACR_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ACR_CONTROLLER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
