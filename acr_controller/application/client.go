@@ -2,6 +2,7 @@ package application_change_revision_controller
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -41,6 +42,10 @@ func NewHttpApplicationClient(token string, address string, rootpath string) App
 	return &httpApplicationClient{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				// Support for insecure connections
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
 		},
 		baseUrl:  address,
 		token:    token,
