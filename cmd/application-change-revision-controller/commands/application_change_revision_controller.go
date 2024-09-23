@@ -3,17 +3,19 @@ package commands
 import (
 	"context"
 	"fmt"
-	acr "github.com/argoproj/argo-cd/v2/acr_controller"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"time"
 
-	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
+	acr "github.com/argoproj/argo-cd/v2/acr_controller"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -60,7 +62,7 @@ func NewCommand() *cobra.Command {
 		argocdToken              string
 		rootpath                 string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               cliName,
 		Short:             "Run the Change Revision Controller server",
 		Long:              "The Change Revision Controller is a service that listens for application events and updates the application's revision in the application CRD",

@@ -890,7 +890,6 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 }
 
 func (m *nativeGitClient) Diff(targetRevision string) ([]string, error) {
-
 	if !IsCommitSHA(targetRevision) {
 		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
 	}
@@ -920,7 +919,6 @@ func (m *nativeGitClient) ListRevisions(revision string, targetRevision string) 
 }
 
 func (m *nativeGitClient) DiffTree(targetRevision string) ([]string, error) {
-
 	if !IsCommitSHA(targetRevision) {
 		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
 	}

@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
-	application_change_revision_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
+	acr_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"net"
 	"net/http"
@@ -57,8 +57,7 @@ type ACRServer struct {
 	featureManager *reporter.FeatureManager
 }
 
-type ACRServerSet struct {
-}
+type ACRServerSet struct{}
 
 type ACRServerOpts struct {
 	ListenPort               int
@@ -123,7 +122,7 @@ func (a *ACRServer) Init(ctx context.Context) {
 }
 
 func (a *ACRServer) RunController(ctx context.Context) {
-	controller := application_change_revision_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
+	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
 	go controller.Run(ctx)
 }
 
@@ -182,7 +181,7 @@ func (a *ACRServer) Listen() (*Listeners, error) {
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
 func (a *ACRServer) Run(ctx context.Context, lns *Listeners) {
-	var httpS = a.newHTTPServer(ctx, a.ListenPort)
+	httpS := a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return a.settings.Certificate, nil

@@ -5,12 +5,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"google.golang.org/grpc"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"google.golang.org/grpc"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=ApplicationClient

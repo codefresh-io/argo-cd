@@ -2640,7 +2640,7 @@ func (s *Server) GetChangeRevision(ctx context.Context, in *application.ChangeRe
 		return nil, status.Errorf(codes.FailedPrecondition, "manifest generation paths not set")
 	}
 
-	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL)
+	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL, app.Spec.Project)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository: %w", err)
 	}
@@ -2659,13 +2659,12 @@ func (s *Server) GetChangeRevision(ctx context.Context, in *application.ChangeRe
 		Paths:            path.GetAppRefreshPaths(app),
 		Repo:             repo,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting change revision: %w", err)
 	}
 
 	return &application.ChangeRevisionResponse{
-		Revision: pointer.String(response.Revision),
+		Revision: ptr.To(response.Revision),
 	}, nil
 }
 
