@@ -14,8 +14,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/app/path"
 
-	"github.com/argoproj/argo-cd/v2/util/app/path"
-
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
