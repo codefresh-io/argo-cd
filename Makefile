@@ -232,7 +232,7 @@ clidocsgen:
 
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
