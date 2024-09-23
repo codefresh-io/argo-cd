@@ -4,6 +4,10 @@ import (
 	"context"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
+
 	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
 	"github.com/argoproj/argo-cd/v2/acr_controller/service"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"

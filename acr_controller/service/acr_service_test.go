@@ -4,7 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"testing"
+	"github.com/argoproj/argo-cd/v2/acr_controller/application/mocks"
+	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
