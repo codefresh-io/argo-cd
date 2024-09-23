@@ -2,23 +2,19 @@ package application_change_revision_controller
 
 import (
 	"context"
+	"time"
+
 	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
 	"github.com/argoproj/argo-cd/v2/acr_controller/service"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
-var (
-	watchAPIBufferSize = 1000
-)
+var watchAPIBufferSize = 1000
 
 type ACRController interface {
 	Run(ctx context.Context)
@@ -52,9 +48,7 @@ func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInforme
 }
 
 func (c *applicationChangeRevisionController) Run(ctx context.Context) {
-	var (
-		logCtx log.FieldLogger = log.StandardLogger()
-	)
+	var logCtx log.FieldLogger = log.StandardLogger()
 
 	calculateIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string) error {
 		if eventType == watch.Bookmark || eventType == watch.Deleted {
@@ -64,7 +58,7 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 		return c.acrService.ChangeRevision(ctx, &a)
 	}
 
-	//TODO: move to abstraction
+	// TODO: move to abstraction
 	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := c.appBroadcaster.Subscribe(eventsChannel)
 	defer unsubscribe()

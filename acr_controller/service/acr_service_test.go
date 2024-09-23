@@ -2,18 +2,16 @@ package service
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/acr_controller/application/mocks"
-	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/test"
+	"testing"
+
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
-	"testing"
 )
 
 const fakeApp = `

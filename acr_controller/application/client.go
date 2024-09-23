@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"google.golang.org/grpc"
+
+	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=ApplicationClient

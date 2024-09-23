@@ -4,13 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
-	acr_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
-	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
+	acr_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
+	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
+
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -20,12 +28,6 @@ import (
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 const (
