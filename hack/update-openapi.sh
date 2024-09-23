@@ -30,5 +30,5 @@ openapi-gen \
 [ -L ./v2 ] && rm -rf v2
 
 export GO111MODULE=on
-go build -o -buildvcs=false ./dist/gen-crd-spec "${PROJECT_ROOT}/hack/gen-crd-spec"
+go build -o ./dist/gen-crd-spec "${PROJECT_ROOT}/hack/gen-crd-spec"
 ./dist/gen-crd-spec
