@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"sync"
 
-	argoclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
-	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+
+	argoclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
+	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 )
 
 type ACRService interface {
