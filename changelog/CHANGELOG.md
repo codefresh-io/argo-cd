@@ -1,2 +1,2 @@
 ### Features
--  feat: monorepo controller  v1.0.0
+-  feat: event-reporter: report change revisions metadata in app annotations
