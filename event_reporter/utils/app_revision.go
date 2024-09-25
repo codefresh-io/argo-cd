@@ -90,19 +90,24 @@ func GetOperationSyncRevisions(a *appv1.Application) []string {
 
 // for monorepo support: list with revisions where actual changes to source directory were committed
 func GetOperationChangeRevisions(a *appv1.Application) []string {
-	revisions := []string{}
+	var revisions []string
 	if a != nil {
 		// this value will be used in case if application hasn't resources, like empty gitsource
-		// TODO uncomment later
-		//if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
-		//	if a.Status.OperationState.Operation.Sync.ChangeRevision != "" {
-		//		revisions = []string{a.Status.OperationState.Operation.Sync.ChangeRevision}
-		//	}
-		//} else if a.Operation != nil && a.Operation.Sync != nil {
-		//	if a.Operation.Sync.ChangeRevision != "" {
-		//		revisions = []string{a.Operation.Sync.ChangeRevision}
-		//	}
-		//}
+		if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
+			if a.Status.OperationState.Operation.Sync.ChangeRevision != "" || a.Status.OperationState.Operation.Sync.ChangeRevisions != nil {
+				revisions = getRevisions(RevisionsData{
+					Revision:  a.Status.OperationState.Operation.Sync.ChangeRevision,
+					Revisions: a.Status.OperationState.Operation.Sync.ChangeRevisions,
+				})
+			}
+		} else if a.Operation != nil && a.Operation.Sync != nil {
+			if a.Operation.Sync.ChangeRevision != "" || a.Operation.Sync.ChangeRevisions != nil {
+				revisions = getRevisions(RevisionsData{
+					Revision:  a.Operation.Sync.ChangeRevision,
+					Revisions: a.Operation.Sync.ChangeRevisions,
+				})
+			}
+		}
 	}
 
 	return revisions
