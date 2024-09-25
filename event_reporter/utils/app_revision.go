@@ -9,8 +9,13 @@ import (
 )
 
 type AppSyncRevisionsMetadata struct {
-	SyncRevisions   []*appv1.RevisionMetadata `json:"syncRevisions" protobuf:"bytes,1,name=syncRevisions"`
-	ChangeRevisions []*appv1.RevisionMetadata `json:"changeRevisions" protobuf:"bytes,2,name=changeRevisions"`
+	SyncRevisions   []*RevisionWithMetadata `json:"syncRevisions" protobuf:"bytes,1,name=syncRevisions"`
+	ChangeRevisions []*RevisionWithMetadata `json:"changeRevisions" protobuf:"bytes,2,name=changeRevisions"`
+}
+
+type RevisionWithMetadata struct {
+	Revision string                  `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
+	Metadata *appv1.RevisionMetadata `json:"metadata,omitempty" protobuf:"bytes,2,name=metadata"`
 }
 
 type RevisionsData struct {

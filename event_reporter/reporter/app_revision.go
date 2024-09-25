@@ -20,12 +20,12 @@ func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsMetadata
 		return nil
 	}
 
-	return revisionsMetadata.SyncRevisions[sourceIdx]
+	return revisionsMetadata.SyncRevisions[sourceIdx].Metadata
 }
 
-func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*appv1.RevisionMetadata, error) {
+func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*utils.RevisionWithMetadata, error) {
 	project := a.Spec.GetProject()
-	rms := make([]*appv1.RevisionMetadata, 0)
+	rms := make([]*utils.RevisionWithMetadata, 0)
 
 	for _, revision := range revisions {
 		rm, err := s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
@@ -37,7 +37,10 @@ func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context
 		if err != nil {
 			return nil, err
 		}
-		rms = append(rms, rm)
+		rms = append(rms, &utils.RevisionWithMetadata{
+			Revision: revision,
+			Metadata: rm,
+		})
 	}
 
 	return rms, nil
