@@ -155,7 +155,6 @@ func AddCommitsDetailsToAnnotations(unstrApp *unstructured.Unstructured, revisio
 	}
 
 	jsonRevisionsMetadata, err := json.Marshal(revisionsMetadata)
-
 	if err != nil {
 		return unstrApp
 	}
@@ -175,7 +174,6 @@ func AddCommitsDetailsToAppAnnotations(app appv1.Application, revisionsMetadata 
 	}
 
 	jsonRevisionsMetadata, err := json.Marshal(revisionsMetadata)
-
 	if err != nil {
 		return app
 	}

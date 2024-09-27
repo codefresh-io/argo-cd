@@ -2,8 +2,9 @@ package reporter
 
 import (
 	"encoding/json"
-	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +39,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 		}
 		appTree := v1alpha1.ApplicationTree{}
 		revisionMetadata := utils.AppSyncRevisionsMetadata{
-			SyncRevisions: []*utils.RevisionWithMetadata{&utils.RevisionWithMetadata{
+			SyncRevisions: []*utils.RevisionWithMetadata{{
 				Metadata: &v1alpha1.RevisionMetadata{
 					Author:  "demo usert",
 					Date:    metav1.Time{},
