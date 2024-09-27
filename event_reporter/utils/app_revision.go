@@ -14,7 +14,7 @@ type AppSyncRevisionsMetadata struct {
 }
 
 type RevisionWithMetadata struct {
-	Revision string                  `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
+	Revision string                  `json:"revision" protobuf:"bytes,1,name=revision"`
 	Metadata *appv1.RevisionMetadata `json:"metadata,omitempty" protobuf:"bytes,2,name=metadata"`
 }
 

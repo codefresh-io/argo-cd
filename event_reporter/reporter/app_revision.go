@@ -23,11 +23,19 @@ func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsMetadata
 	return revisionsMetadata.SyncRevisions[sourceIdx].Metadata
 }
 
-func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*utils.RevisionWithMetadata, error) {
+func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*utils.RevisionWithMetadata, error) {
 	project := a.Spec.GetProject()
 	rms := make([]*utils.RevisionWithMetadata, 0)
 
-	for _, revision := range revisions {
+	for idx, revision := range revisions {
+		// report just revision for helm sources
+		if (a.Spec.HasMultipleSources() && a.Spec.Sources[idx].IsHelm()) || (a.Spec.Source != nil && a.Spec.Source.IsHelm()) {
+			rms = append(rms, &utils.RevisionWithMetadata{
+				Revision: revision,
+			})
+			continue
+		}
+
 		rm, err := s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 			Name:         &a.Name,
 			AppNamespace: &a.Namespace,
@@ -49,9 +57,9 @@ func (s *applicationEventReporter) getCommitRevisionsDetails(ctx context.Context
 func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *appv1.Application) (*utils.AppSyncRevisionsMetadata, error) {
 	result := &utils.AppSyncRevisionsMetadata{}
 
-	if source, _ := a.Spec.GetNonRefSource(); !source.IsHelm() && (a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0)) {
+	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {
 		// can be the latest revision of repository
-		operationSyncRevisionsMetadata, err := s.getCommitRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
+		operationSyncRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
 
 		if err != nil {
 			logCtx.WithError(err).Warnf("failed to get application(%s) sync revisions metadata, resuming", a.GetName())
@@ -61,7 +69,7 @@ func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.C
 			result.SyncRevisions = operationSyncRevisionsMetadata
 		}
 		// latest revision of repository where changes to app resource were actually made; empty if no changeRevisionі present
-		operationChangeRevisionsMetadata, err := s.getCommitRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
+		operationChangeRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
 
 		if err != nil {
 			logCtx.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())
