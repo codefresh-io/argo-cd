@@ -239,7 +239,6 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	}
 
 	revisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
-
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
 			return nil, fmt.Errorf("failed to get revision metadata: %w", err)

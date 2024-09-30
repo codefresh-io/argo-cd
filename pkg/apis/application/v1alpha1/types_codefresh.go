@@ -26,9 +26,10 @@ func (a *ApplicationSpec) GetNonRefSource() (*ApplicationSource, int) {
 		}
 	}
 
-	if a.Source != nil { // single source app
-		return a.Source, -1
+	if a.Source == nil {
+		return nil, -2
 	}
 
-	return nil, -2
+	// single source app
+	return a.Source, -1
 }

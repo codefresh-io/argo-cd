@@ -2,8 +2,10 @@ package reporter
 
 import (
 	"context"
+
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 )
@@ -60,7 +62,6 @@ func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.C
 	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {
 		// can be the latest revision of repository
 		operationSyncRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
-
 		if err != nil {
 			logCtx.WithError(err).Warnf("failed to get application(%s) sync revisions metadata, resuming", a.GetName())
 		}
@@ -70,7 +71,6 @@ func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.C
 		}
 		// latest revision of repository where changes to app resource were actually made; empty if no changeRevisionі present
 		operationChangeRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
-
 		if err != nil {
 			logCtx.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())
 		}
