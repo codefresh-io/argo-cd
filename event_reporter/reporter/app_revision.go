@@ -11,18 +11,22 @@ import (
 )
 
 // treats multi-sourced apps as single source and gets first revision details
-func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsMetadata *utils.AppSyncRevisionsMetadata) *appv1.RevisionMetadata {
-	_, sourceIdx := a.Spec.GetNonRefSource()
-
-	if sourceIdx == -1 { // single source app
-		sourceIdx = 0
-	}
-
-	if revisionsMetadata.SyncRevisions == nil || len(revisionsMetadata.SyncRevisions) == 0 {
+func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsWithMetadata *utils.AppSyncRevisionsMetadata) *appv1.RevisionMetadata {
+	if revisionsWithMetadata.SyncRevisions == nil || len(revisionsWithMetadata.SyncRevisions) == 0 {
 		return nil
 	}
 
-	return revisionsMetadata.SyncRevisions[sourceIdx].Metadata
+	sourceIdx := 0
+
+	if a.Spec.HasMultipleSources() {
+		_, sourceIdx = a.Spec.GetNonRefSource()
+	}
+
+	if revisionWithMetadata := revisionsWithMetadata.SyncRevisions[sourceIdx]; revisionWithMetadata != nil {
+		return revisionWithMetadata.Metadata
+	}
+
+	return nil
 }
 
 func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*utils.RevisionWithMetadata, error) {
