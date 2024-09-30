@@ -1,6 +1,7 @@
 package utils
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -101,11 +102,282 @@ func TestGetApplicationLatestRevision(t *testing.T) {
 	})
 }
 
-func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
+func yamlToUnstructured(jsonStr string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)
 	}
 	return &unstructured.Unstructured{Object: obj}
+}
+
+func jsonToAppSyncRevision(jsonStr string) *AppSyncRevisionsMetadata {
+	var obj AppSyncRevisionsMetadata
+	err := yaml.Unmarshal([]byte(jsonStr), &obj)
+	if err != nil {
+		panic(err)
+	}
+	return &obj
+}
+
+func TestAddCommitsDetailsToAnnotations(t *testing.T) {
+	revisionMetadata := AppSyncRevisionsMetadata{
+		SyncRevisions: []*RevisionWithMetadata{{
+			Metadata: &v1alpha1.RevisionMetadata{
+				Author:  "demo usert",
+				Date:    metav1.Time{},
+				Message: "some message",
+			},
+		}},
+	}
+
+	t.Run("set annotation when annotations object missing", func(t *testing.T) {
+		resource := yamlToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`,
+		)
+
+		result := AddCommitsDetailsToAnnotations(resource, &revisionMetadata)
+
+		revMetadatUnstructured := jsonToAppSyncRevision(result.GetAnnotations()[annotationRevisionKey])
+
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Author, revMetadatUnstructured.SyncRevisions[0].Metadata.Author)
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Message, revMetadatUnstructured.SyncRevisions[0].Metadata.Message)
+	})
+
+	t.Run("set annotation when annotations present", func(t *testing.T) {
+		resource := yamlToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    annotations:
+      link: http://my-grafana.com/pre-generated-link
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`,
+		)
+
+		result := AddCommitsDetailsToAnnotations(resource, &revisionMetadata)
+
+		revMetadatUnstructured := jsonToAppSyncRevision(result.GetAnnotations()[annotationRevisionKey])
+
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Author, revMetadatUnstructured.SyncRevisions[0].Metadata.Author)
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Message, revMetadatUnstructured.SyncRevisions[0].Metadata.Message)
+	})
+}
+
+func TestAddCommitsDetailsToAppAnnotations(t *testing.T) {
+	revisionMetadata := AppSyncRevisionsMetadata{
+		SyncRevisions: []*RevisionWithMetadata{{
+			Metadata: &v1alpha1.RevisionMetadata{
+				Author:  "demo usert",
+				Date:    metav1.Time{},
+				Message: "some message",
+			},
+		}},
+	}
+
+	t.Run("set annotation when annotations object missing", func(t *testing.T) {
+		resource := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{},
+		}
+
+		result := AddCommitsDetailsToAppAnnotations(resource, &revisionMetadata)
+
+		revMetadatUnstructured := jsonToAppSyncRevision(result.GetAnnotations()[annotationRevisionKey])
+
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Author, revMetadatUnstructured.SyncRevisions[0].Metadata.Author)
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Message, revMetadatUnstructured.SyncRevisions[0].Metadata.Message)
+	})
+
+	t.Run("set annotation when annotations present", func(t *testing.T) {
+		resource := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"test": "value",
+				},
+			},
+		}
+
+		result := AddCommitsDetailsToAppAnnotations(resource, &revisionMetadata)
+
+		revMetadatUnstructured := jsonToAppSyncRevision(result.GetAnnotations()[annotationRevisionKey])
+
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Author, revMetadatUnstructured.SyncRevisions[0].Metadata.Author)
+		assert.Equal(t, revisionMetadata.SyncRevisions[0].Metadata.Message, revMetadatUnstructured.SyncRevisions[0].Metadata.Message)
+	})
+}
+
+func TestGetRevisions(t *testing.T) {
+	t.Run("should return revisions when only they passed", func(t *testing.T) {
+		val := "test"
+		result := getRevisions(RevisionsData{
+			Revisions: []string{val},
+		})
+		assert.Len(t, result, 1)
+		assert.Equal(t, val, result[0])
+	})
+	t.Run("should return revisions when revision also passed", func(t *testing.T) {
+		val := "test"
+		result := getRevisions(RevisionsData{
+			Revisions: []string{val, "test2"},
+			Revision:  "fail",
+		})
+		assert.Len(t, result, 2)
+		assert.Equal(t, val, result[0])
+	})
+	t.Run("should return revision", func(t *testing.T) {
+		val := "test"
+		result := getRevisions(RevisionsData{
+			Revision: val,
+		})
+		assert.Len(t, result, 1)
+		assert.Equal(t, val, result[0])
+	})
+}
+
+func TestGetOperationSyncRevisions(t *testing.T) {
+	t.Run("should return Status.Sync.Revision like for new apps", func(t *testing.T) {
+		expectedResult := "test"
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: expectedResult,
+				},
+			},
+		}
+		result := GetOperationSyncRevisions(&app)
+
+		assert.Len(t, result, 1)
+		assert.Equal(t, expectedResult, result[0])
+	})
+
+	t.Run("should return Status.Sync.Revisions like for new apps", func(t *testing.T) {
+		expectedResult := "multi-1"
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revisions: []string{expectedResult, "multi-2"},
+					Revision:  "single",
+				},
+			},
+		}
+
+		result := GetOperationSyncRevisions(&app)
+
+		assert.Len(t, result, 2)
+		assert.Equal(t, expectedResult, result[0])
+	})
+
+	t.Run("should return a.Status.OperationState.Operation.Sync.Revision", func(t *testing.T) {
+		expectedResult := "multi-1"
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "fallack",
+				},
+				OperationState: &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{
+							Revision: expectedResult,
+						},
+					},
+				},
+			},
+		}
+
+		result := GetOperationSyncRevisions(&app)
+
+		assert.Len(t, result, 1)
+		assert.Equal(t, expectedResult, result[0])
+	})
+
+	t.Run("should return a.Status.OperationState.Operation.Sync.Revisions", func(t *testing.T) {
+		expectedResult := "multi-1"
+
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "fallack",
+				},
+				OperationState: &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{
+							Revisions: []string{expectedResult, "multi-2"},
+							Revision:  "single",
+						},
+					},
+				},
+			},
+		}
+
+		result := GetOperationSyncRevisions(&app)
+
+		assert.Len(t, result, 2)
+		assert.Equal(t, expectedResult, result[0])
+	})
+
+	t.Run("should return a.Operation.Sync.Revision for first app sync", func(t *testing.T) {
+		expectedResult := "multi-1"
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "fallack",
+				},
+			},
+			Operation: &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: expectedResult,
+				},
+			},
+		}
+
+		result := GetOperationSyncRevisions(&app)
+
+		assert.Len(t, result, 1)
+		assert.Equal(t, expectedResult, result[0])
+	})
+
+	t.Run("should return a.Operation.Sync.Revisions for first app sync", func(t *testing.T) {
+		expectedResult := "multi-1"
+
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "fallack",
+				},
+			},
+			Operation: &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revisions: []string{expectedResult, "multi-2"},
+					Revision:  "single",
+				},
+			},
+		}
+
+		result := GetOperationSyncRevisions(&app)
+
+		assert.Len(t, result, 2)
+		assert.Equal(t, expectedResult, result[0])
+	})
 }
