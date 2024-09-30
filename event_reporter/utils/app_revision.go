@@ -23,6 +23,8 @@ type RevisionsData struct {
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,2,opt,name=revisions"`
 }
 
+const annotationRevisionKey = "app.meta.revisions-metadata"
+
 func GetLatestAppHistoryId(a *appv1.Application) int64 {
 	if lastHistory := getLatestAppHistoryItem(a); lastHistory != nil {
 		return lastHistory.ID
@@ -64,14 +66,12 @@ func GetOperationRevision(a *appv1.Application) string {
 }
 
 func GetOperationSyncRevisions(a *appv1.Application) []string {
-	var revisions []string
-
 	if a == nil {
-		return revisions
+		return []string{}
 	}
 
 	// this value will be used in case if application hasn't resources, like empty gitsource
-	revisions = getRevisions(RevisionsData{
+	revisions := getRevisions(RevisionsData{
 		Revision:  a.Status.Sync.Revision,
 		Revisions: a.Status.Sync.Revisions,
 	})
@@ -127,24 +127,6 @@ func getRevisions(rd RevisionsData) []string {
 	return []string{rd.Revision}
 }
 
-func AddCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *appv1.RevisionMetadata) *unstructured.Unstructured {
-	if revisionMetadata == nil || u == nil {
-		return u
-	}
-
-	if field, _, _ := unstructured.NestedFieldCopy(u.Object, "metadata", "labels"); field == nil {
-		_ = unstructured.SetNestedStringMap(u.Object, map[string]string{}, "metadata", "labels")
-	}
-
-	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z"), "metadata", "labels", "app.meta.commit-date")
-	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Author, "metadata", "labels", "app.meta.commit-author")
-	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Message, "metadata", "labels", "app.meta.commit-message")
-
-	return u
-}
-
-var annotationRevisionKey = "app.meta.revisions-metadata"
-
 func AddCommitsDetailsToAnnotations(unstrApp *unstructured.Unstructured, revisionsMetadata *AppSyncRevisionsMetadata) *unstructured.Unstructured {
 	if revisionsMetadata == nil || unstrApp == nil {
 		return unstrApp
@@ -179,22 +161,6 @@ func AddCommitsDetailsToAppAnnotations(app appv1.Application, revisionsMetadata 
 	}
 
 	app.ObjectMeta.Annotations[annotationRevisionKey] = string(jsonRevisionsMetadata)
-
-	return app
-}
-
-func AddCommitsDetailsToAppLabels(app *appv1.Application, revisionMetadata *appv1.RevisionMetadata) *appv1.Application {
-	if revisionMetadata == nil {
-		return app
-	}
-
-	if app.ObjectMeta.Labels == nil {
-		app.ObjectMeta.Labels = map[string]string{}
-	}
-
-	app.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
-	app.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
-	app.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
 
 	return app
 }

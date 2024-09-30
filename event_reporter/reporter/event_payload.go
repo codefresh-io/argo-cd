@@ -55,9 +55,6 @@ func getResourceEventPayload(
 
 		if err == nil {
 			actualObject = utils.AddCommitsDetailsToAnnotations(actualObject, originalAppRevisionsMetadata)
-			if originalApplication != nil {
-				actualObject = utils.AddCommitDetailsToLabels(actualObject, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
-			}
 
 			object, err = actualObject.MarshalJSON()
 			if err != nil {
@@ -80,9 +77,6 @@ func getResourceEventPayload(
 			u.SetNamespace(rs.Namespace)
 			if originalAppRevisionsMetadata != nil {
 				u = utils.AddCommitsDetailsToAnnotations(u, originalAppRevisionsMetadata)
-				if originalApplication != nil {
-					u = utils.AddCommitDetailsToLabels(u, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
-				}
 			}
 
 			object, err = u.MarshalJSON()
@@ -97,9 +91,6 @@ func getResourceEventPayload(
 			}
 			if originalAppRevisionsMetadata != nil {
 				unstructuredWithNamespace = utils.AddCommitsDetailsToAnnotations(unstructuredWithNamespace, originalAppRevisionsMetadata)
-				if originalApplication != nil {
-					unstructuredWithNamespace = utils.AddCommitDetailsToLabels(unstructuredWithNamespace, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
-				}
 			}
 
 			object, _ = unstructuredWithNamespace.MarshalJSON()
@@ -248,7 +239,6 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	}
 
 	utils.AddCommitsDetailsToAppAnnotations(obj, revisionsMetadata)
-	utils.AddCommitsDetailsToAppLabels(&obj, getApplicationLegacyRevisionDetails(&obj, revisionsMetadata))
 
 	object, err := json.Marshal(&obj)
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -109,63 +108,4 @@ func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
 		panic(err)
 	}
 	return &unstructured.Unstructured{Object: obj}
-}
-
-func TestAddCommitDetailsToLabels(t *testing.T) {
-	revisionMetadata := v1alpha1.RevisionMetadata{
-		Author:  "demo usert",
-		Date:    metav1.Time{},
-		Message: "some message",
-	}
-
-	t.Run("set labels when lable object missing", func(t *testing.T) {
-		resource := StrToUnstructured(`
-  apiVersion: v1
-  kind: Service
-  metadata:
-    name: helm-guestbook
-    namespace: default
-    resourceVersion: "123"
-    uid: "4"
-  spec:
-    selector:
-      app: guestbook
-    type: LoadBalancer
-  status:
-    loadBalancer:
-      ingress:
-      - hostname: localhost`,
-		)
-
-		result := AddCommitDetailsToLabels(resource, &revisionMetadata)
-		labels := result.GetLabels()
-		assert.Equal(t, revisionMetadata.Author, labels["app.meta.commit-author"])
-		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
-	})
-
-	t.Run("set labels when labels present", func(t *testing.T) {
-		resource := StrToUnstructured(`
-  apiVersion: v1
-  kind: Service
-  metadata:
-    name: helm-guestbook
-    namespace: default
-    labels:
-      link: http://my-grafana.com/pre-generated-link
-  spec:
-    selector:
-      app: guestbook
-    type: LoadBalancer
-  status:
-    loadBalancer:
-      ingress:
-      - hostname: localhost`,
-		)
-
-		result := AddCommitDetailsToLabels(resource, &revisionMetadata)
-		labels := result.GetLabels()
-		assert.Equal(t, revisionMetadata.Author, labels["app.meta.commit-author"])
-		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
-		assert.Equal(t, "http://my-grafana.com/pre-generated-link", result.GetLabels()["link"])
-	})
 }

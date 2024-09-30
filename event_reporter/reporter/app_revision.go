@@ -31,7 +31,7 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *a
 
 	for idx, revision := range revisions {
 		// report just revision for helm sources
-		if (a.Spec.HasMultipleSources() && a.Spec.Sources[idx].IsHelm()) || (a.Spec.Source != nil && a.Spec.Source.IsHelm()) {
+		if a.Spec.SourceUnderIdxIsHelm(idx) {
 			rms = append(rms, &utils.RevisionWithMetadata{
 				Revision: revision,
 			})
@@ -69,7 +69,7 @@ func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.C
 		if err == nil && operationSyncRevisionsMetadata != nil {
 			result.SyncRevisions = operationSyncRevisionsMetadata
 		}
-		// latest revision of repository where changes to app resource were actually made; empty if no changeRevisionі present
+		// latest revision of repository where changes to app resource were actually made; empty if no changeRevision(-s) present
 		operationChangeRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
 		if err != nil {
 			logCtx.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())

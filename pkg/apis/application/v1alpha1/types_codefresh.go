@@ -17,19 +17,25 @@ func (a *Application) SetDefaultTypeMeta() {
 	}
 }
 
-func (a *ApplicationSpec) GetNonRefSource() (*ApplicationSource, int) {
-	if a.HasMultipleSources() {
-		for idx, source := range a.Sources {
+func (spec *ApplicationSpec) GetNonRefSource() (*ApplicationSource, int) {
+	if spec.HasMultipleSources() {
+		for idx, source := range spec.Sources {
 			if !source.IsRef() {
 				return &source, idx
 			}
 		}
 	}
 
-	if a.Source == nil {
+	if spec.Source == nil {
 		return nil, -2
 	}
 
 	// single source app
-	return a.Source, -1
+	return spec.Source, -1
+}
+
+func (spec *ApplicationSpec) SourceUnderIdxIsHelm(idx int) bool {
+	source := spec.GetSourcePtrByIndex(idx)
+
+	return source != nil && source.IsHelm()
 }
