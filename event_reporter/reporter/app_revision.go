@@ -42,11 +42,14 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *a
 			continue
 		}
 
+		sourceIndex := int32(idx)
+
 		rm, err := s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 			Name:         &a.Name,
 			AppNamespace: &a.Namespace,
 			Revision:     &revision,
 			Project:      &project,
+			SourceIndex:  &sourceIndex,
 		})
 		if err != nil {
 			return nil, err
