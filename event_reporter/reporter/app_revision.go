@@ -5,13 +5,13 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 )
 
 // treats multi-sourced apps as single source and gets first revision details
-func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsWithMetadata *utils.AppSyncRevisionsMetadata) *appv1.RevisionMetadata {
+func getApplicationLegacyRevisionDetails(a *v1alpha1.Application, revisionsWithMetadata *utils.AppSyncRevisionsMetadata) *v1alpha1.RevisionMetadata {
 	if revisionsWithMetadata.SyncRevisions == nil || len(revisionsWithMetadata.SyncRevisions) == 0 {
 		return nil
 	}
@@ -29,7 +29,7 @@ func getApplicationLegacyRevisionDetails(a *appv1.Application, revisionsWithMeta
 	return nil
 }
 
-func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *appv1.Application, revisions []string) ([]*utils.RevisionWithMetadata, error) {
+func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *v1alpha1.Application, revisions []string) ([]*utils.RevisionWithMetadata, error) {
 	project := a.Spec.GetProject()
 	rms := make([]*utils.RevisionWithMetadata, 0)
 
@@ -63,7 +63,7 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *a
 	return rms, nil
 }
 
-func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *appv1.Application) (*utils.AppSyncRevisionsMetadata, error) {
+func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) {
 	result := &utils.AppSyncRevisionsMetadata{}
 
 	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {
