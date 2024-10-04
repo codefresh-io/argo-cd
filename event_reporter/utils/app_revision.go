@@ -164,3 +164,35 @@ func AddCommitsDetailsToAppAnnotations(app appv1.Application, revisionsMetadata 
 
 	return app
 }
+
+func AddCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *appv1.RevisionMetadata) *unstructured.Unstructured {
+	if revisionMetadata == nil || u == nil {
+		return u
+	}
+
+	if field, _, _ := unstructured.NestedFieldCopy(u.Object, "metadata", "labels"); field == nil {
+		_ = unstructured.SetNestedStringMap(u.Object, map[string]string{}, "metadata", "labels")
+	}
+
+	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z"), "metadata", "labels", "app.meta.commit-date")
+	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Author, "metadata", "labels", "app.meta.commit-author")
+	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Message, "metadata", "labels", "app.meta.commit-message")
+
+	return u
+}
+
+func AddCommitsDetailsToAppLabels(app *appv1.Application, revisionMetadata *appv1.RevisionMetadata) *appv1.Application {
+	if revisionMetadata == nil {
+		return app
+	}
+
+	if app.ObjectMeta.Labels == nil {
+		app.ObjectMeta.Labels = map[string]string{}
+	}
+
+	app.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
+	app.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
+	app.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+
+	return app
+}

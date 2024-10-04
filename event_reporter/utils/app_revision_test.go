@@ -382,3 +382,62 @@ func TestGetOperationSyncRevisions(t *testing.T) {
 		assert.Equal(t, expectedResult, result[0])
 	})
 }
+
+func TestAddCommitDetailsToLabels(t *testing.T) {
+	revisionMetadata := v1alpha1.RevisionMetadata{
+		Author:  "demo usert",
+		Date:    metav1.Time{},
+		Message: "some message",
+	}
+
+	t.Run("set labels when lable object missing", func(t *testing.T) {
+		resource := yamlToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`,
+		)
+
+		result := AddCommitDetailsToLabels(resource, &revisionMetadata)
+		labels := result.GetLabels()
+		assert.Equal(t, revisionMetadata.Author, labels["app.meta.commit-author"])
+		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
+	})
+
+	t.Run("set labels when labels present", func(t *testing.T) {
+		resource := yamlToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    labels:
+      link: http://my-grafana.com/pre-generated-link
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`,
+		)
+
+		result := AddCommitDetailsToLabels(resource, &revisionMetadata)
+		labels := result.GetLabels()
+		assert.Equal(t, revisionMetadata.Author, labels["app.meta.commit-author"])
+		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
+		assert.Equal(t, "http://my-grafana.com/pre-generated-link", result.GetLabels()["link"])
+	})
+}
