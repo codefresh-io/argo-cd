@@ -82,7 +82,7 @@ func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.C
 			logCtx.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())
 		}
 
-		if err == nil && operationChangeRevisionsMetadata != nil {
+		if err == nil && operationChangeRevisionsMetadata != nil && len(operationChangeRevisionsMetadata) > 0 {
 			result.ChangeRevisions = operationChangeRevisionsMetadata
 		}
 	}
