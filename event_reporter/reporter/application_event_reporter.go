@@ -87,7 +87,7 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
+func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
 	// get the desired state manifests of the application
 	project := a.Spec.GetProject()
 	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
@@ -101,12 +101,12 @@ func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 		// each resource with empty desired state
 		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
 		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
-		return desiredManifests, nil, true // will ignore requiresPruning=true to not delete resources with actual state
+		return desiredManifests, true // will ignore requiresPruning=true to not delete resources with actual state
 	}
-	return desiredManifests, nil, false
+	return desiredManifests, false
 }
 
-func (r *applicationEventReporter) getLiveManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
+func (r *applicationEventReporter) getLiveManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ManifestResponse {
 	// get the live state manifests of the application
 	project := a.Spec.GetProject()
 	liveManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
@@ -119,9 +119,8 @@ func (r *applicationEventReporter) getLiveManifests(ctx context.Context, a *appv
 		// if it's manifest generation error we need to return empty result
 		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
 		liveManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
-		return liveManifests, nil, true
 	}
-	return liveManifests, nil, false
+	return liveManifests
 }
 
 func (s *applicationEventReporter) StreamApplicationEvents(
@@ -155,14 +154,11 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting desired manifests")
 
-	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
-	if err != nil {
-		return err
-	}
+	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
 
 	var applicationVersions *apiclient.ApplicationVersions = nil
-	liveManifests, err, _ := s.getLiveManifests(ctx, a, logCtx)
-	if (err == nil) && (liveManifests != nil) && (liveManifests.ApplicationVersions != nil) {
+	liveManifests := s.getLiveManifests(ctx, a, logCtx)
+	if liveManifests.ApplicationVersions != nil {
 		applicationVersions = liveManifests.ApplicationVersions
 	}
 
@@ -182,10 +178,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		rs := utils.GetAppAsResource(a)
 
-		parentDesiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
-		if err != nil {
-			logCtx.WithError(err).Warn("failed to get parent application's desired manifests, resuming")
-		}
+		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
