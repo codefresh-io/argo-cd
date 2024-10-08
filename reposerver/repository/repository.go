@@ -1599,7 +1599,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			appVersions, err := getAppVersions(appPath, versionConfig)
 			if err != nil {
 				errorMessage := fmt.Sprintf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
-				if versionConfig.ResourceName == "Chart.yaml" {
+				if (versionConfig.ResourceName == version_config_manager.DefaultVersionSource) &&
+					(err.Error() == "unknown key appVersion") {
 					log.Info(errorMessage)
 				} else {
 					log.Error(errorMessage)
