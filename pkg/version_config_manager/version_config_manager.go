@@ -14,6 +14,7 @@ type VersionConfig struct {
 }
 
 var DefaultVersionSource = "Chart.yaml"
+var DefaultVersionPath = "$.appVersion"
 
 func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*VersionConfig, error) {
 	var appConfig *codefresh.PromotionTemplate
@@ -59,7 +60,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*Versio
 	// Default value
 	log.Infof("Used default CfAppConfig for: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
 	return &VersionConfig{
-		JsonPath:     "$.appVersion",
+		JsonPath:     DefaultVersionPath,
 		ResourceName: DefaultVersionSource,
 	}, nil
 }
