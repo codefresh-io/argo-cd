@@ -13,8 +13,10 @@ type VersionConfig struct {
 	ResourceName string `json:"resourceName"`
 }
 
-var DefaultVersionSource = "Chart.yaml"
-var DefaultVersionPath = "$.appVersion"
+const (
+	DefaultVersionSource = "Chart.yaml"
+	DefaultVersionPath   = "$.appVersion"
+)
 
 func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*VersionConfig, error) {
 	var appConfig *codefresh.PromotionTemplate

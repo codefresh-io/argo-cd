@@ -87,12 +87,13 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
+func (r *applicationEventReporter) getApplicationManifests(ctx context.Context, a *appv1.Application, revision *string, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
 	// get the desired state manifests of the application
 	project := a.Spec.GetProject()
 	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
+		Revision:     revision,
 		Project:      &project,
 	})
 	if err != nil {
@@ -104,23 +105,6 @@ func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 		return desiredManifests, true // will ignore requiresPruning=true to not delete resources with actual state
 	}
 	return desiredManifests, false
-}
-
-func (r *applicationEventReporter) getLiveManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ManifestResponse {
-	// get the live state manifests of the application
-	project := a.Spec.GetProject()
-	liveManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name:         &a.Name,
-		AppNamespace: &a.Namespace,
-		Revision:     &a.Status.Sync.Revision,
-		Project:      &project,
-	})
-	if err != nil {
-		// if it's manifest generation error we need to return empty result
-		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
-		liveManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
-	}
-	return liveManifests
 }
 
 func (s *applicationEventReporter) StreamApplicationEvents(
@@ -154,13 +138,10 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting desired manifests")
 
-	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
+	desiredManifests, manifestGenErr := s.getApplicationManifests(ctx, a, nil, logCtx)
 
-	var applicationVersions *apiclient.ApplicationVersions = nil
-	liveManifests := s.getLiveManifests(ctx, a, logCtx)
-	if liveManifests.ApplicationVersions != nil {
-		applicationVersions = liveManifests.ApplicationVersions
-	}
+	liveManifests, _ := s.getApplicationManifests(ctx, a, &a.Status.Sync.Revision, logCtx)
+	applicationVersions := liveManifests.GetApplicationVersions()
 
 	logCtx.Info("getting parent application name")
 
@@ -178,7 +159,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		rs := utils.GetAppAsResource(a)
 
-		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
+		parentDesiredManifests, manifestGenErr := s.getApplicationManifests(ctx, parentApplicationEntity, nil, logCtx)
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application

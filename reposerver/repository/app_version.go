@@ -26,6 +26,33 @@ type Result struct {
 	Dependencies DependenciesMap `json:"dependencies"`
 }
 
+func parseVersionValue(jsonPathExpression string, jsonObj interface{}) string {
+	versionValue, err := jsonpath.Get(jsonPathExpression, jsonObj)
+	if err != nil {
+		log.Errorf("Can't get version from file. %v", err)
+		return ""
+	}
+
+	var appVersion string
+	var conversionSuccess bool
+	if versionArray, ok := versionValue.([]interface{}); ok && len(versionArray) > 0 {
+		appVersion, conversionSuccess = versionArray[0].(string)
+	} else {
+		appVersion, conversionSuccess = versionValue.(string)
+	}
+
+	if !conversionSuccess {
+		if versionValue == nil {
+			log.Info("Version value is not a string. Got: nil")
+		} else {
+			log.Infof("Version value is not a string. Got: %v", versionValue)
+		}
+		appVersion = ""
+	}
+
+	return appVersion
+}
+
 func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 	content, err := os.ReadFile(appPath)
 	if err != nil {
@@ -57,27 +84,7 @@ func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 		return nil, fmt.Errorf("Unsupported file format of %s", appPath)
 	}
 
-	versionValue, err := jsonpath.Get(jsonPathExpression, jsonObj)
-	if err != nil {
-		return nil, err
-	}
-
-	var appVersion string
-	var conversionSuccess bool
-	if versionArray, ok := versionValue.([]interface{}); ok && len(versionArray) > 0 {
-		appVersion, conversionSuccess = versionArray[0].(string)
-	} else {
-		appVersion, conversionSuccess = versionValue.(string)
-	}
-
-	if !conversionSuccess {
-		if versionValue == nil {
-			log.Info("Version value is not a string. Got: nil")
-		} else {
-			log.Infof("Version value is not a string. Got: %v", versionValue)
-		}
-		appVersion = ""
-	}
+	appVersion := parseVersionValue(jsonPathExpression, jsonObj)
 
 	log.Infof("Extracted appVersion: %s", appVersion)
 	return &appVersion, nil
