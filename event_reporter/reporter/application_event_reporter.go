@@ -87,7 +87,7 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func (r *applicationEventReporter) getApplicationManifests(ctx context.Context, a *appv1.Application, revision *string, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
+func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, revision *string, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
 	// get the desired state manifests of the application
 	project := a.Spec.GetProject()
 	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
@@ -138,10 +138,10 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting desired manifests")
 
-	desiredManifests, manifestGenErr := s.getApplicationManifests(ctx, a, nil, logCtx)
+	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logCtx)
 
-	liveManifests, _ := s.getApplicationManifests(ctx, a, &a.Status.Sync.Revision, logCtx)
-	applicationVersions := liveManifests.GetApplicationVersions()
+	syncManifests, _ := s.getDesiredManifests(ctx, a, utils.GetOperationStateRevision(a), logCtx)
+	applicationVersions := syncManifests.GetApplicationVersions()
 
 	logCtx.Info("getting parent application name")
 
@@ -159,7 +159,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		rs := utils.GetAppAsResource(a)
 
-		parentDesiredManifests, manifestGenErr := s.getApplicationManifests(ctx, parentApplicationEntity, nil, logCtx)
+		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logCtx)
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
