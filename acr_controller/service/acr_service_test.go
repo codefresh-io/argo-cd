@@ -243,7 +243,7 @@ func Test_getRevisions(r *testing.T) {
 		assert.Equal(t, "c732f4d2ef24c7eeb900e9211ff98f90bb646505", current)
 		assert.Equal(t, "", previous)
 	})
-
+	
 	r.Run("application is synced", func(t *testing.T) {
 		acrService := newTestACRService(&mocks.ApplicationClient{})
 		app := createTestApp(syncedAppWithHistory)
