@@ -171,13 +171,17 @@ func (c *acrService) patchOperationSyncResultWithChangeRevision(ctx context.Cont
 	return err
 }
 
+func getCurrentRevisionFromOperation(a *application.Application) string {
+	if a.Operation != nil && a.Operation.Sync != nil {
+		return a.Operation.Sync.Revision
+	}
+	return ""
+}
+
 func (c *acrService) getRevisions(ctx context.Context, a *application.Application) (string, string) {
 	if a.Status.History == nil || len(a.Status.History) == 0 {
 		// it is first sync operation, and we have only current revision
-		if a.Operation != nil && a.Operation.Sync != nil {
-			return a.Operation.Sync.Revision, ""
-		}
-		return "", ""
+		return getCurrentRevisionFromOperation(a), ""
 	}
 
 	// in case if sync is already done, we need to use revision from sync result and previous revision from history
@@ -187,7 +191,7 @@ func (c *acrService) getRevisions(ctx context.Context, a *application.Applicatio
 	}
 
 	// in case if sync is in progress, we need to use revision from operation and revision from latest history record
-	currentRevision := a.Operation.Sync.Revision
+	currentRevision := getCurrentRevisionFromOperation(a)
 	previousRevision := a.Status.History[len(a.Status.History)-1].Revision
 	return currentRevision, previousRevision
 }
