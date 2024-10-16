@@ -9,6 +9,8 @@ linters:
     - errcheck
     - errorlint
     - gocritic
+    - gofumpt
+    - goimports
     - gosimple
     - govet
     - ineffassign
