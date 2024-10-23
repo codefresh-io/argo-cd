@@ -51,10 +51,10 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 			continue
 		}
 
-		if cnd.IsError() || cnd.IsWarning() {
+		if level := getConditionLevel(cnd); level != "" {
 			errs = append(errs, &events.ObjectError{
 				Type:     "sync",
-				Level:    getConditionLevel(cnd),
+				Level:    level,
 				Message:  cnd.Message,
 				LastSeen: lastSeen,
 			})
