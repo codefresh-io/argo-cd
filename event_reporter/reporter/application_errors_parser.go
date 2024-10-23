@@ -39,11 +39,6 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 		return errs
 	}
 	for _, cnd := range status.Conditions {
-		lastSeen := metav1.Now()
-		if cnd.LastTransitionTime != nil {
-			lastSeen = *cnd.LastTransitionTime
-		}
-
 		if (strings.Contains(cnd.Message, syncTaskUnsuccessfullErrorMessage) || strings.Contains(cnd.Message, syncTaskNotValidErrorMessage)) && status.OperationState != nil && status.OperationState.SyncResult != nil && status.OperationState.SyncResult.Resources != nil {
 			resourcesSyncErrors := parseAggregativeResourcesSyncErrors(status.OperationState.SyncResult.Resources)
 
@@ -56,7 +51,7 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 				Type:     "sync",
 				Level:    level,
 				Message:  cnd.Message,
-				LastSeen: lastSeen,
+				LastSeen: getConditionTime(cnd),
 			})
 		}
 	}
@@ -71,6 +66,13 @@ func getConditionLevel(cnd appv1.ApplicationCondition) string {
 		return "error"
 	}
 	return ""
+}
+
+func getConditionTime(cnd appv1.ApplicationCondition) metav1.Time {
+	if cnd.LastTransitionTime != nil {
+		return *cnd.LastTransitionTime
+	}
+	return metav1.Now()
 }
 
 func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
