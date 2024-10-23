@@ -137,6 +137,35 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 	})
 }
 
+func TestGetConditionLevel(t *testing.T) {
+	errorsTypes := []v1alpha1.ApplicationCondition{
+		{Type: v1alpha1.ApplicationConditionDeletionError},
+		{Type: v1alpha1.ApplicationConditionInvalidSpecError},
+		{Type: v1alpha1.ApplicationConditionComparisonError},
+		{Type: v1alpha1.ApplicationConditionSyncError},
+		{Type: v1alpha1.ApplicationConditionUnknownError},
+	}
+	for _, errorAppCondition := range errorsTypes {
+		t.Run("parses as error "+errorAppCondition.Type, func(t *testing.T) {
+			level := getConditionLevel(errorAppCondition)
+			assert.Equal(t, "error", level)
+		})
+	}
+
+	warningTypes := []v1alpha1.ApplicationCondition{
+		{Type: v1alpha1.ApplicationConditionSharedResourceWarning},
+		{Type: v1alpha1.ApplicationConditionRepeatedResourceWarning},
+		{Type: v1alpha1.ApplicationConditionExcludedResourceWarning},
+		{Type: v1alpha1.ApplicationConditionOrphanedResourceWarning},
+	}
+	for _, warningAppCondition := range warningTypes {
+		t.Run("parses as warning "+warningAppCondition.Type, func(t *testing.T) {
+			level := getConditionLevel(warningAppCondition)
+			assert.Equal(t, "warning", level)
+		})
+	}
+}
+
 func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 	t.Run("conditions exists", func(t *testing.T) {
 		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{

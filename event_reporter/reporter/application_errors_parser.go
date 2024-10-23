@@ -67,7 +67,7 @@ func getConditionLevel(cnd appv1.ApplicationCondition) string {
 	if cnd.IsWarning() {
 		return "warning"
 	}
-	if cnd.IsWarning() {
+	if cnd.IsError() {
 		return "error"
 	}
 	return ""
