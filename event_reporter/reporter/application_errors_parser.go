@@ -39,10 +39,6 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 		return errs
 	}
 	for _, cnd := range status.Conditions {
-		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
-			continue
-		}
-
 		lastSeen := metav1.Now()
 		if cnd.LastTransitionTime != nil {
 			lastSeen = *cnd.LastTransitionTime
@@ -52,16 +48,29 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 			resourcesSyncErrors := parseAggregativeResourcesSyncErrors(status.OperationState.SyncResult.Resources)
 
 			errs = append(errs, resourcesSyncErrors...)
-		} else {
+			continue
+		}
+
+		if cnd.IsError() || cnd.IsWarning() {
 			errs = append(errs, &events.ObjectError{
 				Type:     "sync",
-				Level:    "error",
+				Level:    getConditionLevel(cnd),
 				Message:  cnd.Message,
 				LastSeen: lastSeen,
 			})
 		}
 	}
 	return errs
+}
+
+func getConditionLevel(cnd appv1.ApplicationCondition) string {
+	if cnd.IsWarning() {
+		return "warning"
+	}
+	if cnd.IsWarning() {
+		return "error"
+	}
+	return ""
 }
 
 func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
@@ -133,7 +142,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 			}
 
 			if addReference {
-				newErr.SourceReference = events.ErrorSourceReference{
+				newErr.SourceReference = &events.ErrorSourceReference{
 					Group:     rs.Group,
 					Version:   rs.Version,
 					Kind:      rs.Kind,
