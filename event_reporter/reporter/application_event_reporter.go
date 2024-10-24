@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	metrics_utils "github.com/argoproj/argo-cd/v2/event_reporter/metrics/utils"
 	"math"
 	"reflect"
 	"strings"
@@ -115,9 +116,9 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 ) error {
-	startTime := time.Now()
-	logCtx := log.WithField("app", a.Name)
+	metricTimer := metrics_utils.NewMetricTimer()
 
+	logCtx := log.WithField("app", a.Name)
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
 	project := a.Spec.GetProject()
@@ -180,8 +181,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
 		}
-		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricChildAppEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricChildAppEventType, metricTimer.Duration())
 	} else {
 		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
@@ -201,8 +201,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType, a.Name)
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
-		reconcileDuration := time.Since(startTime)
-		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricParentAppEventType, reconcileDuration)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricParentAppEventType, metricTimer.Duration())
 	}
 
 	revisionsMetadata, _ := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
