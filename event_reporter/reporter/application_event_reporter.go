@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/db"
+
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -40,6 +42,7 @@ type applicationEventReporter struct {
 	appLister                applisters.ApplicationLister
 	applicationServiceClient appclient.ApplicationClient
 	metricsServer            *metrics.MetricsServer
+	db                       db.ArgoDB
 }
 
 type ApplicationEventReporter interface {
@@ -53,13 +56,14 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer) ApplicationEventReporter {
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, db db.ArgoDB) ApplicationEventReporter {
 	return &applicationEventReporter{
 		cache:                    cache,
 		applicationServiceClient: applicationServiceClient,
 		codefreshClient:          codefresh.NewCodefreshClient(codefreshConfig),
 		appLister:                appLister,
 		metricsServer:            metricsServer,
+		db:                       db,
 	}
 }
 
