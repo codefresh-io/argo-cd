@@ -66,13 +66,17 @@ message ObjectSource {
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 14;
     optional string healthStatus = 15;
     optional string healthMessage = 16;
-    optional string cluster = 17 [(gogoproto.nullable) = false];
-    optional int64 historyId = 18 [(gogoproto.nullable) = false];
+    optional string cluster = 17 [(gogoproto.nullable) = false]; // legacy, returns only server, empty if destinatin.name used
+    optional int64 historyId = 18 [(gogoproto.nullable) = false]; // legacy
     optional string operationSyncRevision = 19 [(gogoproto.nullable) = false];
     optional string appUID = 20 [(gogoproto.nullable) = false];
     optional string appNamespace = 21 [(gogoproto.nullable) = false];
     optional string appInstanceLabelKey = 22 [(gogoproto.nullable) = false];
     optional string trackingMethod = 23 [(gogoproto.nullable) = false];
+    repeated string operationSyncRevisions = 24;
+    required string destServer = 25 [(gogoproto.nullable) = false];
+    optional string destName = 26;
+    required bool appMultiSourced = 27 [(gogoproto.nullable) = false];
 }
 
 /**
