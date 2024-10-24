@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -69,7 +68,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 
 	if getChangeRevision(app) != "" {
 		log.Infof("Change revision already calculated for application %s", app.Name)
-		return errors.New("change revision already calculated")
+		return nil
 	}
 
 	revision, err := c.calculateRevision(ctx, app)

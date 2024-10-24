@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/acr_controller/application/mocks"
@@ -202,6 +204,30 @@ status:
     status: Synced
 `
 
+
+// Rather dirty hack to capture stdout from PrintResource() and PrintResourceList()
+func captureOutput(f func() error) (string, error) {
+	stdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		return "", err
+	}
+	os.Stdout = w
+	err = f()
+	w.Close()
+	if err != nil {
+		os.Stdout = stdout
+		return "", err
+	}
+	str, err := io.ReadAll(r)
+	os.Stdout = stdout
+	if err != nil {
+		return "", err
+	}
+	return string(str), err
+}
+
+
 func newTestACRService(client *mocks.ApplicationClient) *acrService {
 	fakeAppsClientset := apps.NewSimpleClientset(createTestApp(syncedAppWithHistory))
 	return &acrService{
@@ -296,7 +322,10 @@ func Test_ChangeRevision(r *testing.T) {
 
 		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
 
-		err = acrService.ChangeRevision(context.TODO(), app)
-		require.Error(t, err, "change revision already calculated")
+		str, err := captureOutput(func() error {
+			return acrService.ChangeRevision(context.TODO(), app)
+		})
+		require.NoError(t, err)
+		require.Equal(t, str, "Change revision already calculated for application guestbook")
 	})
 }
