@@ -63,14 +63,14 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *v
 	return rms, nil
 }
 
-func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) {
+func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logWithAppName *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) {
 	result := &utils.AppSyncRevisionsMetadata{}
 
 	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {
 		// can be the latest revision of repository
 		operationSyncRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
 		if err != nil {
-			logCtx.WithError(err).Warnf("failed to get application(%s) sync revisions metadata, resuming", a.GetName())
+			logWithAppName.WithError(err).Warnf("failed to get application(%s) sync revisions metadata, resuming", a.GetName())
 		}
 
 		if err == nil && operationSyncRevisionsMetadata != nil {
@@ -79,7 +79,7 @@ func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.C
 		// latest revision of repository where changes to app resource were actually made; empty if no changeRevision(-s) present
 		operationChangeRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationChangeRevisions(a))
 		if err != nil {
-			logCtx.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())
+			logWithAppName.WithError(err).Warnf("failed to get application(%s) change revisions metadata, resuming", a.GetName())
 		}
 
 		if err == nil && operationChangeRevisionsMetadata != nil && len(operationChangeRevisionsMetadata) > 0 {
