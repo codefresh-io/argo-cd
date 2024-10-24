@@ -65,6 +65,22 @@ func GetOperationRevision(a *appv1.Application) string {
 	return revision
 }
 
+func GetOperationRevisions(a *appv1.Application) []string {
+	if a == nil {
+		return nil
+	}
+
+	// this value will be used in case if application hasn't resources , like gitsource
+	revisions := a.Status.Sync.Revisions
+	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil && a.Status.OperationState.Operation.Sync.Revisions != nil && len(a.Status.OperationState.Operation.Sync.Revisions) > 0 {
+		revisions = a.Status.OperationState.Operation.Sync.Revisions
+	} else if a.Operation != nil && a.Operation.Sync != nil && a.Operation.Sync.Revisions != nil && len(a.Operation.Sync.Revisions) > 0 {
+		revisions = a.Operation.Sync.Revisions
+	}
+
+	return revisions
+}
+
 func GetOperationStateRevision(a *appv1.Application) *string {
 	if a == nil || a.Status.OperationState == nil || a.Status.OperationState.SyncResult == nil {
 		return nil
