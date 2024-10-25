@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	metrics_utils "github.com/argoproj/argo-cd/v2/event_reporter/metrics/utils"
 	"math"
 	"reflect"
 	"strings"
@@ -28,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+	metricsUtils "github.com/argoproj/argo-cd/v2/event_reporter/metrics/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -116,7 +116,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 ) error {
-	metricTimer := metrics_utils.NewMetricTimer()
+	metricTimer := metricsUtils.NewMetricTimer()
 
 	logCtx := log.WithField("app", a.Name)
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
