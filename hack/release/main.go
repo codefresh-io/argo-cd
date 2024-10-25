@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -29,21 +28,11 @@ func getCurrentCommitSha() (string, error) {
 }
 
 func getArgoCDVersion() (string, error) {
-	// git rev-parse --abbrev-ref HEAD
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	result, err := cmd.Output()
+	data, err := os.ReadFile("SOURCE_VERSION")
 	if err != nil {
 		return "", err
 	}
-
-	pattern := `release-(\d+\.\d+)`
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(string(result))
-	if len(matches) >= 2 {
-		return matches[1], nil
-	}
-
-	return "", fmt.Errorf("failed to get argocd version")
+	return strings.TrimSpace(string(data)), nil
 }
 
 // function that returns version of the latest release by patern
@@ -94,7 +83,7 @@ func moveChangelog() error {
 	}
 
 	// mv changelog/CHANGELOG.md changelog/CHANGELOG-<version>.md
-	cmd := exec.Command("mv", "changelog/CHANGELOG.md", fmt.Sprintf("changelog/CHANGELOG-%s.md", version))
+	cmd := exec.Command("cp", "changelog/CHANGELOG.md", fmt.Sprintf("changelog/CHANGELOG-%s.md", version))
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fmt.Print(string(output))
 		return err
@@ -127,12 +116,12 @@ func release() error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("Commit changes")
 	err = commitChanges(version)
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("Create tag")
 	// git tag -a v2.9.3-2021.07.07-3a4b7f4 -m "Codefresh version for synced 2.9.3"
 	_ = exec.Command("git", "tag", "-d", release).Run()
 	cmd := exec.Command("git", "tag", "-a", release, "-m", changelog)
@@ -141,15 +130,20 @@ func release() error {
 		return fmt.Errorf("failed to tag: %w", err)
 	}
 
+	fmt.Println("Delete tag")
 	// git push remote-name --delete tag-name
 	_ = exec.Command("git", "push", "origin", "--delete", release).Run()
+	fmt.Println("Push new tag to remote")
 	// git push origin tags/version
 	cmd = exec.Command("git", "push", "origin", "tags/"+release)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
 		fmt.Print(string(output))
 		return fmt.Errorf("failed to push tag: %w", err)
 	}
+	fmt.Printf("git push output: %s\n", string(output))
 
+	fmt.Println("Delete tag from remote")
 	return exec.Command("git", "push", "origin", "--delete", release).Run()
 }
 

@@ -2,7 +2,7 @@ name: Create ArgoCD release
 on:
   push:
     tags:
-      - "release-v*"
+      - "release-v**"
       - "!release-v1.5*"
       - "!release-v1.4*"
       - "!release-v1.3*"
