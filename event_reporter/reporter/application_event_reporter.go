@@ -118,8 +118,8 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 ) error {
 	metricTimer := metrics_utils.NewMetricTimer()
 
-	logWithAppName := log.WithField("app", a.Name)
-	logWithAppName.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
+	logCtx := log.WithField("app", a.Name)
+	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
 	project := a.Spec.GetProject()
 	appTree, err := s.applicationServiceClient.ResourceTree(ctx, &application.ResourcesQuery{
@@ -134,28 +134,28 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		// we still need process app even without tree, it is in case of app yaml originally contain error,
 		// we still want to show it the errors that related to it on codefresh ui
-		logWithAppName.WithError(err).Warn("failed to get application tree, resuming")
+		logCtx.WithError(err).Warn("failed to get application tree, resuming")
 	}
 
-	logWithAppName.Info("getting desired manifests")
+	logCtx.Info("getting desired manifests")
 
-	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logWithAppName)
+	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logCtx)
 
 	syncRevision := utils.GetOperationStateRevision(a)
 	var applicationVersions *apiclient.ApplicationVersions
 	if syncRevision != nil {
-		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logWithAppName)
+		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
 		applicationVersions = syncManifests.GetApplicationVersions()
 	} else {
 		applicationVersions = nil
 	}
 
-	logWithAppName.Info("getting parent application name")
+	logCtx.Info("getting parent application name")
 
 	parentAppIdentity := utils.GetParentAppIdentity(a, appInstanceLabelKey, trackingMethod)
 
 	if utils.IsChildApp(parentAppIdentity) {
-		logWithAppName.Info("processing as child application")
+		logCtx.Info("processing as child application")
 		parentApplicationEntity, err := s.applicationServiceClient.Get(ctx, &application.ApplicationQuery{
 			Name:         &parentAppIdentity.Name,
 			AppNamespace: &parentAppIdentity.Namespace,
@@ -166,24 +166,24 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		rs := utils.GetAppAsResource(a)
 
-		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logWithAppName)
+		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logCtx)
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
-		parentAppSyncRevisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logWithAppName, parentApplicationEntity)
+		parentAppSyncRevisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, parentApplicationEntity)
 		if err != nil {
-			logWithAppName.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
+			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
 		utils.SetHealthStatusIfMissing(rs)
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logWithAppName, eventProcessingStartedAt, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, eventProcessingStartedAt, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
 		}
 		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricChildAppEventType, metricTimer.Duration())
 	} else {
-		logWithAppName.Info("processing as root application")
+		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, appInstanceLabelKey, trackingMethod, applicationVersions)
 		if err != nil {
@@ -196,7 +196,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			return nil
 		}
 
-		utils.LogWithAppStatus(a, logWithAppName, eventProcessingStartedAt).Info("sending root application event")
+		utils.LogWithAppStatus(a, logCtx, eventProcessingStartedAt).Info("sending root application event")
 		if err := s.codefreshClient.SendEvent(ctx, a.Name, appEvent); err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType, a.Name)
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
@@ -204,7 +204,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricParentAppEventType, metricTimer.Duration())
 	}
 
-	revisionsMetadata, _ := s.getApplicationRevisionsMetadata(ctx, logWithAppName, a)
+	revisionsMetadata, _ := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
@@ -216,7 +216,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			s.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricResourceEventType, a.Name)
 			continue
 		}
-		err := s.processResource(ctx, rs, a, logWithAppName, eventProcessingStartedAt, desiredManifests, appTree, manifestGenErr, nil, revisionsMetadata, appInstanceLabelKey, trackingMethod, nil)
+		err := s.processResource(ctx, rs, a, logCtx, eventProcessingStartedAt, desiredManifests, appTree, manifestGenErr, nil, revisionsMetadata, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -253,7 +253,7 @@ func (s *applicationEventReporter) processResource(
 	ctx context.Context,
 	rs appv1.ResourceStatus,
 	parentApplication *appv1.Application,
-	logWithAppName *log.Entry,
+	logCtx *log.Entry,
 	appEventProcessingStartedAt string,
 	desiredManifests *apiclient.ManifestResponse,
 	appTree *appv1.ApplicationTree,
@@ -269,15 +269,15 @@ func (s *applicationEventReporter) processResource(
 		metricsEventType = metrics.MetricChildAppEventType
 	}
 
-	logWithAppAndResource := logWithAppName.WithFields(log.Fields{
+	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 	})
 
 	// get resource desired state
-	desiredState := getResourceDesiredState(&rs, desiredManifests, logWithAppAndResource)
+	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
-	actualState, err := s.getResourceActualState(ctx, logWithAppAndResource, metricsEventType, rs, parentApplication, originalApplication)
+	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, parentApplication, originalApplication)
 	if err != nil {
 		return err
 	}
@@ -285,28 +285,28 @@ func (s *applicationEventReporter) processResource(
 		return nil
 	}
 
-	parentApplicationToReport, revisionMetadataToReport := s.getAppForResourceReporting(rs, ctx, logWithAppAndResource, parentApplication, revisionsMetadata)
+	parentApplicationToReport, revisionMetadataToReport := s.getAppForResourceReporting(rs, ctx, logCtx, parentApplication, revisionsMetadata)
 
 	var originalAppRevisionMetadata *utils.AppSyncRevisionsMetadata = nil
 
 	if originalApplication != nil {
-		originalAppRevisionMetadata, _ = s.getApplicationRevisionsMetadata(ctx, logWithAppAndResource, originalApplication)
+		originalAppRevisionMetadata, _ = s.getApplicationRevisionsMetadata(ctx, logCtx, originalApplication)
 	}
 
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, actualState, desiredState, appTree, manifestGenErr, appEventProcessingStartedAt, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
 		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, parentApplication.Name)
-		logWithAppAndResource.WithError(err).Warn("failed to get event payload, resuming")
+		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
 	}
 
 	appRes := appv1.Application{}
 	appName := ""
 	if utils.IsApp(rs) && actualState.Manifest != nil && json.Unmarshal([]byte(*actualState.Manifest), &appRes) == nil {
-		utils.LogWithAppStatus(&appRes, logWithAppAndResource, appEventProcessingStartedAt).Info("streaming resource event")
+		utils.LogWithAppStatus(&appRes, logCtx, appEventProcessingStartedAt).Info("streaming resource event")
 		appName = appRes.Name
 	} else {
-		utils.LogWithResourceStatus(logWithAppAndResource, rs).Info("streaming resource event")
+		utils.LogWithResourceStatus(logCtx, rs).Info("streaming resource event")
 		appName = parentApplication.Name
 	}
 
@@ -316,12 +316,12 @@ func (s *applicationEventReporter) processResource(
 		}
 
 		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventDeliveryErrorType, appName)
-		logWithAppAndResource.WithError(err).Warn("failed to send resource event, resuming")
+		logCtx.WithError(err).Warn("failed to send resource event, resuming")
 		return nil
 	}
 
 	if err := s.cache.SetLastResourceEvent(parentApplicationToReport, rs, resourceEventCacheExpiration, utils.GetApplicationLatestRevision(parentApplicationToReport)); err != nil {
-		logWithAppAndResource.WithError(err).Warn("failed to cache resource event")
+		logCtx.WithError(err).Warn("failed to cache resource event")
 	}
 
 	return nil
