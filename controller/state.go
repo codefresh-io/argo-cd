@@ -189,6 +189,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
+	logCtx := log.WithField("application", app.QualifiedName())
+	
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
@@ -233,8 +235,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
 			if err != nil {
+				
+				
 				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
+		 	
 			if updateRevisionResult.Changes {
 				revisionUpdated = true
 			}
@@ -275,7 +280,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ApplicationMetadata: &app.ObjectMeta,
 		})
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			logCtx.Warnf("failed to generate manifest for source %d of %d: %v", i+1, len(sources), err)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
@@ -287,7 +292,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")
-	logCtx := log.WithField("application", app.QualifiedName())
+	
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
