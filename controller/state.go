@@ -235,16 +235,18 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
 			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+				logCtx.Warnf("failed to generate manifest for source %d of %d: %v", i+1, len(sources), err)
 			}
 
-			if updateRevisionResult.Changes {
-				revisionUpdated = true
-			}
+			if updateRevisionResult != nil {
+				if updateRevisionResult.Changes {
+					revisionUpdated = true
+				}
 
-			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-			if updateRevisionResult.Revision != "" {
-				revision = updateRevisionResult.Revision
+				// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+				if updateRevisionResult.Revision != "" {
+					revision = updateRevisionResult.Revision
+				}
 			}
 		} else {
 			// revisionUpdated is set to true if at least one revision is not possible to be updated,
@@ -278,7 +280,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ApplicationMetadata: &app.ObjectMeta,
 		})
 		if err != nil {
-			logCtx.Warnf("failed to generate manifest for source %d of %d: %v", i+1, len(sources), err)
+			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
