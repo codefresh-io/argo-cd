@@ -18,6 +18,16 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
 
+func getMockedArgoTrackingMetadata() *ArgoTrackingMetadata {
+	appInstanceLabelKey := common.LabelKeyAppInstance
+	trackingMethod := argo.TrackingMethodLabel
+
+	return &ArgoTrackingMetadata{
+		AppInstanceLabelKey: &appInstanceLabelKey,
+		TrackingMethod:      &trackingMethod,
+	}
+}
+
 func TestGetResourceEventPayload(t *testing.T) {
 	t.Run("Deleting timestamp is empty", func(t *testing.T) {
 		app := v1alpha1.Application{
@@ -48,7 +58,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			}},
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
+		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, &repoApiclient.ApplicationVersions{}, getMockedArgoTrackingMetadata())
 		require.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -80,7 +90,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			SyncRevisions: []*utils.RevisionWithMetadata{},
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
+		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, &repoApiclient.ApplicationVersions{}, getMockedArgoTrackingMetadata())
 		require.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -107,6 +117,6 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
+	_, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, &repoApiclient.ApplicationVersions{}, getMockedArgoTrackingMetadata())
 	assert.NoError(t, err)
 }

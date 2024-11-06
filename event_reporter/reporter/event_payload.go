@@ -30,9 +30,8 @@ func getResourceEventPayload(
 	originalApplication *appv1.Application, // passed when rs is application
 	revisionsMetadata *utils.AppSyncRevisionsMetadata,
 	originalAppRevisionsMetadata *utils.AppSyncRevisionsMetadata, // passed when rs is application
-	appInstanceLabelKey string,
-	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
+	argoTrackingMetadata *ArgoTrackingMetadata,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -172,8 +171,8 @@ func getResourceEventPayload(
 		SyncStartedAt:         syncStarted,
 		SyncFinishedAt:        syncFinished,
 		Cluster:               parentApplication.Spec.Destination.Server,
-		AppInstanceLabelKey:   appInstanceLabelKey,
-		TrackingMethod:        string(trackingMethod),
+		AppInstanceLabelKey:   *argoTrackingMetadata.AppInstanceLabelKey,
+		TrackingMethod:        string(*argoTrackingMetadata.TrackingMethod),
 	}
 
 	if revisionsMetadata != nil && revisionsMetadata.SyncRevisions != nil {
@@ -216,9 +215,8 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	a *appv1.Application,
 	appTree *appv1.ApplicationTree,
 	eventProcessingStartedAt string,
-	appInstanceLabelKey string,
-	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
+	argoTrackingMetadata *ArgoTrackingMetadata,
 ) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
@@ -287,8 +285,8 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		HealthStatus:          &hs,
 		HealthMessage:         &a.Status.Health.Message,
 		Cluster:               a.Spec.Destination.Server,
-		AppInstanceLabelKey:   appInstanceLabelKey,
-		TrackingMethod:        string(trackingMethod),
+		AppInstanceLabelKey:   *argoTrackingMetadata.AppInstanceLabelKey,
+		TrackingMethod:        string(*argoTrackingMetadata.TrackingMethod),
 	}
 
 	errors = append(errors, parseApplicationSyncResultErrorsFromConditions(a.Status)...)

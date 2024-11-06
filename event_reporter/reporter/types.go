@@ -29,6 +29,6 @@ type ReportedEntityParentApp struct {
 }
 
 type ArgoTrackingMetadata struct {
-	appInstanceLabelKey *string
-	trackingMethod      *appv1.TrackingMethod
+	AppInstanceLabelKey *string
+	TrackingMethod      *appv1.TrackingMethod
 }

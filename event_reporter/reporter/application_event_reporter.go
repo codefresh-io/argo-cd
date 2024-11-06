@@ -48,8 +48,7 @@ type ApplicationEventReporter interface {
 		a *appv1.Application,
 		eventProcessingStartedAt string,
 		ignoreResourceCache bool,
-		appInstanceLabelKey string,
-		trackingMethod appv1.TrackingMethod,
+		argoTrackingMetadata *ArgoTrackingMetadata,
 	) error
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
@@ -113,8 +112,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	a *appv1.Application,
 	eventProcessingStartedAt string,
 	ignoreResourceCache bool,
-	appInstanceLabelKey string,
-	trackingMethod appv1.TrackingMethod,
+	argoTrackingMetadata *ArgoTrackingMetadata,
 ) error {
 	metricTimer := metricsUtils.NewMetricTimer()
 
@@ -145,7 +143,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting parent application name")
 
-	parentAppIdentity := utils.GetParentAppIdentity(a, appInstanceLabelKey, trackingMethod)
+	parentAppIdentity := utils.GetParentAppIdentity(a, *argoTrackingMetadata.AppInstanceLabelKey, *argoTrackingMetadata.TrackingMethod)
 
 	if utils.IsChildApp(parentAppIdentity) {
 		logCtx.Info("processing as child application")
@@ -167,7 +165,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, eventProcessingStartedAt, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, eventProcessingStartedAt, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, applicationVersions, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -176,7 +174,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
 		logCtx.Info("processing as root application")
-		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, appInstanceLabelKey, trackingMethod, applicationVersions)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, applicationVersions, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -207,7 +205,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			s.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricResourceEventType, a.Name)
 			continue
 		}
-		err := s.processResource(ctx, rs, a, logCtx, eventProcessingStartedAt, desiredManifests, appTree, manifestGenErr, nil, revisionsMetadata, appInstanceLabelKey, trackingMethod, nil)
+		err := s.processResource(ctx, rs, a, logCtx, eventProcessingStartedAt, desiredManifests, appTree, manifestGenErr, nil, revisionsMetadata, nil, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -264,9 +262,8 @@ func (s *applicationEventReporter) processResource(
 	manifestGenErr bool,
 	originalApplication *appv1.Application,
 	revisionsMetadata *utils.AppSyncRevisionsMetadata,
-	appInstanceLabelKey string,
-	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
+	argoTrackingMetadata *ArgoTrackingMetadata,
 ) error {
 	metricsEventType := metrics.MetricResourceEventType
 	if utils.IsApp(rs) {
@@ -297,7 +294,7 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionsMetadata(ctx, logCtx, originalApplication)
 	}
 
-	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, actualState, desiredState, appTree, manifestGenErr, appEventProcessingStartedAt, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
+	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, actualState, desiredState, appTree, manifestGenErr, appEventProcessingStartedAt, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, applicationVersions, argoTrackingMetadata)
 	if err != nil {
 		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, parentApplication.Name)
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
