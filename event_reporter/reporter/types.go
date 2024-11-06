@@ -12,7 +12,7 @@ type ReportedResource struct {
 	rsAsAppInfo    *ReportedResourceAsApp // passed if resource is application
 	actualState    *application.ApplicationResourceResponse
 	desiredState   *apiclient.Manifest
-	manifestGenErr *bool
+	manifestGenErr bool
 }
 
 type ReportedResourceAsApp struct {

@@ -20,14 +20,8 @@ import (
 )
 
 func getResourceEventPayload(
-	rs *appv1.ResourceStatus,
-	actualState *application.ApplicationResourceResponse,
-	desiredState *apiclient.Manifest,
-	manifestGenErr bool,
 	appEventProcessingStartedAt string,
-	originalApplication *appv1.Application, // passed when rs is application
-	originalAppRevisionsMetadata *utils.AppSyncRevisionsMetadata, // passed when rs is application
-	applicationVersions *apiclient.ApplicationVersions,
+	rr *ReportedResource,
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 ) (*events.Event, error) {
@@ -35,129 +29,80 @@ func getResourceEventPayload(
 		err          error
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
-		errors       = []*events.ObjectError{}
 		logCtx       *log.Entry
 	)
 
-	if originalApplication != nil {
-		logCtx = log.WithField("application", originalApplication.Name)
+	if rr.rsAsAppInfo.app != nil {
+		logCtx = log.WithField("application", rr.rsAsAppInfo.app.Name)
 	} else {
 		logCtx = log.NewEntry(log.StandardLogger())
 	}
 
-	object := []byte(*actualState.Manifest)
+	object := []byte(*rr.actualState.Manifest)
 
-	if originalAppRevisionsMetadata != nil && len(object) != 0 {
-		actualObject, err := appv1.UnmarshalToUnstructured(*actualState.Manifest)
+	if rr.rsAsAppInfo.revisionsMetadata != nil && len(object) != 0 {
+		actualObject, err := appv1.UnmarshalToUnstructured(*rr.actualState.Manifest)
 
-		if err == nil {
-			actualObject = utils.AddCommitsDetailsToAnnotations(actualObject, originalAppRevisionsMetadata)
-			if originalApplication != nil {
-				actualObject = utils.AddCommitDetailsToLabels(actualObject, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
-			}
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
+		}
 
-			object, err = actualObject.MarshalJSON()
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
-			}
+		object, err = addCommitDetailsToUnstructured(actualObject, rr)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if len(object) == 0 {
-		if len(desiredState.CompiledManifest) == 0 {
-			// no actual or desired state, don't send event
-			u := &unstructured.Unstructured{}
-			apiVersion := rs.Version
-			if rs.Group != "" {
-				apiVersion = rs.Group + "/" + rs.Version
-			}
-
-			u.SetAPIVersion(apiVersion)
-			u.SetKind(rs.Kind)
-			u.SetName(rs.Name)
-			u.SetNamespace(rs.Namespace)
-			if originalAppRevisionsMetadata != nil {
-				u = utils.AddCommitsDetailsToAnnotations(u, originalAppRevisionsMetadata)
-				if originalApplication != nil {
-					u = utils.AddCommitDetailsToLabels(u, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
-				}
-			}
-
-			object, err = u.MarshalJSON()
+		if len(rr.desiredState.CompiledManifest) == 0 {
+			object, err = buildEventObjectAsLiveAndCompiledManifestsEmpty(rr)
 			if err != nil {
-				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
+				return nil, err
 			}
 		} else {
-			// no actual state, use desired state as event object
-			unstructuredWithNamespace, err := utils.AddDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
+			object, err = useCompiledManifestAsEventObject(rr)
 			if err != nil {
-				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+				return nil, err
 			}
-			if originalAppRevisionsMetadata != nil {
-				unstructuredWithNamespace = utils.AddCommitsDetailsToAnnotations(unstructuredWithNamespace, originalAppRevisionsMetadata)
-				if originalApplication != nil {
-					unstructuredWithNamespace = utils.AddCommitDetailsToLabels(unstructuredWithNamespace, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
-				}
-			}
-
-			object, _ = unstructuredWithNamespace.MarshalJSON()
 		}
-	} else if rs.RequiresPruning && !manifestGenErr {
+	} else if rr.rs.RequiresPruning && !rr.manifestGenErr {
 		// resource should be deleted
-		desiredState.CompiledManifest = ""
-		manifest := ""
-		actualState.Manifest = &manifest
+		makeDesiredAndLiveManifestEmpty(rr.actualState, rr.desiredState)
 	}
 
-	if (originalApplication != nil && originalApplication.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
+	if (rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
-		desiredState.CompiledManifest = ""
-		manifest := ""
-		actualState.Manifest = &manifest
+		makeDesiredAndLiveManifestEmpty(rr.actualState, rr.desiredState)
+	}
+
+	if len(rr.desiredState.RawManifest) == 0 && len(rr.desiredState.CompiledManifest) != 0 {
+		// for handling helm defined resources, etc...
+		y, err := yaml.JSONToYAML([]byte(rr.desiredState.CompiledManifest))
+		if err == nil {
+			rr.desiredState.RawManifest = string(y)
+		}
 	}
 
 	if reportedEntityParentApp.app.Status.OperationState != nil {
 		syncStarted = reportedEntityParentApp.app.Status.OperationState.StartedAt
 		syncFinished = reportedEntityParentApp.app.Status.OperationState.FinishedAt
-		errors = append(errors, parseResourceSyncResultErrors(rs, reportedEntityParentApp.app.Status.OperationState)...)
 	}
 
 	// for primitive resources that are synced right away and don't require progression time (like configmap)
-	if rs.Status == appv1.SyncStatusCodeSynced && rs.Health != nil && rs.Health.Status == health.HealthStatusHealthy {
+	if rr.rs.Status == appv1.SyncStatusCodeSynced && rr.rs.Health != nil && rr.rs.Health.Status == health.HealthStatusHealthy {
 		syncFinished = &syncStarted
 	}
 
-	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
-	if originalApplication != nil && originalApplication.Status.OperationState != nil {
-		errors = append(errors, parseApplicationSyncResultErrors(originalApplication.Status.OperationState)...)
-	}
-
-	if originalApplication != nil && originalApplication.Status.Conditions != nil {
-		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status)...)
-	}
-
-	if originalApplication != nil {
-		errors = append(errors, parseAggregativeHealthErrorsOfApplication(originalApplication, reportedEntityParentApp.appTree)...)
-	}
-
-	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
-		// for handling helm defined resources, etc...
-		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
-		if err == nil {
-			desiredState.RawManifest = string(y)
-		}
-	}
-
-	applicationVersionsEvents, err := utils.RepoAppVersionsToEvent(applicationVersions)
+	applicationVersionsEvents, err := utils.RepoAppVersionsToEvent(rr.rsAsAppInfo.applicationVersions)
 	if err != nil {
 		logCtx.Errorf("failed to convert appVersions: %v", err)
 	}
 
 	source := events.ObjectSource{
-		DesiredManifest:       desiredState.CompiledManifest,
-		ActualManifest:        *actualState.Manifest,
-		GitManifest:           desiredState.RawManifest,
+		DesiredManifest:       rr.desiredState.CompiledManifest,
+		ActualManifest:        *rr.actualState.Manifest,
+		GitManifest:           rr.desiredState.RawManifest,
 		RepoURL:               reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.RepoURL,
-		Path:                  desiredState.Path,
+		Path:                  rr.desiredState.Path,
 		Revision:              utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
 		OperationSyncRevision: utils.GetOperationRevision(reportedEntityParentApp.app),
 		HistoryId:             utils.GetLatestAppHistoryId(reportedEntityParentApp.app),
@@ -165,7 +110,7 @@ func getResourceEventPayload(
 		AppNamespace:          reportedEntityParentApp.app.Namespace,
 		AppUID:                string(reportedEntityParentApp.app.ObjectMeta.UID),
 		AppLabels:             reportedEntityParentApp.app.Labels,
-		SyncStatus:            string(rs.Status),
+		SyncStatus:            string(rr.rs.Status),
 		SyncStartedAt:         syncStarted,
 		SyncFinishedAt:        syncFinished,
 		Cluster:               reportedEntityParentApp.app.Spec.Destination.Server,
@@ -182,19 +127,16 @@ func getResourceEventPayload(
 		}
 	}
 
-	if rs.Health != nil {
-		source.HealthStatus = (*string)(&rs.Health.Status)
-		source.HealthMessage = &rs.Health.Message
-		if rs.Health.Status != health.HealthStatusHealthy {
-			errors = append(errors, parseAggregativeHealthErrors(rs, reportedEntityParentApp.appTree, false)...)
-		}
+	if rr.rs.Health != nil {
+		source.HealthStatus = (*string)(&rr.rs.Health.Status)
+		source.HealthMessage = &rr.rs.Health.Message
 	}
 
 	payload := events.EventPayload{
 		Timestamp:   appEventProcessingStartedAt,
 		Object:      object,
 		Source:      &source,
-		Errors:      errors,
+		Errors:      getResourceEventPayloadErrors(rr, reportedEntityParentApp),
 		AppVersions: applicationVersionsEvents,
 	}
 
@@ -202,10 +144,102 @@ func getResourceEventPayload(
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", rs.Namespace, rs.Name, err)
+		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", rr.rs.Namespace, rr.rs.Name, err)
 	}
 
 	return &events.Event{Payload: payloadBytes}, nil
+}
+
+func getResourceEventPayloadErrors(
+	rr *ReportedResource,
+	reportedEntityParentApp *ReportedEntityParentApp,
+) []*events.ObjectError {
+	var errors = []*events.ObjectError{}
+
+	if reportedEntityParentApp.app.Status.OperationState != nil {
+		errors = append(errors, parseResourceSyncResultErrors(rr.rs, reportedEntityParentApp.app.Status.OperationState)...)
+	}
+
+	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
+	if rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.Status.OperationState != nil {
+		errors = append(errors, parseApplicationSyncResultErrors(rr.rsAsAppInfo.app.Status.OperationState)...)
+	}
+
+	if rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.Status.Conditions != nil {
+		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(rr.rsAsAppInfo.app.Status)...)
+	}
+
+	if rr.rsAsAppInfo.app != nil {
+		errors = append(errors, parseAggregativeHealthErrorsOfApplication(rr.rsAsAppInfo.app, reportedEntityParentApp.appTree)...)
+	}
+
+	if rr.rs.Health != nil {
+		if rr.rs.Health.Status != health.HealthStatusHealthy {
+			errors = append(errors, parseAggregativeHealthErrors(rr.rs, reportedEntityParentApp.appTree, false)...)
+		}
+	}
+
+	return errors
+}
+
+func useCompiledManifestAsEventObject(
+	rr *ReportedResource,
+) ([]byte, error) {
+	// no actual state, use desired state as event object
+	unstructuredWithNamespace, err := utils.AddDestNamespaceToManifest([]byte(rr.desiredState.CompiledManifest), rr.rs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+	}
+
+	return addCommitDetailsToUnstructured(unstructuredWithNamespace, rr)
+}
+
+func buildEventObjectAsLiveAndCompiledManifestsEmpty(
+	rr *ReportedResource,
+) ([]byte, error) {
+	// no actual or desired state, don't send event
+	u := &unstructured.Unstructured{}
+	apiVersion := rr.rs.Version
+	if rr.rs.Group != "" {
+		apiVersion = rr.rs.Group + "/" + rr.rs.Version
+	}
+
+	u.SetAPIVersion(apiVersion)
+	u.SetKind(rr.rs.Kind)
+	u.SetName(rr.rs.Name)
+	u.SetNamespace(rr.rs.Namespace)
+
+	return addCommitDetailsToUnstructured(u, rr)
+}
+
+// when empty minifests reported to codefresh they will get deleted
+func makeDesiredAndLiveManifestEmpty(
+	actualState *application.ApplicationResourceResponse,
+	desiredState *apiclient.Manifest,
+) {
+	// resource should be deleted
+	desiredState.CompiledManifest = ""
+	manifest := ""
+	actualState.Manifest = &manifest
+}
+
+func addCommitDetailsToUnstructured(
+	u *unstructured.Unstructured,
+	rr *ReportedResource,
+) ([]byte, error) {
+	if rr.rsAsAppInfo.revisionsMetadata != nil {
+		u = utils.AddCommitsDetailsToAnnotations(u, rr.rsAsAppInfo.revisionsMetadata)
+		if rr.rsAsAppInfo.app != nil {
+			u = utils.AddCommitDetailsToLabels(u, getApplicationLegacyRevisionDetails(rr.rsAsAppInfo.app, rr.rsAsAppInfo.revisionsMetadata))
+		}
+	}
+
+	object, err := u.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
+	}
+
+	return object, err
 }
 
 func (s *applicationEventReporter) getApplicationEventPayload(

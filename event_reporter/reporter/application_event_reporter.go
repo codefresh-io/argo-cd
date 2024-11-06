@@ -266,8 +266,8 @@ func (s *applicationEventReporter) processResource(
 	appEventProcessingStartedAt string,
 	desiredManifests *apiclient.ManifestResponse,
 	manifestGenErr bool,
-	originalApplication *appv1.Application,
-	applicationVersions *apiclient.ApplicationVersions,
+	originalApplication *appv1.Application, // passed onlu if resource is app
+	applicationVersions *apiclient.ApplicationVersions, // passed onlu if resource is app
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 ) error {
@@ -300,11 +300,26 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionsMetadata(ctx, logCtx, originalApplication)
 	}
 
-	ev, err := getResourceEventPayload(&rs, actualState, desiredState, manifestGenErr, appEventProcessingStartedAt, originalApplication, originalAppRevisionMetadata, applicationVersions, &ReportedEntityParentApp{
-		app:               parentApplicationToReport,
-		appTree:           reportedEntityParentApp.appTree,
-		revisionsMetadata: revisionMetadataToReport,
-	}, argoTrackingMetadata)
+	ev, err := getResourceEventPayload(
+		appEventProcessingStartedAt,
+		&ReportedResource{
+			rs:             &rs,
+			actualState:    actualState,
+			desiredState:   desiredState,
+			manifestGenErr: manifestGenErr,
+			rsAsAppInfo: &ReportedResourceAsApp{
+				app:                 originalApplication,
+				revisionsMetadata:   originalAppRevisionMetadata,
+				applicationVersions: applicationVersions,
+			},
+		},
+		&ReportedEntityParentApp{
+			app:               parentApplicationToReport,
+			appTree:           reportedEntityParentApp.appTree,
+			revisionsMetadata: revisionMetadataToReport,
+		},
+		argoTrackingMetadata,
+	)
 	if err != nil {
 		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, reportedEntityParentApp.app.Name)
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")

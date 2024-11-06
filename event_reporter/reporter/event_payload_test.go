@@ -58,7 +58,13 @@ func TestGetResourceEventPayload(t *testing.T) {
 			}},
 		}
 
-		event, err := getResourceEventPayload(&rs, &actualState, &desiredState, true, "", nil, nil, &repoApiclient.ApplicationVersions{}, &ReportedEntityParentApp{
+		event, err := getResourceEventPayload("", &ReportedResource{
+			rs:             &rs,
+			actualState:    &actualState,
+			desiredState:   &desiredState,
+			manifestGenErr: true,
+			rsAsAppInfo:    nil,
+		}, &ReportedEntityParentApp{
 			app:               &app,
 			appTree:           &appTree,
 			revisionsMetadata: &revisionMetadata,
@@ -94,7 +100,13 @@ func TestGetResourceEventPayload(t *testing.T) {
 			SyncRevisions: []*utils.RevisionWithMetadata{},
 		}
 
-		event, err := getResourceEventPayload(&rs, &actualState, &desiredState, true, "", nil, nil, &repoApiclient.ApplicationVersions{}, &ReportedEntityParentApp{
+		event, err := getResourceEventPayload("", &ReportedResource{
+			rs:             &rs,
+			actualState:    &actualState,
+			desiredState:   &desiredState,
+			manifestGenErr: true,
+			rsAsAppInfo:    nil,
+		}, &ReportedEntityParentApp{
 			app:               &app,
 			appTree:           &appTree,
 			revisionsMetadata: &revisionMetadata,
@@ -125,7 +137,13 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&rs, &actualState, &desiredState, true, "", nil, nil, &repoApiclient.ApplicationVersions{}, &ReportedEntityParentApp{
+	_, err := getResourceEventPayload("", &ReportedResource{
+		rs:             &rs,
+		actualState:    &actualState,
+		desiredState:   &desiredState,
+		manifestGenErr: true,
+		rsAsAppInfo:    nil,
+	}, &ReportedEntityParentApp{
 		app:     &app,
 		appTree: &appTree,
 	}, getMockedArgoTrackingMetadata())
