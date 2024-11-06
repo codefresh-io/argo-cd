@@ -158,17 +158,15 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		rs := utils.GetAppAsResource(a)
+		utils.SetHealthStatusIfMissing(rs)
 
 		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logCtx)
 
-		// helm app hasnt revision
-		// TODO: add check if it helm application
 		parentAppSyncRevisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, parentApplicationEntity)
 		if err != nil {
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		utils.SetHealthStatusIfMissing(rs)
 		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, eventProcessingStartedAt, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
@@ -176,8 +174,8 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricChildAppEventType, metricTimer.Duration())
 	} else {
-		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
+		logCtx.Info("processing as root application")
 		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, appInstanceLabelKey, trackingMethod, applicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
