@@ -165,7 +165,11 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, eventProcessingStartedAt, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, applicationVersions, argoTrackingMetadata)
+		err = s.processResource(ctx, *rs, logCtx, eventProcessingStartedAt, parentDesiredManifests, manifestGenErr, a, applicationVersions, &ReportedEntityParentApp{
+			app:               parentApplicationEntity,
+			appTree:           appTree,
+			revisionsMetadata: parentAppSyncRevisionsMetadata,
+		}, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -205,7 +209,11 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			s.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricResourceEventType, a.Name)
 			continue
 		}
-		err := s.processResource(ctx, rs, a, logCtx, eventProcessingStartedAt, desiredManifests, appTree, manifestGenErr, nil, revisionsMetadata, nil, argoTrackingMetadata)
+		err := s.processResource(ctx, rs, logCtx, eventProcessingStartedAt, desiredManifests, manifestGenErr, nil, nil, &ReportedEntityParentApp{
+			app:               a,
+			appTree:           appTree,
+			revisionsMetadata: revisionsMetadata,
+		}, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -254,15 +262,13 @@ func (s *applicationEventReporter) getAppForResourceReporting(
 func (s *applicationEventReporter) processResource(
 	ctx context.Context,
 	rs appv1.ResourceStatus,
-	parentApplication *appv1.Application,
 	logCtx *log.Entry,
 	appEventProcessingStartedAt string,
 	desiredManifests *apiclient.ManifestResponse,
-	appTree *appv1.ApplicationTree,
 	manifestGenErr bool,
 	originalApplication *appv1.Application,
-	revisionsMetadata *utils.AppSyncRevisionsMetadata,
 	applicationVersions *apiclient.ApplicationVersions,
+	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 ) error {
 	metricsEventType := metrics.MetricResourceEventType
@@ -278,7 +284,7 @@ func (s *applicationEventReporter) processResource(
 	// get resource desired state
 	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
-	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, parentApplication, originalApplication)
+	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, reportedEntityParentApp.app, originalApplication)
 	if err != nil {
 		return err
 	}
@@ -286,7 +292,7 @@ func (s *applicationEventReporter) processResource(
 		return nil
 	}
 
-	parentApplicationToReport, revisionMetadataToReport := s.getAppForResourceReporting(rs, ctx, logCtx, parentApplication, revisionsMetadata)
+	parentApplicationToReport, revisionMetadataToReport := s.getAppForResourceReporting(rs, ctx, logCtx, reportedEntityParentApp.app, reportedEntityParentApp.revisionsMetadata)
 
 	var originalAppRevisionMetadata *utils.AppSyncRevisionsMetadata = nil
 
@@ -294,9 +300,13 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionsMetadata(ctx, logCtx, originalApplication)
 	}
 
-	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, actualState, desiredState, appTree, manifestGenErr, appEventProcessingStartedAt, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, applicationVersions, argoTrackingMetadata)
+	ev, err := getResourceEventPayload(&rs, actualState, desiredState, manifestGenErr, appEventProcessingStartedAt, originalApplication, originalAppRevisionMetadata, applicationVersions, &ReportedEntityParentApp{
+		app:               parentApplicationToReport,
+		appTree:           reportedEntityParentApp.appTree,
+		revisionsMetadata: revisionMetadataToReport,
+	}, argoTrackingMetadata)
 	if err != nil {
-		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, parentApplication.Name)
+		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, reportedEntityParentApp.app.Name)
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
 	}
@@ -308,7 +318,7 @@ func (s *applicationEventReporter) processResource(
 		appName = appRes.Name
 	} else {
 		utils.LogWithResourceStatus(logCtx, rs).Info("streaming resource event")
-		appName = parentApplication.Name
+		appName = reportedEntityParentApp.app.Name
 	}
 
 	if err := s.codefreshClient.SendEvent(ctx, appName, ev); err != nil {

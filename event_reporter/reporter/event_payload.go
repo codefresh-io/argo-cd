@@ -20,17 +20,15 @@ import (
 )
 
 func getResourceEventPayload(
-	parentApplication *appv1.Application,
 	rs *appv1.ResourceStatus,
 	actualState *application.ApplicationResourceResponse,
 	desiredState *apiclient.Manifest,
-	apptree *appv1.ApplicationTree,
 	manifestGenErr bool,
 	appEventProcessingStartedAt string,
 	originalApplication *appv1.Application, // passed when rs is application
-	revisionsMetadata *utils.AppSyncRevisionsMetadata,
 	originalAppRevisionsMetadata *utils.AppSyncRevisionsMetadata, // passed when rs is application
 	applicationVersions *apiclient.ApplicationVersions,
+	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 ) (*events.Event, error) {
 	var (
@@ -110,17 +108,17 @@ func getResourceEventPayload(
 		actualState.Manifest = &manifest
 	}
 
-	if (originalApplication != nil && originalApplication.DeletionTimestamp != nil) || parentApplication.ObjectMeta.DeletionTimestamp != nil {
+	if (originalApplication != nil && originalApplication.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		desiredState.CompiledManifest = ""
 		manifest := ""
 		actualState.Manifest = &manifest
 	}
 
-	if parentApplication.Status.OperationState != nil {
-		syncStarted = parentApplication.Status.OperationState.StartedAt
-		syncFinished = parentApplication.Status.OperationState.FinishedAt
-		errors = append(errors, parseResourceSyncResultErrors(rs, parentApplication.Status.OperationState)...)
+	if reportedEntityParentApp.app.Status.OperationState != nil {
+		syncStarted = reportedEntityParentApp.app.Status.OperationState.StartedAt
+		syncFinished = reportedEntityParentApp.app.Status.OperationState.FinishedAt
+		errors = append(errors, parseResourceSyncResultErrors(rs, reportedEntityParentApp.app.Status.OperationState)...)
 	}
 
 	// for primitive resources that are synced right away and don't require progression time (like configmap)
@@ -138,7 +136,7 @@ func getResourceEventPayload(
 	}
 
 	if originalApplication != nil {
-		errors = append(errors, parseAggregativeHealthErrorsOfApplication(originalApplication, apptree)...)
+		errors = append(errors, parseAggregativeHealthErrorsOfApplication(originalApplication, reportedEntityParentApp.appTree)...)
 	}
 
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
@@ -158,25 +156,25 @@ func getResourceEventPayload(
 		DesiredManifest:       desiredState.CompiledManifest,
 		ActualManifest:        *actualState.Manifest,
 		GitManifest:           desiredState.RawManifest,
-		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
+		RepoURL:               reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:                  desiredState.Path,
-		Revision:              utils.GetApplicationLatestRevision(parentApplication),
-		OperationSyncRevision: utils.GetOperationRevision(parentApplication),
-		HistoryId:             utils.GetLatestAppHistoryId(parentApplication),
-		AppName:               parentApplication.Name,
-		AppNamespace:          parentApplication.Namespace,
-		AppUID:                string(parentApplication.ObjectMeta.UID),
-		AppLabels:             parentApplication.Labels,
+		Revision:              utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
+		OperationSyncRevision: utils.GetOperationRevision(reportedEntityParentApp.app),
+		HistoryId:             utils.GetLatestAppHistoryId(reportedEntityParentApp.app),
+		AppName:               reportedEntityParentApp.app.Name,
+		AppNamespace:          reportedEntityParentApp.app.Namespace,
+		AppUID:                string(reportedEntityParentApp.app.ObjectMeta.UID),
+		AppLabels:             reportedEntityParentApp.app.Labels,
 		SyncStatus:            string(rs.Status),
 		SyncStartedAt:         syncStarted,
 		SyncFinishedAt:        syncFinished,
-		Cluster:               parentApplication.Spec.Destination.Server,
+		Cluster:               reportedEntityParentApp.app.Spec.Destination.Server,
 		AppInstanceLabelKey:   *argoTrackingMetadata.AppInstanceLabelKey,
 		TrackingMethod:        string(*argoTrackingMetadata.TrackingMethod),
 	}
 
-	if revisionsMetadata != nil && revisionsMetadata.SyncRevisions != nil {
-		revisionMetadata := getApplicationLegacyRevisionDetails(parentApplication, revisionsMetadata)
+	if reportedEntityParentApp.revisionsMetadata != nil && reportedEntityParentApp.revisionsMetadata.SyncRevisions != nil {
+		revisionMetadata := getApplicationLegacyRevisionDetails(reportedEntityParentApp.app, reportedEntityParentApp.revisionsMetadata)
 		if revisionMetadata != nil {
 			source.CommitMessage = revisionMetadata.Message
 			source.CommitAuthor = revisionMetadata.Author
@@ -188,7 +186,7 @@ func getResourceEventPayload(
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
 		if rs.Health.Status != health.HealthStatusHealthy {
-			errors = append(errors, parseAggregativeHealthErrors(rs, apptree, false)...)
+			errors = append(errors, parseAggregativeHealthErrors(rs, reportedEntityParentApp.appTree, false)...)
 		}
 	}
 

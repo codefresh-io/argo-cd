@@ -58,7 +58,11 @@ func TestGetResourceEventPayload(t *testing.T) {
 			}},
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, &repoApiclient.ApplicationVersions{}, getMockedArgoTrackingMetadata())
+		event, err := getResourceEventPayload(&rs, &actualState, &desiredState, true, "", nil, nil, &repoApiclient.ApplicationVersions{}, &ReportedEntityParentApp{
+			app:               &app,
+			appTree:           &appTree,
+			revisionsMetadata: &revisionMetadata,
+		}, getMockedArgoTrackingMetadata())
 		require.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -90,7 +94,11 @@ func TestGetResourceEventPayload(t *testing.T) {
 			SyncRevisions: []*utils.RevisionWithMetadata{},
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, &repoApiclient.ApplicationVersions{}, getMockedArgoTrackingMetadata())
+		event, err := getResourceEventPayload(&rs, &actualState, &desiredState, true, "", nil, nil, &repoApiclient.ApplicationVersions{}, &ReportedEntityParentApp{
+			app:               &app,
+			appTree:           &appTree,
+			revisionsMetadata: &revisionMetadata,
+		}, getMockedArgoTrackingMetadata())
 		require.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -117,6 +125,9 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, &repoApiclient.ApplicationVersions{}, getMockedArgoTrackingMetadata())
+	_, err := getResourceEventPayload(&rs, &actualState, &desiredState, true, "", nil, nil, &repoApiclient.ApplicationVersions{}, &ReportedEntityParentApp{
+		app:     &app,
+		appTree: &appTree,
+	}, getMockedArgoTrackingMetadata())
 	assert.NoError(t, err)
 }
