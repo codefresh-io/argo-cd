@@ -141,14 +141,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logCtx)
 
-	syncRevision := utils.GetOperationStateRevision(a)
-	var applicationVersions *apiclient.ApplicationVersions
-	if syncRevision != nil {
-		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
-		applicationVersions = syncManifests.GetApplicationVersions()
-	} else {
-		applicationVersions = nil
-	}
+	applicationVersions := s.resolveApplicationVersions(ctx, a, logCtx)
 
 	logCtx.Info("getting parent application name")
 
@@ -223,6 +216,19 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 	}
 	return nil
+}
+
+func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ApplicationVersions {
+	syncRevision := utils.GetOperationStateRevision(a)
+	var applicationVersions *apiclient.ApplicationVersions
+	if syncRevision != nil {
+		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
+		applicationVersions = syncManifests.GetApplicationVersions()
+	} else {
+		applicationVersions = nil
+	}
+
+	return applicationVersions
 }
 
 func (s *applicationEventReporter) getAppForResourceReporting(
