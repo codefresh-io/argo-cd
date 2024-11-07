@@ -251,12 +251,10 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 // returns appVersion from first non-ref source for multisourced apps
 func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ApplicationVersions {
-	var applicationVersions *apiclient.ApplicationVersions
-
 	if a.Spec.HasMultipleSources() {
 		syncResultRevisions := utils.GetOperationSyncResultRevisions(a)
 		if syncResultRevisions == nil {
-			return applicationVersions
+			return nil
 		}
 
 		var sourcePositions []int64
@@ -270,12 +268,12 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 
 	syncResultRevision := utils.GetOperationSyncResultRevision(a)
 
-	if syncResultRevision != nil {
-		syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, syncResultRevision, nil, nil)
-		return syncManifests.GetApplicationVersions()
+	if syncResultRevision == nil {
+		return nil
 	}
 
-	return applicationVersions
+	syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, syncResultRevision, nil, nil)
+	return syncManifests.GetApplicationVersions()
 }
 
 func (s *applicationEventReporter) getAppForResourceReporting(

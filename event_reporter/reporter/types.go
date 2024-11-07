@@ -32,3 +32,12 @@ type ArgoTrackingMetadata struct {
 	AppInstanceLabelKey *string
 	TrackingMethod      *appv1.TrackingMethod
 }
+
+func (rr *ReportedResource) GetApiVersion() string {
+	apiVersion := rr.rs.Version
+	if rr.rs.Group != "" {
+		apiVersion = rr.rs.Group + "/" + rr.rs.Version
+	}
+
+	return apiVersion
+}
