@@ -119,6 +119,7 @@ func getResourceEventPayload(
 		Cluster:                reportedEntityParentApp.app.Spec.Destination.Server,
 		AppInstanceLabelKey:    *argoTrackingMetadata.AppInstanceLabelKey,
 		TrackingMethod:         string(*argoTrackingMetadata.TrackingMethod),
+		AppMultiSourced:        reportedEntityParentApp.app.Spec.HasMultipleSources(),
 	}
 
 	if reportedEntityParentApp.validatedDestination != nil {
