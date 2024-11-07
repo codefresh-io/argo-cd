@@ -81,12 +81,20 @@ func GetOperationRevisions(a *appv1.Application) []string {
 	return revisions
 }
 
-func GetOperationStateRevision(a *appv1.Application) *string {
+func GetOperationSyncResultRevision(a *appv1.Application) *string {
 	if a == nil || a.Status.OperationState == nil || a.Status.OperationState.SyncResult == nil {
 		return nil
 	}
 
 	return &a.Status.OperationState.SyncResult.Revision
+}
+
+func GetOperationSyncResultRevisions(a *appv1.Application) *[]string {
+	if a == nil || a.Status.OperationState == nil || a.Status.OperationState.SyncResult == nil {
+		return nil
+	}
+
+	return &a.Status.OperationState.SyncResult.Revisions
 }
 
 func GetOperationSyncRevisions(a *appv1.Application) []string {

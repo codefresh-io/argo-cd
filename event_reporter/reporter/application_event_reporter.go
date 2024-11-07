@@ -91,15 +91,28 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, revision *string, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
+func (r *applicationEventReporter) getDesiredManifests(
+	ctx context.Context,
+	logCtx *log.Entry,
+	a *appv1.Application,
+	revision *string,
+	sourcePositions *[]int64,
+	revisions *[]string,
+) (*apiclient.ManifestResponse, bool) {
 	// get the desired state manifests of the application
 	project := a.Spec.GetProject()
-	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
+	query := application.ApplicationManifestQuery{
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
 		Revision:     revision,
 		Project:      &project,
-	})
+	}
+	if sourcePositions != nil && query.Revisions != nil {
+		query.SourcePositions = *sourcePositions
+		query.Revisions = *revisions
+	}
+
+	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &query)
 	if err != nil {
 		// if it's manifest generation error we need to still report the actual state
 		// of the resources, but since we can't get the desired state, we will report
@@ -141,7 +154,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting desired manifests")
 
-	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logCtx)
+	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, logCtx, a, nil, nil, nil)
 
 	applicationVersions := s.resolveApplicationVersions(ctx, a, logCtx)
 
@@ -162,7 +175,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		rs := utils.GetAppAsResource(a)
 		utils.SetHealthStatusIfMissing(rs)
 
-		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logCtx)
+		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, logCtx, parentApplicationEntity, nil, nil, nil)
 
 		parentAppSyncRevisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, parentApplicationEntity)
 		if err != nil {
@@ -226,14 +239,30 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	return nil
 }
 
+// returns appVersion from first non-ref source for multisourced apps
 func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ApplicationVersions {
-	syncRevision := utils.GetOperationStateRevision(a)
 	var applicationVersions *apiclient.ApplicationVersions
-	if syncRevision != nil {
-		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
-		applicationVersions = syncManifests.GetApplicationVersions()
-	} else {
-		applicationVersions = nil
+
+	if a.Spec.HasMultipleSources() {
+		syncResultRevisions := utils.GetOperationSyncResultRevisions(a)
+		if syncResultRevisions == nil {
+			return applicationVersions
+		}
+
+		var sourcePositions []int64
+		for i := 0; i < len(*syncResultRevisions); i++ {
+			sourcePositions = append(sourcePositions, int64(i+1))
+		}
+
+		syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, nil, &sourcePositions, syncResultRevisions)
+		return syncManifests.GetApplicationVersions()
+	}
+
+	syncResultRevision := utils.GetOperationSyncResultRevision(a)
+
+	if syncResultRevision != nil {
+		syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, syncResultRevision, nil, nil)
+		return syncManifests.GetApplicationVersions()
 	}
 
 	return applicationVersions
