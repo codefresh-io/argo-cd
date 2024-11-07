@@ -121,6 +121,11 @@ func getResourceEventPayload(
 		TrackingMethod:         string(*argoTrackingMetadata.TrackingMethod),
 	}
 
+	if reportedEntityParentApp.validatedDestination != nil {
+		source.DestName = &reportedEntityParentApp.validatedDestination.Name
+		source.DestServer = reportedEntityParentApp.validatedDestination.Server
+	}
+
 	if reportedEntityParentApp.revisionsMetadata != nil && reportedEntityParentApp.revisionsMetadata.SyncRevisions != nil {
 		revisionMetadata := getApplicationLegacyRevisionDetails(reportedEntityParentApp.app, reportedEntityParentApp.revisionsMetadata)
 		if revisionMetadata != nil {

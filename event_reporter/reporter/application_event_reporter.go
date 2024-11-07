@@ -13,6 +13,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 
+	argoutils "github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
@@ -182,10 +184,14 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
+		validatedDestination := parentApplicationEntity.Spec.Destination.DeepCopy()
+		_ = argoutils.ValidateDestination(ctx, validatedDestination, s.db) // resolves server field if missing
+
 		err = s.processResource(ctx, *rs, logCtx, eventProcessingStartedAt, parentDesiredManifests, manifestGenErr, a, applicationVersions, &ReportedEntityParentApp{
-			app:               parentApplicationEntity,
-			appTree:           appTree,
-			revisionsMetadata: parentAppSyncRevisionsMetadata,
+			app:                  parentApplicationEntity,
+			appTree:              appTree,
+			revisionsMetadata:    parentAppSyncRevisionsMetadata,
+			validatedDestination: validatedDestination,
 		}, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
@@ -214,6 +220,9 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricParentAppEventType, metricTimer.Duration())
 	}
 
+	validatedDestination := a.Spec.Destination.DeepCopy()
+	_ = argoutils.ValidateDestination(ctx, validatedDestination, s.db) // resolves server field if missing
+
 	revisionsMetadata, _ := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
 	// for each resource in the application get desired and actual state,
 	// then stream the event
@@ -227,9 +236,10 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			continue
 		}
 		err := s.processResource(ctx, rs, logCtx, eventProcessingStartedAt, desiredManifests, manifestGenErr, nil, nil, &ReportedEntityParentApp{
-			app:               a,
-			appTree:           appTree,
-			revisionsMetadata: revisionsMetadata,
+			app:                  a,
+			appTree:              appTree,
+			revisionsMetadata:    revisionsMetadata,
+			validatedDestination: validatedDestination,
 		}, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
