@@ -159,7 +159,7 @@ func getResourceEventPayloadErrors(
 	rr *ReportedResource,
 	reportedEntityParentApp *ReportedEntityParentApp,
 ) []*events.ObjectError {
-	var errors = []*events.ObjectError{}
+	var errors []*events.ObjectError
 
 	if reportedEntityParentApp.app.Status.OperationState != nil {
 		errors = append(errors, parseResourceSyncResultErrors(rr.rs, reportedEntityParentApp.app.Status.OperationState)...)
