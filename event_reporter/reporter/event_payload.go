@@ -32,7 +32,7 @@ func getResourceEventPayload(
 		logCtx       *log.Entry
 	)
 
-	if rr.rsAsAppInfo.app != nil {
+	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil {
 		logCtx = log.WithField("application", rr.rsAsAppInfo.app.Name)
 	} else {
 		logCtx = log.NewEntry(log.StandardLogger())
@@ -40,7 +40,7 @@ func getResourceEventPayload(
 
 	object := []byte(*rr.actualState.Manifest)
 
-	if rr.rsAsAppInfo.revisionsMetadata != nil && len(object) != 0 {
+	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.revisionsMetadata != nil && len(object) != 0 {
 		actualObject, err := appv1.UnmarshalToUnstructured(*rr.actualState.Manifest)
 
 		if err != nil {
@@ -69,7 +69,7 @@ func getResourceEventPayload(
 		makeDesiredAndLiveManifestEmpty(rr.actualState, rr.desiredState)
 	}
 
-	if (rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
+	if (rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		makeDesiredAndLiveManifestEmpty(rr.actualState, rr.desiredState)
 	}
@@ -92,9 +92,12 @@ func getResourceEventPayload(
 		syncFinished = &syncStarted
 	}
 
-	applicationVersionsEvents, err := utils.RepoAppVersionsToEvent(rr.rsAsAppInfo.applicationVersions)
-	if err != nil {
-		logCtx.Errorf("failed to convert appVersions: %v", err)
+	var applicationVersionsEvents *events.ApplicationVersions
+	if rr.rsAsAppInfo != nil {
+		applicationVersionsEvents, err = utils.RepoAppVersionsToEvent(rr.rsAsAppInfo.applicationVersions)
+		if err != nil {
+			logCtx.Errorf("failed to convert appVersions: %v", err)
+		}
 	}
 
 	source := events.ObjectSource{
@@ -140,7 +143,9 @@ func getResourceEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
+	if payload.AppVersions != nil {
+		logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
+	}
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
@@ -161,22 +166,20 @@ func getResourceEventPayloadErrors(
 	}
 
 	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
-	if rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.Status.OperationState != nil {
-		errors = append(errors, parseApplicationSyncResultErrors(rr.rsAsAppInfo.app.Status.OperationState)...)
-	}
+	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil {
+		if rr.rsAsAppInfo.app.Status.OperationState != nil {
+			errors = append(errors, parseApplicationSyncResultErrors(rr.rsAsAppInfo.app.Status.OperationState)...)
+		}
 
-	if rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.Status.Conditions != nil {
-		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(rr.rsAsAppInfo.app.Status)...)
-	}
+		if rr.rsAsAppInfo.app.Status.Conditions != nil {
+			errors = append(errors, parseApplicationSyncResultErrorsFromConditions(rr.rsAsAppInfo.app.Status)...)
+		}
 
-	if rr.rsAsAppInfo.app != nil {
 		errors = append(errors, parseAggregativeHealthErrorsOfApplication(rr.rsAsAppInfo.app, reportedEntityParentApp.appTree)...)
 	}
 
-	if rr.rs.Health != nil {
-		if rr.rs.Health.Status != health.HealthStatusHealthy {
-			errors = append(errors, parseAggregativeHealthErrors(rr.rs, reportedEntityParentApp.appTree, false)...)
-		}
+	if rr.rs.Health != nil && rr.rs.Health.Status != health.HealthStatusHealthy {
+		errors = append(errors, parseAggregativeHealthErrors(rr.rs, reportedEntityParentApp.appTree, false)...)
 	}
 
 	return errors
@@ -227,7 +230,7 @@ func addCommitDetailsToUnstructured(
 	u *unstructured.Unstructured,
 	rr *ReportedResource,
 ) ([]byte, error) {
-	if rr.rsAsAppInfo.revisionsMetadata != nil {
+	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.revisionsMetadata != nil {
 		u = utils.AddCommitsDetailsToAnnotations(u, rr.rsAsAppInfo.revisionsMetadata)
 		if rr.rsAsAppInfo.app != nil {
 			u = utils.AddCommitDetailsToLabels(u, getApplicationLegacyRevisionDetails(rr.rsAsAppInfo.app, rr.rsAsAppInfo.revisionsMetadata))

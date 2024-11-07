@@ -22,10 +22,9 @@ type ReportedResourceAsApp struct {
 }
 
 type ReportedEntityParentApp struct {
-	app                  *appv1.Application
-	appTree              *appv1.ApplicationTree
-	validatedDestination *appv1.ApplicationDestination
-	revisionsMetadata    *utils.AppSyncRevisionsMetadata
+	app               *appv1.Application
+	appTree           *appv1.ApplicationTree
+	revisionsMetadata *utils.AppSyncRevisionsMetadata
 }
 
 type ArgoTrackingMetadata struct {
