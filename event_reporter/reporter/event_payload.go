@@ -42,7 +42,6 @@ func getResourceEventPayload(
 
 	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.revisionsMetadata != nil && len(object) != 0 {
 		actualObject, err := appv1.UnmarshalToUnstructured(*rr.actualState.Manifest)
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
