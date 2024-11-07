@@ -201,12 +201,8 @@ func buildEventObjectAsLiveAndCompiledManifestsEmpty(
 ) ([]byte, error) {
 	// no actual or desired state, don't send event
 	u := &unstructured.Unstructured{}
-	apiVersion := rr.rs.Version
-	if rr.rs.Group != "" {
-		apiVersion = rr.rs.Group + "/" + rr.rs.Version
-	}
 
-	u.SetAPIVersion(apiVersion)
+	u.SetAPIVersion(rr.GetApiVersion())
 	u.SetKind(rr.rs.Kind)
 	u.SetName(rr.rs.Name)
 	u.SetNamespace(rr.rs.Namespace)

@@ -224,15 +224,12 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ApplicationVersions {
 	syncRevision := utils.GetOperationStateRevision(a)
-	var applicationVersions *apiclient.ApplicationVersions
-	if syncRevision != nil {
-		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
-		applicationVersions = syncManifests.GetApplicationVersions()
-	} else {
-		applicationVersions = nil
+	if syncRevision == nil {
+		return nil
 	}
 
-	return applicationVersions
+	syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
+	return syncManifests.GetApplicationVersions()
 }
 
 func (s *applicationEventReporter) getAppForResourceReporting(
