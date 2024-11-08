@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"k8s.io/client-go/kubernetes/fake"
 	"net/http"
 	"testing"
 	"time"
@@ -19,8 +22,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	apiclientapppkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io"
-
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -93,6 +96,12 @@ func fakeAppServiceClient() apiclientapppkg.ApplicationServiceClient {
 	return applicationServiceClient
 }
 
+func fakeArgoDb() db.ArgoDB {
+	clientset := fake.NewSimpleClientset()
+
+	return db.NewDB("", settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+}
+
 func fakeReporter(customAppServiceClient appclient.ApplicationClient) *applicationEventReporter {
 	guestbookApp := &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -159,6 +168,7 @@ func fakeReporter(customAppServiceClient appclient.ApplicationClient) *applicati
 		appLister,
 		customAppServiceClient,
 		metricsServ,
+		fakeArgoDb(),
 	}
 }
 
@@ -457,5 +467,22 @@ func TestGetResourceActualState(t *testing.T) {
 		res, err := eventReporter.getResourceActualState(ctx, logEntry, metrics.MetricAppEventType, rs, &parentApp, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "", ptr.ToString(res.Manifest))
+	})
+}
+
+func TestGetResourceSourceIdxFromManifestResponse(t *testing.T) {
+	t.Run("should return correct sourceIdx", func(t *testing.T) {
+		sourcesManifestsStartingIdx := []int32{0, 5, 15}
+		desiredManifests := &repoapiclient.ManifestResponse{
+			SourcesManifestsStartingIdx: sourcesManifestsStartingIdx,
+		}
+
+		assert.Equal(t, int32(0), getResourceSourceIdxFromManifestResponse(0, desiredManifests))
+		assert.Equal(t, int32(0), getResourceSourceIdxFromManifestResponse(1, desiredManifests))
+		assert.Equal(t, int32(1), getResourceSourceIdxFromManifestResponse(5, desiredManifests))
+		assert.Equal(t, int32(1), getResourceSourceIdxFromManifestResponse(6, desiredManifests))
+		assert.Equal(t, int32(2), getResourceSourceIdxFromManifestResponse(15, desiredManifests))
+		assert.Equal(t, int32(2), getResourceSourceIdxFromManifestResponse(16, desiredManifests))
+		assert.Equal(t, int32(-1), getResourceSourceIdxFromManifestResponse(2, &repoapiclient.ManifestResponse{}))
 	})
 }

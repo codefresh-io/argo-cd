@@ -103,7 +103,6 @@ func getResourceEventPayload(
 		DesiredManifest:        rr.desiredState.CompiledManifest,
 		ActualManifest:         *rr.actualState.Manifest,
 		GitManifest:            rr.desiredState.RawManifest,
-		RepoURL:                reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:                   rr.desiredState.Path,
 		Revision:               utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
 		OperationSyncRevision:  utils.GetOperationRevision(reportedEntityParentApp.app),
@@ -120,20 +119,15 @@ func getResourceEventPayload(
 		AppInstanceLabelKey:    *argoTrackingMetadata.AppInstanceLabelKey,
 		TrackingMethod:         string(*argoTrackingMetadata.TrackingMethod),
 		AppMultiSourced:        reportedEntityParentApp.app.Spec.HasMultipleSources(),
+		AppSourceIdx:           rr.appSourceIdx,
 	}
+
+	source.RepoURL = getResourceSourceRepoUrl(rr, reportedEntityParentApp)
+	addResourceEventPayloadGitCommitDetails(&source, rr, reportedEntityParentApp)
 
 	if reportedEntityParentApp.validatedDestination != nil {
 		source.DestName = &reportedEntityParentApp.validatedDestination.Name
 		source.DestServer = reportedEntityParentApp.validatedDestination.Server
-	}
-
-	if reportedEntityParentApp.revisionsMetadata != nil && reportedEntityParentApp.revisionsMetadata.SyncRevisions != nil {
-		revisionMetadata := getApplicationLegacyRevisionDetails(reportedEntityParentApp.app, reportedEntityParentApp.revisionsMetadata)
-		if revisionMetadata != nil {
-			source.CommitMessage = revisionMetadata.Message
-			source.CommitAuthor = revisionMetadata.Author
-			source.CommitDate = &revisionMetadata.Date
-		}
 	}
 
 	if rr.rs.Health != nil {
@@ -159,6 +153,43 @@ func getResourceEventPayload(
 	}
 
 	return &events.Event{Payload: payloadBytes}, nil
+}
+
+func getResourceSourceRepoUrl(
+	rr *ReportedResource,
+	reportedEntityParentApp *ReportedEntityParentApp,
+) string {
+	specCopy := reportedEntityParentApp.app.Spec.DeepCopy()
+
+	specCopy.Sources = reportedEntityParentApp.app.Status.Sync.ComparedTo.Sources
+	specCopy.Source = reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.DeepCopy()
+
+	if specCopy.HasMultipleSources() {
+		if rr.appSourceIdx == -1 {
+			return ""
+		}
+		return specCopy.GetSourcePtrByIndex(int(rr.appSourceIdx)).RepoURL
+	}
+
+	return specCopy.Source.RepoURL
+}
+
+func addResourceEventPayloadGitCommitDetails(
+	source *events.ObjectSource,
+	rr *ReportedResource,
+	reportedEntityParentApp *ReportedEntityParentApp,
+) {
+	if reportedEntityParentApp.revisionsMetadata == nil || reportedEntityParentApp.revisionsMetadata.SyncRevisions == nil || rr.appSourceIdx == -1 {
+		return
+	}
+
+	syncRevisionWithMetadata := reportedEntityParentApp.revisionsMetadata.GetSyncRevisionAt(int(rr.appSourceIdx))
+
+	if syncRevisionWithMetadata != nil && syncRevisionWithMetadata.Metadata != nil {
+		source.CommitMessage = syncRevisionWithMetadata.Metadata.Message
+		source.CommitAuthor = syncRevisionWithMetadata.Metadata.Author
+		source.CommitDate = &syncRevisionWithMetadata.Metadata.Date
+	}
 }
 
 func getResourceEventPayloadErrors(

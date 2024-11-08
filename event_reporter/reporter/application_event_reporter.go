@@ -323,7 +323,7 @@ func (s *applicationEventReporter) processResource(
 	})
 
 	// get resource desired state
-	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
+	desiredState, appSourceIdx := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, reportedEntityParentApp.app, originalApplication)
 	if err != nil {
@@ -348,6 +348,7 @@ func (s *applicationEventReporter) processResource(
 			actualState:    actualState,
 			desiredState:   desiredState,
 			manifestGenErr: manifestGenErr,
+			appSourceIdx:   appSourceIdx,
 			rsAsAppInfo: &ReportedResourceAsApp{
 				app:                 originalApplication,
 				revisionsMetadata:   originalAppRevisionMetadata,
@@ -355,9 +356,11 @@ func (s *applicationEventReporter) processResource(
 			},
 		},
 		&ReportedEntityParentApp{
-			app:               parentApplicationToReport,
-			appTree:           reportedEntityParentApp.appTree,
-			revisionsMetadata: revisionMetadataToReport,
+			app:                  parentApplicationToReport,
+			appTree:              reportedEntityParentApp.appTree,
+			revisionsMetadata:    revisionMetadataToReport,
+			validatedDestination: reportedEntityParentApp.validatedDestination,
+			desiredManifests:     reportedEntityParentApp.desiredManifests,
 		},
 		argoTrackingMetadata,
 	)
@@ -518,11 +521,11 @@ func applicationMetadataChanged(ae *appv1.ApplicationWatchEvent, cachedApp *appv
 	return !reflect.DeepEqual(newEventAppMeta, cachedAppMeta)
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
+func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) (manifest *apiclient.Manifest, sourceIdx int32) {
 	if ds == nil {
-		return &apiclient.Manifest{}
+		return &apiclient.Manifest{}, 0
 	}
-	for _, m := range ds.Manifests {
+	for idx, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
 			logger.WithError(err).Warnf("failed to unmarshal compiled manifest")
@@ -542,11 +545,27 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 				m.RawManifest = m.CompiledManifest
 			}
 
-			return m
+			return m, getResourceSourceIdxFromManifestResponse(idx, ds)
 		}
 	}
 
 	// no desired state for resource
 	// it's probably deleted from git
-	return &apiclient.Manifest{}
+	return &apiclient.Manifest{}, 0
+}
+
+func getResourceSourceIdxFromManifestResponse(rsIdx int, ds *apiclient.ManifestResponse) int32 {
+	if ds.SourcesManifestsStartingIdx == nil {
+		return -1
+	}
+
+	sourceIdx := int32(-1)
+
+	for currentSourceIdx, sourceStartingIdx := range ds.SourcesManifestsStartingIdx {
+		if int32(rsIdx) >= sourceStartingIdx {
+			sourceIdx = int32(currentSourceIdx)
+		}
+	}
+
+	return sourceIdx
 }

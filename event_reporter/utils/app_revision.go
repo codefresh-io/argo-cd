@@ -25,6 +25,13 @@ type RevisionsData struct {
 
 const annotationRevisionKey = "app.meta.revisions-metadata"
 
+func (asrm *AppSyncRevisionsMetadata) GetSyncRevisionAt(idx int) *RevisionWithMetadata {
+	if asrm == nil || asrm.SyncRevisions == nil {
+		return nil
+	}
+	return asrm.SyncRevisions[idx]
+}
+
 func GetLatestAppHistoryId(a *appv1.Application) int64 {
 	if lastHistory := getLatestAppHistoryItem(a); lastHistory != nil {
 		return lastHistory.ID

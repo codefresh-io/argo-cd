@@ -77,6 +77,7 @@ message ObjectSource {
     required string destServer = 25 [(gogoproto.nullable) = false];
     optional string destName = 26;
     required bool appMultiSourced = 27 [(gogoproto.nullable) = false];
+    required int32 appSourceIdx = 28 [(gogoproto.nullable) = false];
 }
 
 /**
