@@ -553,7 +553,7 @@ func TestGetOperationRevisions(t *testing.T) {
 			},
 		})
 		assert.Len(t, res, 1)
-		assert.Equal(t, res[0], "Status.Sync.Revisions")
+		assert.Equal(t, "Status.Sync.Revisions", res[0])
 	})
 	t.Run("should return Status.OperationState.Operation.Sync.Revisions", func(t *testing.T) {
 		res := GetOperationRevisions(&v1alpha1.Application{
@@ -596,7 +596,7 @@ func TestGetOperationRevisions(t *testing.T) {
 			},
 		})
 		assert.Len(t, res, 1)
-		assert.Equal(t, res[0], "Operation.Sync.Revisions")
+		assert.Equal(t, "Operation.Sync.Revisions", res[0])
 	})
 }
 
