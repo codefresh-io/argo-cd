@@ -2,10 +2,11 @@ package controller
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"math"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/util/db"
 
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 

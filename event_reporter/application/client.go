@@ -128,7 +128,7 @@ func (c *httpApplicationClient) GetManifests(ctx context.Context, in *appclient.
 	}
 	if in.SourcePositions != nil && len(in.SourcePositions) > 0 {
 		for _, sourcePosition := range in.SourcePositions {
-			params = fmt.Sprintf("%s&sourcePositions=%s", params, sourcePosition)
+			params = fmt.Sprintf("%s&sourcePositions=%d", params, sourcePosition)
 		}
 	}
 	if in.Revisions != nil && len(in.Revisions) > 0 {
