@@ -4,8 +4,10 @@ import appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 type AppRevisionsFieldNames string
 
-var AppRevisionFieldName AppRevisionsFieldNames = "Revision"
-var AppRevisionsFieldName AppRevisionsFieldNames = "Revisions"
+var (
+	AppRevisionFieldName  AppRevisionsFieldNames = "Revision"
+	AppRevisionsFieldName AppRevisionsFieldNames = "Revisions"
+)
 
 type AppUtils struct {
 	App *appv1.Application
