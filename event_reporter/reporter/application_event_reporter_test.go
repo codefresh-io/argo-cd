@@ -19,6 +19,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/runtime"
+
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	appMocks "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -26,8 +29,6 @@ import (
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"google.golang.org/grpc"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 
