@@ -43,3 +43,7 @@ func (rr *ReportedResource) GetApiVersion() string {
 
 	return apiVersion
 }
+
+func (rr *ReportedResource) appSourceIdxDetected() bool {
+	return rr.appSourceIdx >= 0
+}

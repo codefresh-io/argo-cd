@@ -165,10 +165,14 @@ func getResourceSourceRepoUrl(
 	specCopy.Source = reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.DeepCopy()
 
 	if specCopy.HasMultipleSources() {
-		if rr.appSourceIdx == -1 {
+		if !rr.appSourceIdxDetected() {
 			return ""
 		}
-		return specCopy.GetSourcePtrByIndex(int(rr.appSourceIdx)).RepoURL
+		source := specCopy.GetSourcePtrByIndex(int(rr.appSourceIdx))
+		if source == nil {
+			return ""
+		}
+		return source.RepoURL
 	}
 
 	return specCopy.Source.RepoURL

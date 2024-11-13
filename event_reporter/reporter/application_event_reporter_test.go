@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/aws/smithy-go/ptr"
