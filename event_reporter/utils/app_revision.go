@@ -56,6 +56,14 @@ func GetApplicationLatestRevision(a *appv1.Application) string {
 	return a.Status.Sync.Revision
 }
 
+func GetApplicationLatestRevisions(a *appv1.Application) []string {
+	if lastHistory := getLatestAppHistoryItem(a); lastHistory != nil {
+		return lastHistory.Revisions
+	}
+
+	return a.Status.Sync.Revisions
+}
+
 func GetOperationRevision(a *appv1.Application) string {
 	if a == nil {
 		return ""

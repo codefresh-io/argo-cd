@@ -105,6 +105,7 @@ func getResourceEventPayload(
 		GitManifest:            rr.desiredState.RawManifest,
 		Path:                   rr.desiredState.Path,
 		Revision:               utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
+		Revisions:              utils.GetApplicationLatestRevisions(reportedEntityParentApp.app),
 		OperationSyncRevision:  utils.GetOperationRevision(reportedEntityParentApp.app),
 		OperationSyncRevisions: utils.GetOperationRevisions(reportedEntityParentApp.app),
 		HistoryId:              utils.GetLatestAppHistoryId(reportedEntityParentApp.app),
@@ -126,8 +127,7 @@ func getResourceEventPayload(
 	addResourceEventPayloadGitCommitDetails(&source, rr, reportedEntityParentApp)
 
 	if reportedEntityParentApp.validatedDestination != nil {
-		source.DestName = &reportedEntityParentApp.validatedDestination.Name
-		source.DestServer = reportedEntityParentApp.validatedDestination.Server
+		source.ClusterName = &reportedEntityParentApp.validatedDestination.Name
 	}
 
 	if rr.rs.Health != nil {
