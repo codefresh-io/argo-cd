@@ -24,6 +24,7 @@ func getResourceEventPayload(
 	rr *ReportedResource,
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
+	runtimeVersion string,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -136,11 +137,12 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp:   appEventProcessingStartedAt,
-		Object:      object,
-		Source:      &source,
-		Errors:      getResourceEventPayloadErrors(rr, reportedEntityParentApp),
-		AppVersions: applicationVersionsEvents,
+		Timestamp:      appEventProcessingStartedAt,
+		Object:         object,
+		Source:         &source,
+		Errors:         getResourceEventPayloadErrors(rr, reportedEntityParentApp),
+		AppVersions:    applicationVersionsEvents,
+		RuntimeVersion: runtimeVersion,
 	}
 
 	if payload.AppVersions != nil {
@@ -289,6 +291,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	eventProcessingStartedAt string,
 	applicationVersions *apiclient.ApplicationVersions,
 	argoTrackingMetadata *ArgoTrackingMetadata,
+	runtimeVersion string,
 ) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
@@ -365,11 +368,12 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
 
 	payload := events.EventPayload{
-		Timestamp:   eventProcessingStartedAt,
-		Object:      object,
-		Source:      source,
-		Errors:      errors,
-		AppVersions: applicationVersionsEvents,
+		Timestamp:      eventProcessingStartedAt,
+		Object:         object,
+		Source:         source,
+		Errors:         errors,
+		AppVersions:    applicationVersionsEvents,
+		RuntimeVersion: runtimeVersion,
 	}
 
 	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))

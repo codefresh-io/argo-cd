@@ -45,6 +45,7 @@ type applicationEventReporter struct {
 	applicationServiceClient appclient.ApplicationClient
 	metricsServer            *metrics.MetricsServer
 	db                       db.ArgoDB
+	runtimeVersion           string
 }
 
 type ApplicationEventReporter interface {
@@ -66,6 +67,7 @@ func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceCli
 		appLister:                appLister,
 		metricsServer:            metricsServer,
 		db:                       db,
+		runtimeVersion:           codefreshConfig.RuntimeVersion,
 	}
 }
 
@@ -201,7 +203,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
 		logCtx.Info("processing as root application")
-		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, applicationVersions, argoTrackingMetadata)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, applicationVersions, argoTrackingMetadata, s.runtimeVersion)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -363,6 +365,7 @@ func (s *applicationEventReporter) processResource(
 			desiredManifests:     reportedEntityParentApp.desiredManifests,
 		},
 		argoTrackingMetadata,
+		s.runtimeVersion,
 	)
 	if err != nil {
 		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, reportedEntityParentApp.app.Name)

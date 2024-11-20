@@ -44,6 +44,8 @@ message EventPayload {
     repeated ObjectError errors = 4;
     // A version of the application and its dependencies
     optional ApplicationVersions appVersions = 5;
+    // A version of codefresh runtime
+    required string runtimeVersion = 6 [(gogoproto.nullable) = false];
 }
 
 /**
