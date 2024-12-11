@@ -1,34 +1,34 @@
 package utils
 
 import (
-    "encoding/json"
-    sourcesServerCommon "github.com/codefresh-io/octopus-argo/sources-server/common"
-    log "github.com/sirupsen/logrus"
+	"encoding/json"
+	sourcesServerCommon "github.com/codefresh-io/octopus-argo/sources-server/common"
+	log "github.com/sirupsen/logrus"
 
-    "github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-    "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
 func RepoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
-    applicationVersionsEvents := &events.ApplicationVersions{}
-    applicationVersionsData, _ := json.Marshal(applicationVersions)
-    err := json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
-    if err != nil {
-        return nil, err
-    }
-    return applicationVersionsEvents, nil
+	applicationVersionsEvents := &events.ApplicationVersions{}
+	applicationVersionsData, _ := json.Marshal(applicationVersions)
+	err := json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
+	if err != nil {
+		return nil, err
+	}
+	return applicationVersionsEvents, nil
 }
 
 func SourcesAppVersionsToRepo(applicationVersions *sourcesServerCommon.AppVersionResult, logCtx *log.Entry) *apiclient.ApplicationVersions {
-    if applicationVersions == nil {
-        return nil
-    }
-    applicationVersionsRepo := &apiclient.ApplicationVersions{}
-    applicationVersionsData, _ := json.Marshal(applicationVersions)
-    err := json.Unmarshal(applicationVersionsData, applicationVersionsRepo)
-    if err != nil {
-        logCtx.Errorf("can't unmarshal app version: %v", err)
-        return nil
-    }
-    return applicationVersionsRepo
+	if applicationVersions == nil {
+		return nil
+	}
+	applicationVersionsRepo := &apiclient.ApplicationVersions{}
+	applicationVersionsData, _ := json.Marshal(applicationVersions)
+	err := json.Unmarshal(applicationVersionsData, applicationVersionsRepo)
+	if err != nil {
+		logCtx.Errorf("can't unmarshal app version: %v", err)
+		return nil
+	}
+	return applicationVersionsRepo
 }
