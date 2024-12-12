@@ -75,8 +75,6 @@ func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application) *sourcesSe
 		return nil
 	}
 
-	// TODO: remove this marker line
-	versionStruct.AppVersion = versionStruct.AppVersion + "*"
 	return &versionStruct
 }
 
