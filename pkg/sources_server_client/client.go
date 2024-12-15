@@ -8,9 +8,18 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
-
-	sourcesServerCommon "github.com/codefresh-io/octopus-argo/sources-server/common"
 )
+
+type DependenciesMap struct {
+	Lock         string `json:"helm/Chart.lock"`
+	Deps         string `json:"helm/dependencies"`
+	Requirements string `json:"helm/requirements.yaml"`
+}
+
+type AppVersionResult struct {
+	AppVersion   string          `json:"appVersion"`
+	Dependencies DependenciesMap `json:"dependencies"`
+}
 
 type SourcesServerConfig struct {
 	BaseURL string
@@ -21,7 +30,7 @@ type sourceServerClient struct {
 }
 
 type SourceServerClientInteface interface {
-	GetAppVersion(app *v1alpha1.Application) *sourcesServerCommon.AppVersionResult
+	GetAppVersion(app *v1alpha1.Application) *AppVersionResult
 }
 
 func (c *sourceServerClient) sendRequest(method, url string, payload interface{}) ([]byte, error) {
@@ -61,14 +70,14 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	return body, nil
 }
 
-func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application) *sourcesServerCommon.AppVersionResult {
+func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application) *AppVersionResult {
 	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", app)
 	if err != nil {
 		log.Errorf("error getting app version: %v", err)
 		return nil
 	}
 
-	var versionStruct sourcesServerCommon.AppVersionResult
+	var versionStruct AppVersionResult
 	err = json.Unmarshal(appVersionResult, &versionStruct)
 	if err != nil {
 		log.Errorf("error unmarshaling app version: %v", err)

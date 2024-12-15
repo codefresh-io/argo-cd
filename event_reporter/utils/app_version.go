@@ -2,7 +2,7 @@ package utils
 
 import (
 	"encoding/json"
-	sourcesServerCommon "github.com/codefresh-io/octopus-argo/sources-server/common"
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
@@ -19,7 +19,7 @@ func RepoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) 
 	return applicationVersionsEvents, nil
 }
 
-func SourcesAppVersionsToRepo(applicationVersions *sourcesServerCommon.AppVersionResult, logCtx *log.Entry) *apiclient.ApplicationVersions {
+func SourcesAppVersionsToRepo(applicationVersions *sources_server_client.AppVersionResult, logCtx *log.Entry) *apiclient.ApplicationVersions {
 	if applicationVersions == nil {
 		return nil
 	}
