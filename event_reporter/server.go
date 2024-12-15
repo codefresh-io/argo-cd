@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"

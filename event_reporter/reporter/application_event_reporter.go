@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	"math"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 
 	"github.com/argoproj/argo-cd/v2/util/db"
 

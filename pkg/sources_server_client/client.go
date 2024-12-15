@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	log "github.com/sirupsen/logrus"
 )
 
 type DependenciesMap struct {

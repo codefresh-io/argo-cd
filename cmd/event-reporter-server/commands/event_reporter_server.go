@@ -3,9 +3,10 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 
