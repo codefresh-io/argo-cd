@@ -55,6 +55,9 @@ func TestGetRevisionsDetails(t *testing.T) {
 			appServiceClient,
 			&metrics.MetricsServer{},
 			fakeArgoDb(),
+			"",
+			false,
+			nil,
 		}
 
 		result, _ := reporter.getRevisionsDetails(context.Background(), &app, []string{expectedRevision})
@@ -120,6 +123,9 @@ func TestGetRevisionsDetails(t *testing.T) {
 			appServiceClient,
 			&metrics.MetricsServer{},
 			fakeArgoDb(),
+			"",
+			false,
+			nil,
 		}
 
 		result, _ := reporter.getRevisionsDetails(context.Background(), &app, []string{expectedRevision1, expectedRevision2})
@@ -162,6 +168,9 @@ func TestGetRevisionsDetails(t *testing.T) {
 			appServiceClient,
 			&metrics.MetricsServer{},
 			fakeArgoDb(),
+			"",
+			false,
+			nil,
 		}
 
 		result, _ := reporter.getRevisionsDetails(context.Background(), &app, []string{expectedRevision})
