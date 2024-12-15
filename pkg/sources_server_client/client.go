@@ -73,14 +73,14 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application) *AppVersionResult {
 	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", app)
 	if err != nil {
-		log.Errorf("error getting app version: %w", err)
+		log.Errorf("error getting app version: %v", err)
 		return nil
 	}
 
 	var versionStruct AppVersionResult
 	err = json.Unmarshal(appVersionResult, &versionStruct)
 	if err != nil {
-		log.Errorf("error unmarshaling app version: %w", err)
+		log.Errorf("error unmarshaling app version: %v", err)
 		return nil
 	}
 
