@@ -3,10 +3,10 @@ package utils
 import (
 	"encoding/json"
 
-	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
