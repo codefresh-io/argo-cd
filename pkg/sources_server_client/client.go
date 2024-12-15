@@ -39,13 +39,13 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	if payload != nil {
 		requestBody, err = json.Marshal(payload)
 		if err != nil {
-			return nil, fmt.Errorf("error marshalling payload: %v", err)
+			return nil, fmt.Errorf("error marshalling payload: %w", err)
 		}
 	}
 
 	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", c.clientConfig.BaseURL, url), bytes.NewBuffer(requestBody))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -53,7 +53,7 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error making request: %v", err)
+		return nil, fmt.Errorf("error making request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -64,7 +64,7 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %v", err)
+		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
 	return body, nil
@@ -73,14 +73,14 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application) *AppVersionResult {
 	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", app)
 	if err != nil {
-		log.Errorf("error getting app version: %v", err)
+		log.Errorf("error getting app version: %w", err)
 		return nil
 	}
 
 	var versionStruct AppVersionResult
 	err = json.Unmarshal(appVersionResult, &versionStruct)
 	if err != nil {
-		log.Errorf("error unmarshaling app version: %v", err)
+		log.Errorf("error unmarshaling app version: %w", err)
 		return nil
 	}
 
