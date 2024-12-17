@@ -13,8 +13,8 @@ import (
 )
 
 type VersionPayload struct {
-	app       *v1alpha1.Application
-	revisions *[]string
+	app      *v1alpha1.Application
+	revision *string
 }
 
 type DependenciesMap struct {
@@ -37,7 +37,7 @@ type sourceServerClient struct {
 }
 
 type SourceServerClientInteface interface {
-	GetAppVersion(app *v1alpha1.Application, revisions *[]string) *AppVersionResult
+	GetAppVersion(app *v1alpha1.Application, revisions *string) *AppVersionResult
 }
 
 func (c *sourceServerClient) sendRequest(method, url string, payload interface{}) ([]byte, error) {
@@ -77,8 +77,8 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	return body, nil
 }
 
-func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application, revisions *[]string) *AppVersionResult {
-	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", VersionPayload{app: app, revisions: revisions})
+func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application, revisions *string) *AppVersionResult {
+	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", VersionPayload{app: app, revision: revision})
 	if err != nil {
 		log.Errorf("error getting app version: %v", err)
 		return nil
