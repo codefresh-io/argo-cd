@@ -55,7 +55,7 @@ func TestGetRevisionsDetails(t *testing.T) {
 			appServiceClient,
 			&metrics.MetricsServer{},
 			fakeArgoDb(),
-			"",
+			"0.0.1",
 			false,
 			nil,
 		}
@@ -123,7 +123,7 @@ func TestGetRevisionsDetails(t *testing.T) {
 			appServiceClient,
 			&metrics.MetricsServer{},
 			fakeArgoDb(),
-			"",
+			"0.0.1",
 			false,
 			nil,
 		}
@@ -168,7 +168,7 @@ func TestGetRevisionsDetails(t *testing.T) {
 			appServiceClient,
 			&metrics.MetricsServer{},
 			fakeArgoDb(),
-			"",
+			"0.0.1",
 			false,
 			nil,
 		}
