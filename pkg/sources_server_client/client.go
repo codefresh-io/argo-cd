@@ -52,6 +52,10 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	}
 
 	fullURL, err := netUrl.JoinPath(c.clientConfig.BaseURL, url)
+	if err != nil {
+		return nil, fmt.Errorf("error joining path: %w", err)
+	}
+
 	req, err := http.NewRequest(method, fullURL, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
