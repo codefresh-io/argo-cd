@@ -12,6 +12,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
+type VersionPayload struct {
+	app       *v1alpha1.Application
+	revisions *[]string
+}
+
 type DependenciesMap struct {
 	Lock         string `json:"helm/Chart.lock"`
 	Deps         string `json:"helm/dependencies"`
@@ -32,7 +37,7 @@ type sourceServerClient struct {
 }
 
 type SourceServerClientInteface interface {
-	GetAppVersion(app *v1alpha1.Application) *AppVersionResult
+	GetAppVersion(app *v1alpha1.Application, revisions *[]string) *AppVersionResult
 }
 
 func (c *sourceServerClient) sendRequest(method, url string, payload interface{}) ([]byte, error) {
@@ -72,8 +77,8 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	return body, nil
 }
 
-func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application) *AppVersionResult {
-	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", app)
+func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application, revisions *[]string) *AppVersionResult {
+	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", VersionPayload{app: app, revisions: revisions})
 	if err != nil {
 		log.Errorf("error getting app version: %v", err)
 		return nil

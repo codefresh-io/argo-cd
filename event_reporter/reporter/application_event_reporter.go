@@ -274,7 +274,7 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 
 		var applicationVersions *apiclient.ApplicationVersions
 		if s.useSourcesServer {
-			appVers := s.sourcesServerClient.GetAppVersion(a)
+			appVers := s.sourcesServerClient.GetAppVersion(a, syncResultRevisions)
 			applicationVersions = utils.SourcesAppVersionsToRepo(appVers, logCtx)
 		} else {
 			applicationVersions = syncManifests.GetApplicationVersions()
@@ -293,7 +293,8 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 
 	var applicationVersions *apiclient.ApplicationVersions
 	if s.useSourcesServer {
-		appVers := s.sourcesServerClient.GetAppVersion(a)
+		syncResultRevisions := &([]string{*syncResultRevision})
+		appVers := s.sourcesServerClient.GetAppVersion(a, syncResultRevisions)
 		applicationVersions = utils.SourcesAppVersionsToRepo(appVers, logCtx)
 	} else {
 		applicationVersions = syncManifests.GetApplicationVersions()
