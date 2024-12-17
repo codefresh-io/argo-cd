@@ -348,6 +348,3 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.29.6
 	k8s.io/sample-controller => k8s.io/sample-controller v0.29.6
 )
-
-// TODO:CR-26144: Remove alias
-replace github.com/codefresh-io/octopus-argo => /Users/andrii/go/src/github.com/codefresh-io/octopus-argo

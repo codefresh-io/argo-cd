@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	netUrl "net/url"
 
 	log "github.com/sirupsen/logrus"
 
@@ -13,8 +14,8 @@ import (
 )
 
 type VersionPayload struct {
-	app      *v1alpha1.Application
-	revision *string
+	App      v1alpha1.Application `json:"app"`
+	Revision string               `json:"revision"`
 }
 
 type DependenciesMap struct {
@@ -37,7 +38,7 @@ type sourceServerClient struct {
 }
 
 type SourceServerClientInteface interface {
-	GetAppVersion(app *v1alpha1.Application, revisions *string) *AppVersionResult
+	GetAppVersion(app *v1alpha1.Application, revision *string) *AppVersionResult
 }
 
 func (c *sourceServerClient) sendRequest(method, url string, payload interface{}) ([]byte, error) {
@@ -50,7 +51,8 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 		}
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", c.clientConfig.BaseURL, url), bytes.NewBuffer(requestBody))
+	fullURL, err := netUrl.JoinPath(c.clientConfig.BaseURL, url)
+	req, err := http.NewRequest(method, fullURL, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -77,8 +79,8 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 	return body, nil
 }
 
-func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application, revisions *string) *AppVersionResult {
-	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", VersionPayload{app: app, revision: revision})
+func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application, revision *string) *AppVersionResult {
+	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", VersionPayload{App: *app, Revision: *revision})
 	if err != nil {
 		log.Errorf("error getting app version: %v", err)
 		return nil
