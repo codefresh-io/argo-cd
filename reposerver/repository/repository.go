@@ -3137,6 +3137,6 @@ func (s *Service) GetChangeRevision(ctx context.Context, request *apiclient.Chan
 		}
 	}
 
-	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, previousRevision, revision)
+	logCtx.Debugf("changes not found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, previousRevision, revision)
 	return &apiclient.ChangeRevisionResponse{}, nil
 }
