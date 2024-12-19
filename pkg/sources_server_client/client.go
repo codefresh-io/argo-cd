@@ -84,6 +84,7 @@ func (c *sourceServerClient) sendRequest(method, url string, payload interface{}
 }
 
 func (c *sourceServerClient) GetAppVersion(app *v1alpha1.Application, revision *string) *AppVersionResult {
+	log.Infof("cfGetAppVersion. Sending request to sources-server for %s", app.Name)
 	appVersionResult, err := c.sendRequest("POST", "/getAppVersion", VersionPayload{App: *app, Revision: *revision})
 	if err != nil {
 		log.Errorf("error getting app version: %v", err)

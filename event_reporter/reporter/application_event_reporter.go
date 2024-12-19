@@ -274,6 +274,7 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 
 		var applicationVersions *apiclient.ApplicationVersions
 		if s.useSourcesServer {
+			log.Infof("cfGetAppVersion. Getting version from sourcesserver")
 			if len(*syncResultRevisions) == 0 {
 				return nil
 			}
@@ -296,6 +297,7 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 
 	var applicationVersions *apiclient.ApplicationVersions
 	if s.useSourcesServer {
+		log.Infof("cfGetAppVersion. Getting version from sourcesserver")
 		appVers := s.sourcesServerClient.GetAppVersion(a, syncResultRevision)
 		applicationVersions = utils.SourcesAppVersionsToRepo(appVers, logCtx)
 	} else {
