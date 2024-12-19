@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	argoclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
 	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -105,10 +105,10 @@ func (c *acrService) calculateRevision(ctx context.Context, a *application.Appli
 	currentRevision, previousRevision := c.getRevisions(ctx, a)
 	c.logger.Infof("Calculate revision for application '%s', current revision '%s', previous revision '%s'", a.Name, currentRevision, previousRevision)
 	changeRevisionResult, err := c.applicationServiceClient.GetChangeRevision(ctx, &appclient.ChangeRevisionRequest{
-		AppName:          pointer.String(a.GetName()),
-		Namespace:        pointer.String(a.GetNamespace()),
-		CurrentRevision:  pointer.String(currentRevision),
-		PreviousRevision: pointer.String(previousRevision),
+		AppName:          ptr.To(a.GetName()),
+		Namespace:        ptr.To(a.GetNamespace()),
+		CurrentRevision:  ptr.To(currentRevision),
+		PreviousRevision: ptr.To(previousRevision),
 	})
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func getCurrentRevisionFromOperation(a *application.Application) string {
 	return ""
 }
 
-func (c *acrService) getRevisions(ctx context.Context, a *application.Application) (string, string) {
+func (c *acrService) getRevisions(_ context.Context, a *application.Application) (string, string) {
 	if a.Status.History == nil || len(a.Status.History) == 0 {
 		// it is first sync operation, and we have only current revision
 		return getCurrentRevisionFromOperation(a), ""

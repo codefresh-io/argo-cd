@@ -164,7 +164,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting parent application name")
 
-	parentAppIdentity := utils.GetParentAppIdentity(a, *argoTrackingMetadata.AppInstanceLabelKey, *argoTrackingMetadata.TrackingMethod)
+	parentAppIdentity := utils.GetParentAppIdentity(a, *argoTrackingMetadata.AppInstanceLabelKey, *argoTrackingMetadata.InstallationID, *argoTrackingMetadata.TrackingMethod)
 
 	if utils.IsChildApp(parentAppIdentity) {
 		logCtx.Info("processing as child application")

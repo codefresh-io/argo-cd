@@ -6,7 +6,7 @@ on:
       - "release-*" # Codefresh change instead of `master`
 
 env:
-  GOLANG_VERSION: "1.21"
+  GOLANG_VERSION: "1.22"
 
 jobs:
   publish:
@@ -59,3 +59,4 @@ jobs:
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
         if: github.event_name == 'push'
         working-directory: argoproj-deployments/argocd
+

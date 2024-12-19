@@ -76,11 +76,16 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		if err != nil {
 			return err
 		}
+		installationID, err := c.settingsMgr.GetInstallationID()
+		if err != nil {
+			return err
+		}
 		trackingMethod := argoutil.GetTrackingMethod(c.settingsMgr)
 
 		err = c.applicationEventReporter.StreamApplicationEvents(ctx, &a, eventProcessingStartedAt, ignoreResourceCache, &reporter.ArgoTrackingMetadata{
 			AppInstanceLabelKey: &appInstanceLabelKey,
 			TrackingMethod:      &trackingMethod,
+			InstallationID:      &installationID,
 		})
 		if err != nil {
 			return err

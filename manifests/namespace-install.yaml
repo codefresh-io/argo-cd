@@ -30,6 +30,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -52,15 +61,6 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
   name: argocd-server
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    app.kubernetes.io/component: event-reporter
-    app.kubernetes.io/name: event-reporter
-    app.kubernetes.io/part-of: argocd
-  name: event-reporter
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -200,6 +200,51 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-cm
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-secret
+  resources:
+  - secrets
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -228,50 +273,6 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
   name: argocd-server
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - configmaps
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  - appprojects
-  - applicationsets
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - delete
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - list
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
-    app.kubernetes.io/component: event-reporter
-    app.kubernetes.io/name: event-reporter
-    app.kubernetes.io/part-of: argocd
-  name: event-reporter
 rules:
 - apiGroups:
   - ""
@@ -360,6 +361,22 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-notifications-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-notifications-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -388,22 +405,6 @@ subjects:
 - kind: ServiceAccount
   name: argocd-server
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: event-reporter
-    app.kubernetes.io/name: event-reporter
-    app.kubernetes.io/part-of: argocd
-  name: event-reporter
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: event-reporter
-subjects:
-- kind: ServiceAccount
-  name: event-reporter
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -427,6 +428,15 @@ metadata:
     app.kubernetes.io/name: argocd-gpg-keys-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-gpg-keys-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-cm
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -468,6 +478,16 @@ metadata:
     app.kubernetes.io/name: argocd-tls-certs-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-tls-certs-cm
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-secret
+type: Opaque
 ---
 apiVersion: v1
 kind: Secret
@@ -546,6 +566,23 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller-metrics
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 9001
+    protocol: TCP
+    targetPort: 9001
+  selector:
+    app.kubernetes.io/name: argocd-notifications-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -616,44 +653,6 @@ spec:
     targetPort: 8083
   selector:
     app.kubernetes.io/name: argocd-server
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: event-reporter
-    app.kubernetes.io/name: event-reporter
-    app.kubernetes.io/part-of: argocd
-  name: event-reporter
-spec:
-  ports:
-  - name: http
-    port: 80
-    protocol: TCP
-    targetPort: 8088
-  - name: https
-    port: 443
-    protocol: TCP
-    targetPort: 8088
-  selector:
-    app.kubernetes.io/name: event-reporter
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: event-reporter
-    app.kubernetes.io/name: event-reporter-metrics
-    app.kubernetes.io/part-of: argocd
-  name: event-reporter-metrics
-spec:
-  ports:
-  - name: metrics
-    port: 8087
-    protocol: TCP
-    targetPort: 8087
-  selector:
-    app.kubernetes.io/name: event-reporter
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -807,6 +806,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -886,13 +891,25 @@ spec:
         - /shared/argocd-dex
         - rundex
         env:
+        - name: ARGOCD_DEX_SERVER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_DEX_SERVER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.log.level
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEX_SERVER_DISABLE_TLS
           valueFrom:
             configMapKeyRef:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.38.0
+        image: ghcr.io/dexidp/dex:v2.41.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -960,6 +977,98 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-notifications-controller
+    spec:
+      containers:
+      - args:
+        - /usr/local/bin/argocd-notifications
+        env:
+        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.selfservice.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/codefresh/argocd:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          tcpSocket:
+            port: 9001
+        name: argocd-notifications-controller
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /app/config/tls
+          name: tls-certs
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
+        workingDir: /app
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-notifications-controller
+      volumes:
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -1001,7 +1110,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1401,8 +1510,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-server
+      - args:
+        - /usr/local/bin/argocd-server
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -1643,6 +1752,36 @@ spec:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.new.git.file.globbing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -1684,6 +1823,8 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -1716,6 +1857,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - configMap:
+          items:
+          - key: server.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -1832,6 +1980,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cap.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
@@ -1967,6 +2133,8 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
         workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
@@ -1983,181 +2151,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  labels:
-    app.kubernetes.io/component: event-reporter
-    app.kubernetes.io/name: event-reporter
-    app.kubernetes.io/part-of: argocd
-  name: event-reporter
-spec:
-  replicas: 5
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: event-reporter
-  serviceName: event-reporter
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: event-reporter
-    spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  app.kubernetes.io/name: event-reporter
-              topologyKey: kubernetes.io/hostname
-            weight: 100
-          - podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  app.kubernetes.io/part-of: argocd
-              topologyKey: kubernetes.io/hostname
-            weight: 5
-      containers:
-      - args:
-        - /usr/local/bin/event-reporter-server
-        env:
-        - name: EVENT_REPORTER_REPLICAS
-          value: "5"
-        - name: ARGOCD_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: argocd-token
-        - name: ARGOCD_APPLICATION_NAMESPACES
-          valueFrom:
-            configMapKeyRef:
-              key: application.namespaces
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: CODEFRESH_URL
-          valueFrom:
-            configMapKeyRef:
-              key: base-url
-              name: codefresh-cm
-              optional: true
-        - name: CODEFRESH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: codefresh-token
-        - name: EVENT_REPORTER_INSECURE
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.insecure
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_LOGFORMAT
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.log.format
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.log.level
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_REPO_SERVER
-          valueFrom:
-            configMapKeyRef:
-              key: repo.server
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_REPO_SERVER_TIMEOUT_SECONDS
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.repo.server.timeout.seconds
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_REPO_SERVER_PLAINTEXT
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.repo.server.plaintext
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: REDIS_SERVER
-          valueFrom:
-            configMapKeyRef:
-              key: redis.server
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: REDISDB
-          valueFrom:
-            configMapKeyRef:
-              key: redis.db
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_LISTEN_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.listen.address
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: EVENT_REPORTER_METRICS_LISTEN_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              key: event-reporter.metrics.listen.address
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/codefresh/argocd:latest
-        imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz?full=true
-            port: health
-          initialDelaySeconds: 3
-          periodSeconds: 30
-          timeoutSeconds: 5
-        name: event-reporter
-        ports:
-        - containerPort: 8088
-          name: health
-        - containerPort: 8087
-          name: metrics
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: health
-          initialDelaySeconds: 3
-          periodSeconds: 30
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /app/config/server/tls
-          name: argocd-repo-server-tls
-        - mountPath: /tmp
-          name: tmp
-      serviceAccountName: event-reporter
-      volumes:
-      - emptyDir: {}
-        name: plugins-home
-      - emptyDir: {}
-        name: tmp
-      - name: argocd-repo-server-tls
-        secret:
+      - configMap:
           items:
-          - key: tls.crt
-            path: tls.crt
-          - key: tls.key
-            path: tls.key
-          - key: ca.crt
-            path: ca.crt
+          - key: controller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
           optional: true
-          secretName: argocd-repo-server-tls
+        name: argocd-cmd-params-cm
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -2217,6 +2217,27 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9001
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
   policyTypes:
   - Ingress
 ---

@@ -188,17 +188,21 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 			}
 			// remove secrets
 			items = append(items, &appsv1.Repository{
-				Repo:               repo.Repo,
-				Type:               rType,
-				Name:               repo.Name,
-				Username:           repo.Username,
-				Insecure:           repo.IsInsecure(),
-				EnableLFS:          repo.EnableLFS,
-				EnableOCI:          repo.EnableOCI,
-				Proxy:              repo.Proxy,
-				Project:            repo.Project,
-				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
-				InheritedCreds:     repo.InheritedCreds,
+				Repo:                       repo.Repo,
+				Type:                       rType,
+				Name:                       repo.Name,
+				Username:                   repo.Username,
+				Insecure:                   repo.IsInsecure(),
+				EnableLFS:                  repo.EnableLFS,
+				EnableOCI:                  repo.EnableOCI,
+				Proxy:                      repo.Proxy,
+				NoProxy:                    repo.NoProxy,
+				Project:                    repo.Project,
+				ForceHttpBasicAuth:         repo.ForceHttpBasicAuth,
+				InheritedCreds:             repo.InheritedCreds,
+				GithubAppId:                repo.GithubAppId,
+				GithubAppInstallationId:    repo.GithubAppInstallationId,
+				GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 			})
 		}
 	}
@@ -350,6 +354,15 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 
+	refSources := make(appsv1.RefTargetRevisionMapping)
+	if app != nil && app.Spec.HasMultipleSources() {
+		// Store the map of all sources having ref field into a map for applications with sources field
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ref sources: %w", err)
+		}
+	}
+
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
@@ -357,6 +370,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
+		RefSources:       refSources,
 	})
 }
 
@@ -432,7 +446,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			r.Project = q.Repo.Project
 			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
+			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
 	}
 	if err != nil {

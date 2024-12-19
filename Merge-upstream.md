@@ -21,7 +21,7 @@ This docs include info about places where codefresh made it's customizations:
 12. `docs` - apply theirs
 13. `examples` - apply theirs
 14. `hack` - apply theirs
-15. `manifests` - merge (it might include codefresh image repositories). Includes v2 event-reporter manifests (often by replacing notifications)
+15. `manifests` - accept theirs
 16. `notification_controller` - apply theirs
 17. `pkg/apis/application/v1alpha` - generatedXXX - apply theirs (than re-generate). types.go  - merge (includes our changes with ForceNamespace).
 18. `server / application.go` - merge (includes our v1 event-reporter.)

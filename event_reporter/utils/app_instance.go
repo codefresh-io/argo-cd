@@ -33,11 +33,11 @@ func parseInstanceName(appNameString string) *AppIdentity {
 	}
 }
 
-func GetParentAppIdentity(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) *AppIdentity {
+func GetParentAppIdentity(a *appv1.Application, appInstanceLabelKey string, installationID string, trackingMethod appv1.TrackingMethod) *AppIdentity {
 	resourceTracking := argo.NewResourceTracking()
 	unApp := kube.MustToUnstructured(&a)
 
-	instanceName := resourceTracking.GetAppName(unApp, appInstanceLabelKey, trackingMethod)
+	instanceName := resourceTracking.GetAppName(unApp, appInstanceLabelKey, trackingMethod, installationID)
 
 	if instanceNameIncludesNs(instanceName) {
 		return parseInstanceName(instanceName)

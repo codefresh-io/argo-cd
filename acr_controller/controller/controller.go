@@ -51,7 +51,7 @@ func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInforme
 func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 	var logCtx log.FieldLogger = log.StandardLogger()
 
-	calculateIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string) error {
+	calculateIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string) error { //nolint:golint,unparam
 		if eventType == watch.Bookmark || eventType == watch.Deleted {
 			return nil // ignore this event
 		}

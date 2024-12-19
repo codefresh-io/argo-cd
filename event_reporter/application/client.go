@@ -16,8 +16,6 @@ import (
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=ApplicationClient
-
 type ApplicationClient interface {
 	Get(ctx context.Context, in *appclient.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error)
 
@@ -62,7 +60,7 @@ func NewHttpApplicationClient(token string, address string, rootpath string) App
 	}
 }
 
-func (c *httpApplicationClient) execute(ctx context.Context, url string, result interface{}, printBody ...bool) error {
+func (c *httpApplicationClient) execute(ctx context.Context, url string, result interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return err
@@ -171,7 +169,7 @@ func (c *httpApplicationClient) GetResource(ctx context.Context, in *appclient.A
 	url := fmt.Sprintf("%s/api/v1/applications/%s/resource%s", c.baseUrl, *in.Name, params)
 
 	applicationResource := &appclient.ApplicationResourceResponse{}
-	err := c.execute(ctx, url, applicationResource, true)
+	err := c.execute(ctx, url, applicationResource)
 	if err != nil {
 		return nil, err
 	}

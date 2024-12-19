@@ -37,7 +37,7 @@ func TestGetParentAppIdentityWithinNonControllerNs(t *testing.T) {
 	})
 	guestbookApp.Annotations = annotations
 
-	res := GetParentAppIdentity(&guestbookApp, common.LabelKeyAppInstance, "annotation")
+	res := GetParentAppIdentity(&guestbookApp, common.LabelKeyAppInstance, "", "annotation")
 
 	assert.Equal(t, expectedName, res.Name)
 	assert.Equal(t, expectedNamespace, res.Namespace)
@@ -69,7 +69,7 @@ func TestGetParentAppIdentityWithinControllerNs(t *testing.T) {
 	})
 	guestbookApp.Annotations = annotations
 
-	res := GetParentAppIdentity(&guestbookApp, common.LabelKeyAppInstance, "annotation")
+	res := GetParentAppIdentity(&guestbookApp, common.LabelKeyAppInstance, "", "annotation")
 
 	assert.Equal(t, expectedName, res.Name)
 	assert.Equal(t, expectedNamespace, res.Namespace)

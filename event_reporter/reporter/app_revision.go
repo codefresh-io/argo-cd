@@ -63,7 +63,7 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *v
 	return rms, nil
 }
 
-func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) {
+func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) { //nolint:golint,unparam
 	result := &utils.AppSyncRevisionsMetadata{}
 
 	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {

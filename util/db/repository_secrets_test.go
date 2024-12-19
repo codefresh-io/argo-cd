@@ -206,6 +206,20 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 				"project":  []byte("testProject"),
 			},
 		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "other-user-managed",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":     []byte("Scoped UserManagedRepo"),
+				"url":      []byte("git@github.com:argoproj/argoproj.git"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+				"project":  []byte("testProject"),
+			},
+		},
 	}
 
 	clientset := getClientset(map[string]string{}, repoSecrets...)
@@ -576,6 +590,15 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 				Proxy:    "https://proxy.argoproj.io:3128",
 			},
 		},
+		{
+			name: "with_noProxy",
+			repoCreds: appsv1.RepoCreds{
+				URL:      "git@github.com:proxy",
+				Username: "anotherUsername",
+				Password: "anotherPassword",
+				NoProxy:  ".example.com,127.0.0.1",
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -616,6 +639,7 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			}
 			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseUrl"]))
 			assert.Equal(t, testCase.repoCreds.Proxy, string(secret.Data["proxy"]))
+			assert.Equal(t, testCase.repoCreds.NoProxy, string(secret.Data["noProxy"]))
 		})
 	}
 }
@@ -647,6 +671,20 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 				"password": []byte("someOtherPassword"),
 			},
 		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "proxy-repo",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@gitlab.com"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+				"proxy":    []byte("https://proxy.argoproj.io:3128"),
+				"noProxy":  []byte(".example.com,127.0.0.1"),
+			},
+		},
 	}
 
 	clientset := getClientset(map[string]string{}, repoCredSecrets...)
@@ -669,6 +707,12 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 	assert.Equal(t, "git@gitlab.com", repoCred.URL)
 	assert.Equal(t, "someOtherUsername", repoCred.Username)
 	assert.Equal(t, "someOtherPassword", repoCred.Password)
+	if repoCred.Proxy != "" {
+		assert.Equal(t, "https://proxy.argoproj.io:3128", repoCred.Proxy)
+	}
+	if repoCred.NoProxy != "" {
+		assert.Equal(t, ".example.com,127.0.0.1", repoCred.NoProxy)
+	}
 }
 
 func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
