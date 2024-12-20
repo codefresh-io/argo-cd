@@ -1,2 +1,2 @@
 ### Features
--  chore(argo-cd): upgraded core to argo-cd OSS (2.13.3) 
+-  feat(event-reporter): using sources-server for getting application version 
