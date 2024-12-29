@@ -1708,6 +1708,7 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	}
 }
 
+// TODO: cf code
 func (n *ResourceNode) GetAllChildNodes(tree *ApplicationTree, kind string) []ResourceNode {
 	curChildren := []ResourceNode{}
 
@@ -2870,6 +2871,7 @@ func (condition *ApplicationCondition) IsError() bool {
 }
 
 // IsWarning returns true if a condition indicates an warning condition
+// TODO: cf code
 func (condition *ApplicationCondition) IsWarning() bool {
 	return strings.HasSuffix(condition.Type, "Warning")
 }

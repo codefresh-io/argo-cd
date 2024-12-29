@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
+// TODO: cf
 func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.ApplicationRolloutRollbackRequest) (*application.ApplicationRolloutRollbackResponse, error) {
 	a, err := s.appLister.Applications(*q.Namespace).Get(q.GetName())
 	if err != nil {

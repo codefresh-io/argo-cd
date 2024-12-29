@@ -6,10 +6,12 @@ import (
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
+// TODO: cf code
 func (a *Application) IsEmptyTypeMeta() bool {
 	return a.TypeMeta.Size() == 0 || a.TypeMeta.Kind == "" || a.TypeMeta.APIVersion == ""
 }
 
+// TODO: cf code
 func (a *Application) SetDefaultTypeMeta() {
 	a.TypeMeta = metav1.TypeMeta{
 		Kind:       appv1reg.ApplicationKind,
@@ -17,6 +19,7 @@ func (a *Application) SetDefaultTypeMeta() {
 	}
 }
 
+// TODO: cf code
 func (spec *ApplicationSpec) GetNonRefSource() (*ApplicationSource, int) {
 	if spec.HasMultipleSources() {
 		for idx, source := range spec.Sources {
@@ -34,6 +37,7 @@ func (spec *ApplicationSpec) GetNonRefSource() (*ApplicationSource, int) {
 	return spec.Source, -1
 }
 
+// TODO: cf code
 func (spec *ApplicationSpec) SourceUnderIdxIsHelm(idx int) bool {
 	source := spec.GetSourcePtrByIndex(idx)
 

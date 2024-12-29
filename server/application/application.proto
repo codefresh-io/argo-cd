@@ -503,6 +503,7 @@ service ApplicationService {
 	}
 
 	// Rollback application rollout
+	// TODO: cf
 	rpc RollbackApplicationRollout(ApplicationRolloutRollbackRequest) returns (ApplicationRolloutRollbackResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollout-rollback"

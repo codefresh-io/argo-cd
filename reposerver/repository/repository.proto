@@ -107,6 +107,7 @@ message Dependencies {
 	string requirements = 3;
 }
 
+// TODO: cf
 message ApplicationVersions {
     // Application version presented by single value
     string appVersion = 1;
@@ -127,8 +128,10 @@ message ManifestResponse {
     string commitAuthor = 9;
     k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
     // A version of the application and its dependencies
+    // TODO: cf
     ApplicationVersions applicationVersions = 11;
     // for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one
+    // TODO: cf
     repeated int32 sourcesManifestsStartingIdx = 12;
 }
 

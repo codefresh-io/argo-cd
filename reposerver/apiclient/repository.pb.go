@@ -903,8 +903,10 @@ type ManifestResponse struct {
 	CommitAuthor  string   `protobuf:"bytes,9,opt,name=commitAuthor,proto3" json:"commitAuthor,omitempty"`
 	CommitDate    *v1.Time `protobuf:"bytes,10,opt,name=commitDate,proto3" json:"commitDate,omitempty"`
 	// A version of the application and its dependencies
+	// TODO: cf code
 	ApplicationVersions *ApplicationVersions `protobuf:"bytes,11,opt,name=applicationVersions,proto3" json:"applicationVersions,omitempty"`
 	// for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one
+	// TODO: cf code
 	SourcesManifestsStartingIdx []int32  `protobuf:"varint,12,rep,packed,name=sourcesManifestsStartingIdx,proto3" json:"sourcesManifestsStartingIdx,omitempty"`
 	XXX_NoUnkeyedLiteral        struct{} `json:"-"`
 	XXX_unrecognized            []byte   `json:"-"`
