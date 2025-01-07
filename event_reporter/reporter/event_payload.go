@@ -2,82 +2,45 @@ package reporter
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func getResourceEventPayload(
-	appEventProcessingStartedAt string,
+	eventProcessingStartedAt time.Time,
 	rr *ReportedResource,
-	reportedEntityParentApp *ReportedEntityParentApp,
+	parentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
-	runtimeVersion string,
-) (*events.EventPayload, error) {
+) (*codefresh.ResourcePayload, error) {
 	var (
-		err          error
-		syncStarted  = metav1.Now()
-		syncFinished *metav1.Time
-		logCtx       *log.Entry
+		syncStarted       = metav1.Now()
+		syncFinished      *metav1.Time
+		revisionsMetadata *utils.AppSyncRevisionsMetadata
 	)
 
-	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil {
-		logCtx = log.WithField("application", rr.rsAsAppInfo.app.Name)
-	} else {
-		logCtx = log.NewEntry(log.StandardLogger())
+	if rr.rsAsAppInfo != nil {
+		revisionsMetadata = rr.rsAsAppInfo.revisionsMetadata
 	}
 
-	object := []byte(*rr.actualState.Manifest)
-
-	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.revisionsMetadata != nil && len(object) != 0 {
-		actualObject, err := appv1.UnmarshalToUnstructured(*rr.actualState.Manifest)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
-		}
-
-		object, err = addCommitDetailsToUnstructured(actualObject, rr)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(object) == 0 {
-		if len(rr.desiredManifest) == 0 {
-			object, err = buildEventObjectAsLiveAndCompiledManifestsEmpty(rr)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			object, err = useDesiredManifestAsEventObject(rr)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else if rr.rs.RequiresPruning && !rr.manifestGenErr {
-		// resource should be deleted
-		rr.actualState.Manifest = nil
-		rr.desiredManifest = ""
-	}
-
-	if (rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
+	if (rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.DeletionTimestamp != nil) || parentApp.app.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		rr.actualState.Manifest = nil
 		rr.desiredManifest = ""
 	}
 
-	if reportedEntityParentApp.app.Status.OperationState != nil {
-		syncStarted = reportedEntityParentApp.app.Status.OperationState.StartedAt
-		syncFinished = reportedEntityParentApp.app.Status.OperationState.FinishedAt
+	if parentApp.app.Status.OperationState != nil {
+		syncStarted = parentApp.app.Status.OperationState.StartedAt
+		syncFinished = parentApp.app.Status.OperationState.FinishedAt
 	}
 
 	// for primitive resources that are synced right away and don't require progression time (like configmap)
@@ -85,113 +48,89 @@ func getResourceEventPayload(
 		syncFinished = &syncStarted
 	}
 
-	var applicationVersionsEvents *events.ApplicationVersions
-	if rr.rsAsAppInfo != nil {
-		applicationVersionsEvents, err = utils.RepoAppVersionsToEvent(rr.rsAsAppInfo.applicationVersions)
-		if err != nil {
-			logCtx.Errorf("failed to convert appVersions: %v", err)
-		}
-	}
-
-	source := &events.ObjectSource{
-		DesiredManifest:        rr.desiredManifest,
-		ActualManifest:         *rr.actualState.Manifest,
-		Revision:               utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
-		Revisions:              utils.GetApplicationLatestRevisions(reportedEntityParentApp.app),
-		OperationSyncRevision:  utils.GetOperationRevision(reportedEntityParentApp.app),
-		OperationSyncRevisions: utils.GetOperationRevisions(reportedEntityParentApp.app),
-		HistoryId:              utils.GetLatestAppHistoryId(reportedEntityParentApp.app),
-		AppName:                reportedEntityParentApp.app.Name,
-		AppNamespace:           reportedEntityParentApp.app.Namespace,
-		AppUID:                 string(reportedEntityParentApp.app.ObjectMeta.UID),
-		AppLabels:              reportedEntityParentApp.app.Labels,
-		SyncStatus:             string(rr.rs.Status),
+	repoURL, targetRevision := getResourceSourceRepoData(rr, parentApp)
+	source := &codefresh.Source{
+		RepoURL:                repoURL,
+		TargetRevision:         targetRevision,
+		Revisions:              utils.GetApplicationLatestRevisions(parentApp.app),
+		OperationSyncRevisions: utils.GetOperationRevisions(parentApp.app),
+		ClusterServer:          parentApp.app.Spec.Destination.Server,
+		AppName:                parentApp.app.Name,
+		AppNamespace:           parentApp.app.Namespace,
+		AppUID:                 parentApp.app.ObjectMeta.UID,
+		AppLabels:              parentApp.app.Labels,
+		SyncStatus:             rr.rs.Status,
 		SyncStartedAt:          syncStarted,
 		SyncFinishedAt:         syncFinished,
-		Cluster:                reportedEntityParentApp.app.Spec.Destination.Server,
+		HistoryId:              utils.GetLatestAppHistoryId(parentApp.app),
 		AppInstanceLabelKey:    *argoTrackingMetadata.AppInstanceLabelKey,
-		TrackingMethod:         string(*argoTrackingMetadata.TrackingMethod),
-		AppMultiSourced:        reportedEntityParentApp.app.Spec.HasMultipleSources(),
+		TrackingMethod:         *argoTrackingMetadata.TrackingMethod,
+		AppMultiSourced:        parentApp.app.Spec.HasMultipleSources(),
 		AppSourceIdx:           rr.appSourceIdx,
 	}
 
-	source.RepoURL = getResourceSourceRepoUrl(rr, reportedEntityParentApp)
-	addResourceEventPayloadGitCommitDetails(source, rr, reportedEntityParentApp)
+	if parentApp.revisionsMetadata != nil && parentApp.revisionsMetadata.SyncRevisions != nil && rr.appSourceIdx != -1 {
+		syncRevisionWithMetadata := parentApp.revisionsMetadata.GetSyncRevisionAt(int(rr.appSourceIdx))
 
-	if reportedEntityParentApp.validatedDestination != nil {
-		source.ClusterName = &reportedEntityParentApp.validatedDestination.Name
+		if syncRevisionWithMetadata != nil && syncRevisionWithMetadata.Metadata != nil {
+			source.CommitMessage = syncRevisionWithMetadata.Metadata.Message
+			source.CommitAuthor = syncRevisionWithMetadata.Metadata.Author
+			source.CommitDate = &syncRevisionWithMetadata.Metadata.Date
+		}
+	}
+
+	if parentApp.validatedDestination != nil {
+		source.ClusterName = &parentApp.validatedDestination.Name
 	}
 
 	if rr.rs.Health != nil {
-		source.HealthStatus = (*string)(&rr.rs.Health.Status)
-		source.HealthMessage = &rr.rs.Health.Message
+		source.HealthStatus = rr.rs.Health
 	}
 
-	payload := &events.EventPayload{
-		Timestamp:      appEventProcessingStartedAt,
-		Object:         object,
-		Source:         source,
-		Errors:         getResourceEventPayloadErrors(rr, reportedEntityParentApp),
-		AppVersions:    applicationVersionsEvents,
-		RuntimeVersion: runtimeVersion,
-	}
-
-	if payload.AppVersions != nil {
-		logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
+	payload := &codefresh.ResourcePayload{
+		Timestamp:         metav1.NewTime(eventProcessingStartedAt),
+		ActualManifest:    rr.actualState.GetManifest(),
+		DesiredManifest:   rr.desiredManifest,
+		Source:            source,
+		AppVersions:       rr.rsAsAppInfo.applicationVersions,
+		RevisionsMetadata: revisionsMetadata,
+		Errors:            getResourceEventPayloadErrors(rr, parentApp),
 	}
 
 	return payload, nil
 }
 
-func getResourceSourceRepoUrl(
-	rr *ReportedResource,
-	reportedEntityParentApp *ReportedEntityParentApp,
-) string {
-	specCopy := reportedEntityParentApp.app.Spec.DeepCopy()
+func getResourceSourceRepoData(rr *ReportedResource, parentApp *ReportedEntityParentApp) (repoURL string, targetRevision string) {
+	repoURL = ""
+	targetRevision = ""
+	specCopy := parentApp.app.Spec.DeepCopy()
 
-	specCopy.Sources = reportedEntityParentApp.app.Status.Sync.ComparedTo.Sources
-	specCopy.Source = reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.DeepCopy()
+	specCopy.Sources = parentApp.app.Status.Sync.ComparedTo.Sources
+	specCopy.Source = parentApp.app.Status.Sync.ComparedTo.Source.DeepCopy()
 
 	if specCopy.HasMultipleSources() {
 		if !rr.appSourceIdxDetected() {
-			return ""
+			return
 		}
+
 		source := specCopy.GetSourcePtrByIndex(int(rr.appSourceIdx))
-		if source == nil {
-			return ""
+		if source != nil {
+			repoURL = source.RepoURL
+			targetRevision = source.TargetRevision
 		}
-		return source.RepoURL
+	} else {
+		repoURL = specCopy.Source.RepoURL
+		targetRevision = specCopy.Source.TargetRevision
 	}
 
-	return specCopy.Source.RepoURL
+	return
 }
 
-func addResourceEventPayloadGitCommitDetails(
-	source *events.ObjectSource,
-	rr *ReportedResource,
-	reportedEntityParentApp *ReportedEntityParentApp,
-) {
-	if reportedEntityParentApp.revisionsMetadata == nil || reportedEntityParentApp.revisionsMetadata.SyncRevisions == nil || rr.appSourceIdx == -1 {
-		return
-	}
+func getResourceEventPayloadErrors(rr *ReportedResource, parentApp *ReportedEntityParentApp) []*codefresh.EventError {
+	var errors []*codefresh.EventError
 
-	syncRevisionWithMetadata := reportedEntityParentApp.revisionsMetadata.GetSyncRevisionAt(int(rr.appSourceIdx))
-
-	if syncRevisionWithMetadata != nil && syncRevisionWithMetadata.Metadata != nil {
-		source.CommitMessage = syncRevisionWithMetadata.Metadata.Message
-		source.CommitAuthor = syncRevisionWithMetadata.Metadata.Author
-		source.CommitDate = &syncRevisionWithMetadata.Metadata.Date
-	}
-}
-
-func getResourceEventPayloadErrors(
-	rr *ReportedResource,
-	reportedEntityParentApp *ReportedEntityParentApp,
-) []*events.ObjectError {
-	var errors []*events.ObjectError
-
-	if reportedEntityParentApp.app.Status.OperationState != nil {
-		errors = append(errors, parseResourceSyncResultErrors(rr.rs, reportedEntityParentApp.app.Status.OperationState)...)
+	if parentApp.app.Status.OperationState != nil {
+		errors = append(errors, parseResourceSyncResultErrors(rr.rs, parentApp.app.Status.OperationState)...)
 	}
 
 	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
@@ -204,89 +143,26 @@ func getResourceEventPayloadErrors(
 			errors = append(errors, parseApplicationSyncResultErrorsFromConditions(rr.rsAsAppInfo.app.Status)...)
 		}
 
-		errors = append(errors, parseAggregativeHealthErrorsOfApplication(rr.rsAsAppInfo.app, reportedEntityParentApp.appTree)...)
+		errors = append(errors, parseAggregativeHealthErrorsOfApplication(rr.rsAsAppInfo.app, parentApp.appTree)...)
 	}
 
 	if rr.rs.Health != nil && rr.rs.Health.Status != health.HealthStatusHealthy {
-		errors = append(errors, parseAggregativeHealthErrors(rr.rs, reportedEntityParentApp.appTree, false)...)
+		errors = append(errors, parseAggregativeHealthErrors(rr.rs, parentApp.appTree, false)...)
 	}
 
 	return errors
 }
 
-func useDesiredManifestAsEventObject(
-	rr *ReportedResource,
-) ([]byte, error) {
-	// no actual state, use desired state as event object
-	unstructuredWithNamespace, err := utils.AddDestNamespaceToManifest([]byte(rr.desiredManifest), rr.rs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
-	}
-
-	return addCommitDetailsToUnstructured(unstructuredWithNamespace, rr)
-}
-
-func buildEventObjectAsLiveAndCompiledManifestsEmpty(
-	rr *ReportedResource,
-) ([]byte, error) {
-	// no actual or desired state, don't send event
-	u := &unstructured.Unstructured{}
-
-	u.SetAPIVersion(rr.GetApiVersion())
-	u.SetKind(rr.rs.Kind)
-	u.SetName(rr.rs.Name)
-	u.SetNamespace(rr.rs.Namespace)
-
-	return addCommitDetailsToUnstructured(u, rr)
-}
-
-func addCommitDetailsToUnstructured(
-	u *unstructured.Unstructured,
-	rr *ReportedResource,
-) ([]byte, error) {
-	if rr.rsAsAppInfo != nil && rr.rsAsAppInfo.revisionsMetadata != nil {
-		u = utils.AddCommitsDetailsToAnnotations(u, rr.rsAsAppInfo.revisionsMetadata)
-		if rr.rsAsAppInfo.app != nil {
-			u = utils.AddCommitDetailsToLabels(u, getApplicationLegacyRevisionDetails(rr.rsAsAppInfo.app, rr.rsAsAppInfo.revisionsMetadata))
-		}
-	}
-
-	object, err := u.MarshalJSON()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
-	}
-
-	return object, err
-}
-
 func (s *applicationEventReporter) getApplicationEventPayload(
 	ctx context.Context,
-	a *appv1.Application,
+	eventProcessingStartedAt time.Time,
+	app *appv1.Application,
 	appTree *appv1.ApplicationTree,
-	eventProcessingStartedAt string,
 	applicationVersions *apiclient.ApplicationVersions,
-	argoTrackingMetadata *ArgoTrackingMetadata,
-	runtimeVersion string,
-) (*events.EventPayload, error) {
-	var (
-		syncStarted  = metav1.Now()
-		syncFinished *metav1.Time
-		logCtx       = log.WithField("application", a.Name)
-		errors       = []*events.ObjectError{}
-	)
+) (*codefresh.ApplicationPayload, error) {
+	logCtx := log.WithField("application", app.Name)
 
-	obj := appv1.Application{}
-	a.DeepCopyInto(&obj)
-
-	// make sure there is type meta on object
-	obj.SetDefaultTypeMeta()
-
-	if a.Status.OperationState != nil {
-		syncStarted = a.Status.OperationState.StartedAt
-		syncFinished = a.Status.OperationState.FinishedAt
-	}
-
-	revisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
+	revisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, app)
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
 			return nil, fmt.Errorf("failed to get revision metadata: %w", err)
@@ -295,61 +171,31 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		logCtx.Warnf("failed to get revision metadata: %s, reporting application deletion event", err.Error())
 	}
 
-	utils.AddCommitsDetailsToAppAnnotations(obj, revisionsMetadata)
-	utils.AddCommitsDetailsToAppLabels(&obj, getApplicationLegacyRevisionDetails(&obj, revisionsMetadata))
-
-	object, err := json.Marshal(&obj)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal application event")
-	}
-
-	actualManifest := string(object)
-	if a.DeletionTimestamp != nil {
-		actualManifest = "" // mark as deleted
+	var actualManifest string
+	if app.DeletionTimestamp != nil {
+		// mark as deleted
+		actualManifest = ""
 		logCtx.Info("reporting application deletion event")
+	} else {
+		data, err := app.Marshal()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal application event: %w", err)
+		}
+
+		actualManifest = string(data)
 	}
 
-	applicationVersionsEvents, err := utils.RepoAppVersionsToEvent(applicationVersions)
-	if err != nil {
-		logCtx.Errorf("failed to convert appVersions: %v", err)
+	errors := []*codefresh.EventError{}
+	errors = append(errors, parseApplicationSyncResultErrorsFromConditions(app.Status)...)
+	errors = append(errors, parseAggregativeHealthErrorsOfApplication(app, appTree)...)
+
+	payload := &codefresh.ApplicationPayload{
+		Timestamp:         metav1.NewTime(eventProcessingStartedAt),
+		ActualManifest:    actualManifest,
+		RevisionsMetadata: revisionsMetadata,
+		AppVersions:       applicationVersions,
+		Errors:            errors,
 	}
-
-	hs := string(a.Status.Health.Status)
-	source := &events.ObjectSource{
-		DesiredManifest:       "",
-		ActualManifest:        actualManifest,
-		RepoURL:               a.Spec.GetSource().RepoURL,
-		CommitMessage:         "",
-		CommitAuthor:          "",
-		Revision:              "",
-		OperationSyncRevision: "",
-		HistoryId:             0,
-		AppName:               "",
-		AppUID:                "",
-		AppLabels:             map[string]string{},
-		SyncStatus:            string(a.Status.Sync.Status),
-		SyncStartedAt:         syncStarted,
-		SyncFinishedAt:        syncFinished,
-		HealthStatus:          &hs,
-		HealthMessage:         &a.Status.Health.Message,
-		Cluster:               a.Spec.Destination.Server,
-		AppInstanceLabelKey:   *argoTrackingMetadata.AppInstanceLabelKey,
-		TrackingMethod:        string(*argoTrackingMetadata.TrackingMethod),
-	}
-
-	errors = append(errors, parseApplicationSyncResultErrorsFromConditions(a.Status)...)
-	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
-
-	payload := &events.EventPayload{
-		Timestamp:      eventProcessingStartedAt,
-		Object:         object,
-		Source:         source,
-		Errors:         errors,
-		AppVersions:    applicationVersionsEvents,
-		RuntimeVersion: runtimeVersion,
-	}
-
-	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
 
 	return payload, nil
 }

@@ -3,11 +3,10 @@ package utils
 import (
 	"encoding/json"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	log "github.com/sirupsen/logrus"
 )
 
 func RepoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
@@ -20,10 +19,11 @@ func RepoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) 
 	return applicationVersionsEvents, nil
 }
 
-func SourcesAppVersionsToRepo(applicationVersions *sources_server_client.AppVersionResult, logCtx *log.Entry) *apiclient.ApplicationVersions {
+func SourcesAppVersionsToRepo(logCtx *log.Logger, applicationVersions *sources_server_client.AppVersionResult) *apiclient.ApplicationVersions {
 	if applicationVersions == nil {
 		return nil
 	}
+
 	applicationVersionsRepo := &apiclient.ApplicationVersions{}
 	applicationVersionsData, _ := json.Marshal(applicationVersions)
 	err := json.Unmarshal(applicationVersionsData, applicationVersionsRepo)
@@ -31,5 +31,6 @@ func SourcesAppVersionsToRepo(applicationVersions *sources_server_client.AppVers
 		logCtx.Errorf("can't unmarshal app version: %v", err)
 		return nil
 	}
+
 	return applicationVersionsRepo
 }

@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 
@@ -35,9 +36,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			},
 		}
 		rs := v1alpha1.ResourceStatus{}
-
 		man := "{ \"key\" : \"manifest\" }"
-
 		actualState := application.ApplicationResourceResponse{
 			Manifest: &man,
 		}
@@ -53,21 +52,26 @@ func TestGetResourceEventPayload(t *testing.T) {
 			}},
 		}
 
-		payload, err := getResourceEventPayload("", &ReportedResource{
-			rs:              &rs,
-			actualState:     &actualState,
-			desiredManifest: desiredState,
-			manifestGenErr:  true,
-			rsAsAppInfo:     nil,
-		}, &ReportedEntityParentApp{
-			app:               &app,
-			appTree:           &appTree,
-			revisionsMetadata: &revisionMetadata,
-		}, getMockedArgoTrackingMetadata(), "0.0.1")
+		payload, err := getResourceEventPayload(
+			time.Now(),
+			&ReportedResource{
+				rs:              &rs,
+				actualState:     &actualState,
+				desiredManifest: desiredState,
+				manifestGenErr:  true,
+				rsAsAppInfo:     nil,
+			},
+			&ReportedEntityParentApp{
+				app:               &app,
+				appTree:           &appTree,
+				revisionsMetadata: &revisionMetadata,
+			},
+			getMockedArgoTrackingMetadata(),
+		)
 		require.NoError(t, err)
 
-		assert.Equal(t, "{ \"key\" : \"manifest\" }", payload.Source.DesiredManifest)
-		assert.Equal(t, "{ \"key\" : \"manifest\" }", payload.Source.ActualManifest)
+		assert.Equal(t, "{ \"key\" : \"manifest\" }", payload.DesiredManifest)
+		assert.Equal(t, "{ \"key\" : \"manifest\" }", payload.ActualManifest)
 	})
 
 	t.Run("Deleting timestamp not empty", func(t *testing.T) {
@@ -88,45 +92,53 @@ func TestGetResourceEventPayload(t *testing.T) {
 			SyncRevisions: []*utils.RevisionWithMetadata{},
 		}
 
-		payload, err := getResourceEventPayload("", &ReportedResource{
-			rs:              &rs,
-			actualState:     &actualState,
-			desiredManifest: desiredState,
-			manifestGenErr:  true,
-			rsAsAppInfo:     nil,
-		}, &ReportedEntityParentApp{
-			app:               &app,
-			appTree:           &appTree,
-			revisionsMetadata: &revisionMetadata,
-		}, getMockedArgoTrackingMetadata(), "0.0.1")
+		payload, err := getResourceEventPayload(
+			time.Now(),
+			&ReportedResource{
+				rs:              &rs,
+				actualState:     &actualState,
+				desiredManifest: desiredState,
+				manifestGenErr:  true,
+				rsAsAppInfo:     nil,
+			},
+			&ReportedEntityParentApp{
+				app:               &app,
+				appTree:           &appTree,
+				revisionsMetadata: &revisionMetadata,
+			},
+			getMockedArgoTrackingMetadata(),
+		)
 		require.NoError(t, err)
 
-		assert.Equal(t, "", payload.Source.DesiredManifest)
-		assert.Equal(t, "", payload.Source.ActualManifest)
+		assert.Equal(t, "", payload.DesiredManifest)
+		assert.Equal(t, "", payload.ActualManifest)
 	})
 }
 
 func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	app := v1alpha1.Application{}
 	rs := v1alpha1.ResourceStatus{}
-
 	mf := "{ \"key\" : \"manifest\" }"
-
 	actualState := application.ApplicationResourceResponse{
 		Manifest: &mf,
 	}
 	desiredState := "{ \"key\" : \"manifest\" }"
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload("", &ReportedResource{
-		rs:              &rs,
-		actualState:     &actualState,
-		desiredManifest: desiredState,
-		manifestGenErr:  true,
-		rsAsAppInfo:     nil,
-	}, &ReportedEntityParentApp{
-		app:     &app,
-		appTree: &appTree,
-	}, getMockedArgoTrackingMetadata(), "0.0.1")
+	_, err := getResourceEventPayload(
+		time.Now(),
+		&ReportedResource{
+			rs:              &rs,
+			actualState:     &actualState,
+			desiredManifest: desiredState,
+			manifestGenErr:  true,
+			rsAsAppInfo:     nil,
+		},
+		&ReportedEntityParentApp{
+			app:     &app,
+			appTree: &appTree,
+		},
+		getMockedArgoTrackingMetadata(),
+	)
 	assert.NoError(t, err)
 }

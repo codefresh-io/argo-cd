@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
@@ -9,6 +11,9 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
+
+// LoggerKey is a unique key for storing the logger in the context.
+type LoggerKey struct{}
 
 func SetHealthStatusIfMissing(rs *appv1.ResourceStatus) {
 	if rs.Health == nil && rs.Status == appv1.SyncStatusCodeSynced {
@@ -25,7 +30,7 @@ func IsApp(rs appv1.ResourceStatus) bool {
 	return rs.GroupVersionKind().String() == appv1.ApplicationSchemaGroupVersionKind.String()
 }
 
-func LogWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
+func LogWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts time.Time) *log.Entry {
 	return logCtx.WithFields(log.Fields{
 		"sync":            a.Status.Sync.Status,
 		"health":          a.Status.Health.Status,
@@ -77,4 +82,17 @@ func AddDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatu
 	u.SetNamespace(rs.Namespace)
 
 	return u, nil
+}
+
+// WithLogger returns a new context with the given logger.
+func WithLogger(ctx context.Context, logger *log.Logger) context.Context {
+	return context.WithValue(ctx, LoggerKey{}, logger)
+}
+
+// GetLogger retrieves the logger from the context.
+func GetLogger(ctx context.Context) *log.Logger {
+	if logger, ok := ctx.Value(LoggerKey{}).(*log.Logger); ok {
+		return logger
+	}
+	return log.StandardLogger() // Return a default logger if not found
 }

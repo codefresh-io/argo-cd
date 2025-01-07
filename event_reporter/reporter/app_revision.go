@@ -6,8 +6,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // treats multi-sourced apps as single source and gets first revision details
@@ -63,8 +61,9 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *v
 	return rms, nil
 }
 
-func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) {
+func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) {
 	result := &utils.AppSyncRevisionsMetadata{}
+	logCtx := utils.GetLogger(ctx)
 
 	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {
 		// can be the latest revision of repository

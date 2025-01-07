@@ -69,7 +69,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, eventProcessingStartedAt string, ignoreResourceCache bool) error {
+	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, eventProcessingStartedAt time.Time, ignoreResourceCache bool) error {
 		if eventType == watch.Bookmark {
 			return nil // ignore this event
 		}
@@ -80,10 +80,17 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		}
 		trackingMethod := argoutil.GetTrackingMethod(c.settingsMgr)
 
-		err = c.applicationEventReporter.StreamApplicationEvents(ctx, &a, eventProcessingStartedAt, ignoreResourceCache, &reporter.ArgoTrackingMetadata{
+		argoTrackingMetadata := &reporter.ArgoTrackingMetadata{
 			AppInstanceLabelKey: &appInstanceLabelKey,
 			TrackingMethod:      &trackingMethod,
-		})
+		}
+		err = c.applicationEventReporter.StreamApplicationEvents(
+			ctx,
+			eventProcessingStartedAt,
+			&a,
+			argoTrackingMetadata,
+			ignoreResourceCache,
+		)
 		if err != nil {
 			return err
 		}
@@ -92,6 +99,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			logCtx.WithError(err).Error("failed to cache last sent application event")
 			return err
 		}
+
 		return nil
 	}
 
@@ -112,7 +120,8 @@ func (c *eventReporterController) Run(ctx context.Context) {
 				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType, event.Application.Name)
 				continue
 			}
-			eventProcessingStartedAt := time.Now().Format("2006-01-02T15:04:05.000Z")
+
+			eventProcessingStartedAt := time.Now()
 			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 			err := sendIfPermitted(ctx, event.Application, event.Type, eventProcessingStartedAt, ignoreResourceCache)
 			if err != nil {
@@ -122,6 +131,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 					cancel()
 				}
 			}
+
 			cancel()
 		}
 	}

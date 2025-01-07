@@ -145,12 +145,12 @@ endef
 PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
-DOCKER_PUSH?=false
-IMAGE_NAMESPACE?=quay.io/codefresh
+DOCKER_PUSH?=true
+IMAGE_NAMESPACE?=quay.io/noam_codefresh
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
-DEV_IMAGE?=false
+DEV_IMAGE?=true
 ARGOCD_GPG_ENABLED?=true
 ARGOCD_E2E_APISERVER_PORT?=8080
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"testing"
 	"time"
 
@@ -54,6 +53,20 @@ const (
 	testNamespace = "default"
 )
 
+type MockCodefreshClient struct{}
+
+func (cc *MockCodefreshClient) SendApplicationEvent(ctx context.Context, payload *codefresh.ApplicationPayload) error {
+	return nil
+}
+
+func (cc *MockCodefreshClient) SendResourceEvent(ctx context.Context, payload *codefresh.ResourcePayload) error {
+	return nil
+}
+
+func (cc *MockCodefreshClient) SendGraphQL(query codefresh.GraphQLQuery) (*json.RawMessage, error) {
+	return nil, nil
+}
+
 func newAppLister(objects ...runtime.Object) applisters.ApplicationLister {
 	fakeAppsClientset := fakeapps.NewSimpleClientset(objects...)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
@@ -66,24 +79,6 @@ func newAppLister(objects ...runtime.Object) applisters.ApplicationLister {
 	}
 	appLister := appsInformer.Lister()
 	return appLister
-}
-
-type MockCodefreshConfig struct {
-	BaseURL   string
-	AuthToken string
-}
-
-type MockCodefreshClient struct {
-	cfConfig   *MockCodefreshConfig
-	httpClient *http.Client
-}
-
-func (cc *MockCodefreshClient) SendEvent(ctx context.Context, appName string, payload *events.EventPayload) error {
-	return nil
-}
-
-func (cc *MockCodefreshClient) SendGraphQL(query codefresh.GraphQLQuery) (*json.RawMessage, error) {
-	return nil, nil
 }
 
 func fakeAppServiceClient() apiclientapppkg.ApplicationServiceClient {
@@ -149,18 +144,8 @@ func fakeReporter(customAppServiceClient appclient.ApplicationClient) *applicati
 		1*time.Minute,
 	)
 
-	cfClient := &MockCodefreshClient{
-		cfConfig: &MockCodefreshConfig{
-			BaseURL:   "",
-			AuthToken: "",
-		},
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}
-
+	cfClient := &MockCodefreshClient{}
 	metricsServ := metrics.NewMetricsServer("", 8099)
-
 	return &applicationEventReporter{
 		cache,
 		cfClient,
@@ -229,7 +214,13 @@ func TestStreamApplicationEvent(t *testing.T) {
 			assert.Equal(t, *app, actualApp)
 			return nil
 		}
-		_ = eventReporter.StreamApplicationEvents(context.Background(), app, "", false, getMockedArgoTrackingMetadata())
+		_ = eventReporter.StreamApplicationEvents(
+			context.Background(),
+			time.Now(),
+			app,
+			getMockedArgoTrackingMetadata(),
+			false,
+		)
 	})
 }
 

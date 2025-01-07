@@ -4,21 +4,20 @@ import (
 	"fmt"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func parseApplicationSyncResultErrors(os *appv1.OperationState) []*events.ObjectError {
-	var errors []*events.ObjectError
+func parseApplicationSyncResultErrors(os *appv1.OperationState) []*codefresh.EventError {
+	var errors []*codefresh.EventError
 	// mean that resource not found as sync result but application can contain error inside operation state itself,
 	// for example app created with invalid yaml
 	if os.Phase == common.OperationError || os.Phase == common.OperationFailed {
-		errors = append(errors, &events.ObjectError{
+		errors = append(errors, &codefresh.EventError{
 			Type:     "sync",
 			Level:    "error",
 			Message:  os.Message,
@@ -33,8 +32,8 @@ var (
 	syncTaskNotValidErrorMessage      = "one or more synchronization tasks are not valid"
 )
 
-func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStatus) []*events.ObjectError {
-	var errs []*events.ObjectError
+func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStatus) []*codefresh.EventError {
+	var errs []*codefresh.EventError
 	if status.Conditions == nil {
 		return errs
 	}
@@ -47,7 +46,7 @@ func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStat
 		}
 
 		if level := getConditionLevel(cnd); level != "" {
-			errs = append(errs, &events.ObjectError{
+			errs = append(errs, &codefresh.EventError{
 				Type:     "sync",
 				Level:    level,
 				Message:  cnd.Message,
@@ -75,8 +74,8 @@ func getConditionTime(cnd appv1.ApplicationCondition) metav1.Time {
 	return metav1.Now()
 }
 
-func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
-	errors := []*events.ObjectError{}
+func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*codefresh.EventError {
+	errors := []*codefresh.EventError{}
 	if os.SyncResult == nil {
 		return errors
 	}
@@ -93,7 +92,7 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 		return errors
 	}
 
-	errors = append(errors, &events.ObjectError{
+	errors = append(errors, &codefresh.EventError{
 		Type:     "sync",
 		Level:    "error",
 		Message:  sr.Message,
@@ -103,8 +102,8 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 	return errors
 }
 
-func parseAggregativeHealthErrorsOfApplication(a *appv1.Application, appTree *appv1.ApplicationTree) []*events.ObjectError {
-	var errors []*events.ObjectError
+func parseAggregativeHealthErrorsOfApplication(a *appv1.Application, appTree *appv1.ApplicationTree) []*codefresh.EventError {
+	var errors []*codefresh.EventError
 	if a.Status.Resources == nil {
 		return errors
 	}
@@ -120,8 +119,8 @@ func parseAggregativeHealthErrorsOfApplication(a *appv1.Application, appTree *ap
 	return errors
 }
 
-func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.ApplicationTree, addReference bool) []*events.ObjectError {
-	errs := make([]*events.ObjectError, 0)
+func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.ApplicationTree, addReference bool) []*codefresh.EventError {
+	errs := make([]*codefresh.EventError, 0)
 
 	if apptree == nil {
 		return errs
@@ -149,12 +148,12 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	return errs
 }
 
-func getNodeHealthError(node appv1.ResourceNode, managedResource *appv1.ResourceStatus, addReference bool) *events.ObjectError {
+func getNodeHealthError(node appv1.ResourceNode, managedResource *appv1.ResourceStatus, addReference bool) *codefresh.EventError {
 	if node.Health == nil || node.Health.Status != health.HealthStatusDegraded {
 		return nil
 	}
 
-	newErr := &events.ObjectError{
+	newErr := &codefresh.EventError{
 		Type:     "health",
 		Level:    "error",
 		Message:  node.Health.Message,
@@ -162,7 +161,7 @@ func getNodeHealthError(node appv1.ResourceNode, managedResource *appv1.Resource
 	}
 
 	if addReference {
-		newErr.SourceReference = &events.ErrorSourceReference{
+		newErr.SourceReference = &codefresh.ErrorSourceReference{
 			Group:     managedResource.Group,
 			Version:   managedResource.Version,
 			Kind:      managedResource.Kind,
@@ -173,8 +172,8 @@ func getNodeHealthError(node appv1.ResourceNode, managedResource *appv1.Resource
 	return newErr
 }
 
-func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) []*events.ObjectError {
-	var errs []*events.ObjectError
+func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) []*codefresh.EventError {
+	var errs []*codefresh.EventError
 
 	if resourceResults == nil {
 		return errs
@@ -182,17 +181,18 @@ func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) 
 
 	for _, rr := range resourceResults {
 		if rr.Message != "" {
-			objectError := events.ObjectError{
+			objectError := &codefresh.EventError{
 				Type:     "sync",
 				Level:    "error",
 				LastSeen: metav1.Now(),
 				Message:  fmt.Sprintf("Resource %s(%s): \n %s", rr.Kind, rr.Name, rr.Message),
 			}
 			if rr.Status == common.ResultCodeSyncFailed {
-				errs = append(errs, &objectError)
+				errs = append(errs, objectError)
 			}
+
 			if rr.HookPhase == common.OperationFailed || rr.HookPhase == common.OperationError {
-				errs = append(errs, &objectError)
+				errs = append(errs, objectError)
 			}
 		}
 	}
