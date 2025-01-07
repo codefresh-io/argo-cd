@@ -656,7 +656,7 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 			})
 			errors.CheckError(err)
 
-			for _, manifest := range manifests.GetCompiledManifests() {
+			for _, manifest := range manifests.Manifests {
 				assetSecretDataHidden(t, manifest)
 			}
 

@@ -283,7 +283,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		targetObj, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
+		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}

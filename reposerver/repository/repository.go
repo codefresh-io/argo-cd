@@ -1757,7 +1757,6 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 		manifestFileInfo := potentiallyValidManifest.fileInfo
 
 		if strings.HasSuffix(manifestFileInfo.Name(), ".jsonnet") {
-			var objs []*unstructured.Unstructured
 			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
 				continue
 			}
@@ -1982,31 +1981,6 @@ func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot st
 	}
 
 	return potentiallyValidManifests, nil
-}
-
-func expandUnstructuredObjs(objs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	ret := make([]*unstructured.Unstructured, 0, len(objs))
-	for _, obj := range objs {
-		if obj.IsList() {
-			err := obj.EachListItem(func(object runtime.Object) error {
-				unstructuredObj, ok := object.(*unstructured.Unstructured)
-				if ok {
-					ret = append(ret, unstructuredObj)
-					return nil
-				}
-				return fmt.Errorf("resource list item has unexpected type")
-			})
-			if err != nil {
-				return nil, err
-			}
-		} else if isNullList(obj) {
-			// noop
-		} else {
-			ret = append(ret, obj)
-		}
-	}
-
-	return ret, nil
 }
 
 func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
