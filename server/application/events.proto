@@ -12,23 +12,6 @@ import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
-message EventSource {
-    // The event source name.
-    required string name = 1;
-    // The event source configuration value.
-    optional bytes config = 2;
-}
-
-/**
-* Represents an event
-*/
-message Event {
-    // The event source name.
-    required string name = 1;
-    // The event payload.
-    required bytes payload = 2;
-}
-
 /**
 * The actual object that will be send
 * with each event.
@@ -54,32 +37,30 @@ message EventPayload {
 message ObjectSource {
     optional string desiredManifest = 1 [(gogoproto.nullable) = false];
     optional string actualManifest = 2 [(gogoproto.nullable) = false];
-    optional string gitManifest = 3 [(gogoproto.nullable) = false];
-    optional string repoURL = 4 [(gogoproto.nullable) = false];
-    optional string path = 5 [(gogoproto.nullable) = false];
-    optional string revision = 6 [(gogoproto.nullable) = false]; // sync.revision
-    optional string commitMessage = 7 [(gogoproto.nullable) = false];
-    optional string commitAuthor = 8 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 9;
-    optional string appName = 10 [(gogoproto.nullable) = false];
-    map<string, string> appLabels = 11 [(gogoproto.nullable) = false];
-    optional string syncStatus = 12 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 13 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 14;
-    optional string healthStatus = 15;
-    optional string healthMessage = 16;
-    optional string cluster = 17 [(gogoproto.nullable) = false]; // destination.server
-    optional int64 historyId = 18 [(gogoproto.nullable) = false]; // legacy
-    optional string operationSyncRevision = 19 [(gogoproto.nullable) = false];
-    optional string appUID = 20 [(gogoproto.nullable) = false];
-    optional string appNamespace = 21 [(gogoproto.nullable) = false];
-    optional string appInstanceLabelKey = 22 [(gogoproto.nullable) = false];
-    optional string trackingMethod = 23 [(gogoproto.nullable) = false];
-    repeated string revisions = 24; // sync.revisions
-    repeated string operationSyncRevisions = 25; // syncResult.revisions
-    optional string clusterName = 26; // destination.name
-    required bool appMultiSourced = 27 [(gogoproto.nullable) = false];
-    required int32 appSourceIdx = 28 [(gogoproto.nullable) = false];
+    optional string repoURL = 3 [(gogoproto.nullable) = false];
+    optional string revision = 4 [(gogoproto.nullable) = false]; // sync.revision
+    optional string commitMessage = 5 [(gogoproto.nullable) = false];
+    optional string commitAuthor = 6 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 7;
+    optional string appName = 8 [(gogoproto.nullable) = false];
+    map<string, string> appLabels = 9 [(gogoproto.nullable) = false];
+    optional string syncStatus = 10 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 11 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 12;
+    optional string healthStatus = 13;
+    optional string healthMessage = 14;
+    optional string cluster = 15 [(gogoproto.nullable) = false]; // destination.server
+    optional int64 historyId = 16 [(gogoproto.nullable) = false]; // legacy
+    optional string operationSyncRevision = 17 [(gogoproto.nullable) = false];
+    optional string appUID = 18 [(gogoproto.nullable) = false];
+    optional string appNamespace = 19 [(gogoproto.nullable) = false];
+    optional string appInstanceLabelKey = 20 [(gogoproto.nullable) = false];
+    optional string trackingMethod = 21 [(gogoproto.nullable) = false];
+    repeated string revisions = 22; // sync.revisions
+    repeated string operationSyncRevisions = 23; // syncResult.revisions
+    optional string clusterName = 24; // destination.name
+    required bool appMultiSourced = 25 [(gogoproto.nullable) = false];
+    required int32 appSourceIdx = 26 [(gogoproto.nullable) = false];
 }
 
 /**

@@ -35,7 +35,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -81,7 +81,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -112,7 +112,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -165,7 +165,7 @@ func TestSyncComparisonError(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []*apiclient.Manifest{},
+			Manifests:    []string{},
 			Namespace:    test.FakeDestNamespace,
 			Server:       test.FakeClusterURL,
 			Revision:     "abc123",
@@ -211,7 +211,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{app, project},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []*apiclient.Manifest{},
+				Manifests: []string{},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",
@@ -286,7 +286,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{app, project},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []*apiclient.Manifest{},
+				Manifests: []string{},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",

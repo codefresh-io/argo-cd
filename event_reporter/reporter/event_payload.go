@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -16,7 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 )
 
 func getResourceEventPayload(
@@ -25,7 +23,7 @@ func getResourceEventPayload(
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 	runtimeVersion string,
-) (*events.Event, error) {
+) (*events.EventPayload, error) {
 	var (
 		err          error
 		syncStarted  = metav1.Now()
@@ -52,34 +50,29 @@ func getResourceEventPayload(
 			return nil, err
 		}
 	}
+
 	if len(object) == 0 {
-		if len(rr.desiredState.CompiledManifest) == 0 {
+		if len(rr.desiredManifest) == 0 {
 			object, err = buildEventObjectAsLiveAndCompiledManifestsEmpty(rr)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			object, err = useCompiledManifestAsEventObject(rr)
+			object, err = useDesiredManifestAsEventObject(rr)
 			if err != nil {
 				return nil, err
 			}
 		}
 	} else if rr.rs.RequiresPruning && !rr.manifestGenErr {
 		// resource should be deleted
-		makeDesiredAndLiveManifestEmpty(rr.actualState, rr.desiredState)
+		rr.actualState.Manifest = nil
+		rr.desiredManifest = ""
 	}
 
 	if (rr.rsAsAppInfo != nil && rr.rsAsAppInfo.app != nil && rr.rsAsAppInfo.app.DeletionTimestamp != nil) || reportedEntityParentApp.app.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
-		makeDesiredAndLiveManifestEmpty(rr.actualState, rr.desiredState)
-	}
-
-	if len(rr.desiredState.RawManifest) == 0 && len(rr.desiredState.CompiledManifest) != 0 {
-		// for handling helm defined resources, etc...
-		y, err := yaml.JSONToYAML([]byte(rr.desiredState.CompiledManifest))
-		if err == nil {
-			rr.desiredState.RawManifest = string(y)
-		}
+		rr.actualState.Manifest = nil
+		rr.desiredManifest = ""
 	}
 
 	if reportedEntityParentApp.app.Status.OperationState != nil {
@@ -100,11 +93,9 @@ func getResourceEventPayload(
 		}
 	}
 
-	source := events.ObjectSource{
-		DesiredManifest:        rr.desiredState.CompiledManifest,
+	source := &events.ObjectSource{
+		DesiredManifest:        rr.desiredManifest,
 		ActualManifest:         *rr.actualState.Manifest,
-		GitManifest:            rr.desiredState.RawManifest,
-		Path:                   rr.desiredState.Path,
 		Revision:               utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
 		Revisions:              utils.GetApplicationLatestRevisions(reportedEntityParentApp.app),
 		OperationSyncRevision:  utils.GetOperationRevision(reportedEntityParentApp.app),
@@ -125,7 +116,7 @@ func getResourceEventPayload(
 	}
 
 	source.RepoURL = getResourceSourceRepoUrl(rr, reportedEntityParentApp)
-	addResourceEventPayloadGitCommitDetails(&source, rr, reportedEntityParentApp)
+	addResourceEventPayloadGitCommitDetails(source, rr, reportedEntityParentApp)
 
 	if reportedEntityParentApp.validatedDestination != nil {
 		source.ClusterName = &reportedEntityParentApp.validatedDestination.Name
@@ -136,10 +127,10 @@ func getResourceEventPayload(
 		source.HealthMessage = &rr.rs.Health.Message
 	}
 
-	payload := events.EventPayload{
+	payload := &events.EventPayload{
 		Timestamp:      appEventProcessingStartedAt,
 		Object:         object,
-		Source:         &source,
+		Source:         source,
 		Errors:         getResourceEventPayloadErrors(rr, reportedEntityParentApp),
 		AppVersions:    applicationVersionsEvents,
 		RuntimeVersion: runtimeVersion,
@@ -149,12 +140,7 @@ func getResourceEventPayload(
 		logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
 	}
 
-	payloadBytes, err := json.Marshal(&payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", rr.rs.Namespace, rr.rs.Name, err)
-	}
-
-	return &events.Event{Payload: payloadBytes}, nil
+	return payload, nil
 }
 
 func getResourceSourceRepoUrl(
@@ -228,11 +214,11 @@ func getResourceEventPayloadErrors(
 	return errors
 }
 
-func useCompiledManifestAsEventObject(
+func useDesiredManifestAsEventObject(
 	rr *ReportedResource,
 ) ([]byte, error) {
 	// no actual state, use desired state as event object
-	unstructuredWithNamespace, err := utils.AddDestNamespaceToManifest([]byte(rr.desiredState.CompiledManifest), rr.rs)
+	unstructuredWithNamespace, err := utils.AddDestNamespaceToManifest([]byte(rr.desiredManifest), rr.rs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
 	}
@@ -252,17 +238,6 @@ func buildEventObjectAsLiveAndCompiledManifestsEmpty(
 	u.SetNamespace(rr.rs.Namespace)
 
 	return addCommitDetailsToUnstructured(u, rr)
-}
-
-// when empty minifests reported to codefresh they will get deleted
-func makeDesiredAndLiveManifestEmpty(
-	actualState *application.ApplicationResourceResponse,
-	desiredState *apiclient.Manifest,
-) {
-	// resource should be deleted
-	desiredState.CompiledManifest = ""
-	manifest := ""
-	actualState.Manifest = &manifest
 }
 
 func addCommitDetailsToUnstructured(
@@ -292,7 +267,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	applicationVersions *apiclient.ApplicationVersions,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 	runtimeVersion string,
-) (*events.Event, error) {
+) (*events.EventPayload, error) {
 	var (
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
@@ -342,12 +317,10 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	hs := string(a.Status.Health.Status)
 	source := &events.ObjectSource{
 		DesiredManifest:       "",
-		GitManifest:           "",
 		ActualManifest:        actualManifest,
 		RepoURL:               a.Spec.GetSource().RepoURL,
 		CommitMessage:         "",
 		CommitAuthor:          "",
-		Path:                  "",
 		Revision:              "",
 		OperationSyncRevision: "",
 		HistoryId:             0,
@@ -367,7 +340,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	errors = append(errors, parseApplicationSyncResultErrorsFromConditions(a.Status)...)
 	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
 
-	payload := events.EventPayload{
+	payload := &events.EventPayload{
 		Timestamp:      eventProcessingStartedAt,
 		Object:         object,
 		Source:         source,
@@ -378,10 +351,5 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 
 	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))
 
-	payloadBytes, err := json.Marshal(&payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", a.Namespace, a.Name, err)
-	}
-
-	return &events.Event{Payload: payloadBytes}, nil
+	return payload, nil
 }

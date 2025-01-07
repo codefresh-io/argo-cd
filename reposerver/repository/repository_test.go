@@ -315,7 +315,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{{CompiledManifest: "Fake"}}, Revision: mock.Anything}
+	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil)
 	require.NoError(t, err)
@@ -496,13 +496,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests: []*apiclient.Manifest{
-			{
-				CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}",
-				Path:             "Chart.yaml",
-				Line:             1,
-			},
-		},
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -539,13 +533,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests: []*apiclient.Manifest{
-			{
-				CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}",
-				Path:             "Chart.yaml",
-				Line:             1,
-			},
-		},
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -710,7 +698,7 @@ func TestNilMetadataAccessors(t *testing.T) {
 	res, err := service.GenerateManifest(context.Background(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res.Manifests, 1)
-	assert.Equal(t, expected, res.Manifests[0].CompiledManifest)
+	assert.Equal(t, expected, res.Manifests[0])
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
@@ -1121,7 +1109,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 	replicasVerified := false
 	for _, src := range res.Manifests {
 		obj := unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(src.CompiledManifest), &obj)
+		err = json.Unmarshal([]byte(src), &obj)
 		require.NoError(t, err)
 
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
@@ -1184,7 +1172,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 	replicasVerified := false
 	for _, src := range res.Manifests {
 		obj := unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(src.CompiledManifest), &obj)
+		err = json.Unmarshal([]byte(src), &obj)
 		require.NoError(t, err)
 
 		if obj.GetKind() == "Deployment" && obj.GetName() == "production-redis-slave" {
@@ -1261,13 +1249,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests: []*apiclient.Manifest{
-			{
-				CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}",
-				Path:             "Chart.yaml",
-				Line:             1,
-			},
-		},
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -1510,7 +1492,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	})
 	require.NoError(t, err)
-	assert.Contains(t, res.Manifests[6].CompiledManifest, `"replicas":2`, "ValuesObject should override Values")
+	assert.Contains(t, res.Manifests[6], `"replicas":2`, "ValuesObject should override Values")
 }
 
 func TestGenerateNullList(t *testing.T) {
@@ -1526,7 +1508,7 @@ func TestGenerateNullList(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Len(t, res1.Manifests, 2)
-		assert.Contains(t, res1.Manifests[1].CompiledManifest, "prometheus-operator-operator")
+		assert.Contains(t, res1.Manifests[1], "prometheus-operator-operator")
 	})
 
 	t.Run("empty list", func(t *testing.T) {
@@ -1539,7 +1521,7 @@ func TestGenerateNullList(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Len(t, res1.Manifests, 2)
-		assert.Contains(t, res1.Manifests[1].CompiledManifest, "prometheus-operator-operator")
+		assert.Contains(t, res1.Manifests[1], "prometheus-operator-operator")
 	})
 
 	t.Run("weird list", func(t *testing.T) {
@@ -1920,7 +1902,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
+				err := yaml.Unmarshal([]byte(manifest), &un)
 				require.NoError(t, err)
 				resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
 			}
@@ -1949,7 +1931,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
+				err := yaml.Unmarshal([]byte(manifest), &un)
 				require.NoError(t, err)
 				resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
 			}
@@ -1979,7 +1961,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
+				err := yaml.Unmarshal([]byte(manifest), &un)
 				require.NoError(t, err)
 				resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
 			}
@@ -2030,7 +2012,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
+				err := yaml.Unmarshal([]byte(manifest), &un)
 				require.NoError(t, err)
 				resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
 			}
@@ -2228,7 +2210,7 @@ func TestFindResources(t *testing.T) {
 			require.NoError(t, err)
 			var names []string
 			for i := range objs {
-				names = append(names, objs[i].obj.GetName())
+				names = append(names, objs[i].GetName())
 			}
 			assert.ElementsMatch(t, tc.expectedNames, names)
 		})
@@ -2244,7 +2226,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, objs, 1)
 
-	assert.Equal(t, "nginx-deployment", objs[0].obj.GetName())
+	assert.Equal(t, "nginx-deployment", objs[0].GetName())
 }
 
 func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
@@ -2257,7 +2239,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	require.Len(t, objs, 2)
 
 	assert.ElementsMatch(t,
-		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].obj.GetName(), objs[1].obj.GetName()})
+		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
 }
 
 func tempDir(t *testing.T) string {

@@ -8,12 +8,12 @@ import (
 )
 
 type ReportedResource struct {
-	rs             *appv1.ResourceStatus
-	rsAsAppInfo    *ReportedResourceAsApp // passed if resource is application
-	appSourceIdx   int32
-	actualState    *application.ApplicationResourceResponse
-	desiredState   *apiclient.Manifest
-	manifestGenErr bool
+	rs              *appv1.ResourceStatus
+	rsAsAppInfo     *ReportedResourceAsApp // passed if resource is application
+	appSourceIdx    int32
+	actualState     *application.ApplicationResourceResponse
+	desiredManifest string
+	manifestGenErr  bool
 }
 
 type ReportedResourceAsApp struct {

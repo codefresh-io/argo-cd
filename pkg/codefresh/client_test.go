@@ -34,7 +34,7 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 		name      string
 		baseURL   string
 		authToken string
-		payload   []byte
+		payload   *events.EventPayload
 		wantErr   string
 		beforeFn  func(t *testing.T, rt *MockRoundTripper)
 	}{
@@ -42,7 +42,7 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 			name:      "should return nil when all is good",
 			baseURL:   "http://some.host",
 			authToken: "some-token",
-			payload:   []byte(`{"key": "value"}`),
+			payload:   &events.EventPayload{},
 			beforeFn: func(t *testing.T, rt *MockRoundTripper) {
 				rt.On("RoundTrip", mock.Anything).Run(func(args mock.Arguments) {
 					req := args.Get(0).(*http.Request)
@@ -65,7 +65,7 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 			name:      "should create correct url when baseUrl ends with '/'",
 			baseURL:   "http://some.host/",
 			authToken: "some-token",
-			payload:   []byte(`{"key": "value"}`),
+			payload:   &events.EventPayload{},
 			beforeFn: func(t *testing.T, rt *MockRoundTripper) {
 				rt.On("RoundTrip", mock.Anything).Run(func(args mock.Arguments) {
 					req := args.Get(0).(*http.Request)
@@ -88,11 +88,8 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 					Transport: mockRT,
 				},
 			}
-			event := &events.Event{
-				Payload: tt.payload,
-			}
 			tt.beforeFn(t, mockRT)
-			if err := c.SendEvent(context.Background(), "appName", event); err != nil || tt.wantErr != "" {
+			if err := c.SendEvent(context.Background(), "appName", tt.payload); err != nil || tt.wantErr != "" {
 				assert.EqualError(t, err, tt.wantErr)
 			}
 		})

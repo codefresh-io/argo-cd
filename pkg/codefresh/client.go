@@ -34,7 +34,7 @@ type CodefreshClient struct {
 }
 
 type CodefreshClientInterface interface {
-	SendEvent(ctx context.Context, appName string, event *events.Event) error
+	SendEvent(ctx context.Context, appName string, payload *events.EventPayload) error
 	SendGraphQL(query GraphQLQuery) (*json.RawMessage, error)
 }
 
@@ -44,7 +44,7 @@ type GraphQLQuery struct {
 	Variables map[string]interface{} `json:"variables"`
 }
 
-func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *events.Event) error {
+func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, payload *events.EventPayload) error {
 	return WithRetry(&DefaultBackoff, func() error {
 		url, err := url.JoinPath(c.cfConfig.BaseURL, "/2.0/api/events")
 		if err != nil {
@@ -53,8 +53,9 @@ func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *
 
 		log.Infof("Sending application event for %s", appName)
 
-		wrappedPayload := map[string]json.RawMessage{
-			"data": event.Payload,
+		wrappedPayload := map[string]any{
+			"version": 2,
+			"data":    payload,
 		}
 
 		newPayloadBytes, err := json.Marshal(wrappedPayload)
@@ -88,15 +89,15 @@ func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *
 
 		res, err := c.httpClient.Do(req)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed reporting to Codefresh, event: %s", string(event.Payload)))
+			return errors.Wrap(err, fmt.Sprintf("failed reporting to Codefresh, payload: %q", payload))
 		}
 		defer res.Body.Close()
 
 		isStatusOK := res.StatusCode >= 200 && res.StatusCode < 300
 		if !isStatusOK {
 			b, _ := io.ReadAll(res.Body)
-			return errors.Errorf("failed reporting to Codefresh, got response: status code %d and body %s, original request body: %s",
-				res.StatusCode, string(b), string(event.Payload))
+			return errors.Errorf("failed reporting to Codefresh, got response: status code %d and body %s, payload: %v",
+				res.StatusCode, string(b), payload)
 		}
 
 		log.Infof("Application event for %s successfully sent", appName)

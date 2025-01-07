@@ -558,7 +558,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
 			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
+			err = json.Unmarshal([]byte(manifest), obj)
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
@@ -571,7 +571,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				if err != nil {
 					return nil, fmt.Errorf("error marshaling manifest: %w", err)
 				}
-				manifestInfo.Manifests[i].CompiledManifest = string(data)
+				manifestInfo.Manifests[i] = string(data)
 			}
 		}
 		manifests.SourcesManifestsStartingIdx = append(manifests.SourcesManifestsStartingIdx, int32(len(manifests.Manifests)))
@@ -688,7 +688,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	for i, manifest := range manifestInfo.Manifests {
 		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
+		err = json.Unmarshal([]byte(manifest), obj)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
@@ -701,7 +701,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			if err != nil {
 				return fmt.Errorf("error marshaling manifest: %w", err)
 			}
-			manifestInfo.Manifests[i].CompiledManifest = string(data)
+			manifestInfo.Manifests[i] = string(data)
 		}
 	}
 

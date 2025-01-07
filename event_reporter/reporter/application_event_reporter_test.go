@@ -68,10 +68,6 @@ func newAppLister(objects ...runtime.Object) applisters.ApplicationLister {
 	return appLister
 }
 
-type MockcodefreshClient interface {
-	Send(ctx context.Context, appName string, event *events.Event) error
-}
-
 type MockCodefreshConfig struct {
 	BaseURL   string
 	AuthToken string
@@ -82,7 +78,7 @@ type MockCodefreshClient struct {
 	httpClient *http.Client
 }
 
-func (cc *MockCodefreshClient) SendEvent(ctx context.Context, appName string, event *events.Event) error {
+func (cc *MockCodefreshClient) SendEvent(ctx context.Context, appName string, payload *events.EventPayload) error {
 	return nil
 }
 
@@ -215,11 +211,7 @@ type MockEventing_StartEventSourceServer struct {
 	grpc.ServerStream
 }
 
-var result func(*events.Event) error
-
-func (m *MockEventing_StartEventSourceServer) Send(event *events.Event) error {
-	return result(event)
-}
+var result func(*events.EventPayload) error
 
 func TestStreamApplicationEvent(t *testing.T) {
 	eventReporter := fakeReporter(fakeAppServiceClient())
@@ -231,10 +223,7 @@ func TestStreamApplicationEvent(t *testing.T) {
 			},
 		}
 
-		result = func(event *events.Event) error {
-			var payload events.EventPayload
-			_ = json.Unmarshal(event.Payload, &payload)
-
+		result = func(payload *events.EventPayload) error {
 			var actualApp v1alpha1.Application
 			_ = json.Unmarshal([]byte(payload.Source.ActualManifest), &actualApp)
 			assert.Equal(t, *app, actualApp)

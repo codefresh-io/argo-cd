@@ -128,9 +128,9 @@ func (r *applicationEventReporter) getDesiredManifests(
 		// of the resources, but since we can't get the desired state, we will report
 		// each resource with empty desired state
 		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
-		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
 		return desiredManifests, true // will ignore requiresPruning=true to not delete resources with actual state
 	}
+
 	return desiredManifests, false
 }
 
@@ -353,7 +353,7 @@ func (s *applicationEventReporter) processResource(
 	})
 
 	// get resource desired state
-	desiredState, appSourceIdx := getResourceDesiredState(&rs, desiredManifests, logCtx)
+	desiredManifest, appSourceIdx := getResourceDesiredManifest(&rs, desiredManifests, logCtx)
 
 	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, reportedEntityParentApp.app, originalApplication)
 	if err != nil {
@@ -374,11 +374,11 @@ func (s *applicationEventReporter) processResource(
 	ev, err := getResourceEventPayload(
 		appEventProcessingStartedAt,
 		&ReportedResource{
-			rs:             &rs,
-			actualState:    actualState,
-			desiredState:   desiredState,
-			manifestGenErr: manifestGenErr,
-			appSourceIdx:   appSourceIdx,
+			rs:              &rs,
+			actualState:     actualState,
+			desiredManifest: desiredManifest,
+			manifestGenErr:  manifestGenErr,
+			appSourceIdx:    appSourceIdx,
 			rsAsAppInfo: &ReportedResourceAsApp{
 				app:                 originalApplication,
 				revisionsMetadata:   originalAppRevisionMetadata,
@@ -552,12 +552,13 @@ func applicationMetadataChanged(ae *appv1.ApplicationWatchEvent, cachedApp *appv
 	return !reflect.DeepEqual(newEventAppMeta, cachedAppMeta)
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) (manifest *apiclient.Manifest, sourceIdx int32) {
+func getResourceDesiredManifest(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) (manifest string, sourceIdx int32) {
 	if ds == nil {
-		return &apiclient.Manifest{}, 0
+		return "", 0
 	}
+
 	for idx, m := range ds.Manifests {
-		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
+		u, err := appv1.UnmarshalToUnstructured(m)
 		if err != nil {
 			logger.WithError(err).Warnf("failed to unmarshal compiled manifest")
 			continue
@@ -573,7 +574,7 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 			u.GetName() == rs.Name &&
 			ns == rs.Namespace {
 			if rs.Kind == kube.SecretKind && rs.Version == "v1" {
-				m.RawManifest = m.CompiledManifest
+				m = ""
 			}
 
 			return m, getResourceSourceIdxFromManifestResponse(idx, ds)
@@ -582,7 +583,7 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 
 	// no desired state for resource
 	// it's probably deleted from git
-	return &apiclient.Manifest{}, 0
+	return "", 0
 }
 
 func getResourceSourceIdxFromManifestResponse(rsIdx int, ds *apiclient.ManifestResponse) int32 {

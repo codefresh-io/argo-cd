@@ -947,11 +947,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []*apiclient.Manifest{
-					{
-						CompiledManifest: fakePostDeleteHook,
-					},
-				},
+				Manifests: []string{fakePostDeleteHook},
 			}},
 			apps:            []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
@@ -993,11 +989,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.NoError(t, unstructured.SetNestedField(liveHook.Object, conditions, "status", "conditions"))
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []*apiclient.Manifest{
-					{
-						CompiledManifest: fakePostDeleteHook,
-					},
-				},
+				Manifests: []string{fakePostDeleteHook},
 			}},
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
@@ -1041,19 +1033,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.NoError(t, unstructured.SetNestedField(liveHook.Object, conditions, "status", "conditions"))
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []*apiclient.Manifest{
-					{
-						CompiledManifest: fakeRoleBinding,
-					},
-					{
-						CompiledManifest: fakeRole,
-					},
-					{
-						CompiledManifest: fakeServiceAccount,
-					},
-					{
-						CompiledManifest: fakePostDeleteHook,
-					},
+				Manifests: []string{
+					fakeRoleBinding,
+					fakeRole,
+					fakeServiceAccount,
+					fakePostDeleteHook,
 				},
 			}},
 			apps: []runtime.Object{app, &defaultProj},
@@ -1116,7 +1100,7 @@ func TestNormalizeApplication(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1595,7 +1579,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1652,7 +1636,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1810,7 +1794,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1843,7 +1827,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1874,7 +1858,7 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponses: []*apiclient.ManifestResponse{{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 		}},
 	}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -1900,7 +1884,7 @@ func TestGetAppHosts(t *testing.T) {
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",

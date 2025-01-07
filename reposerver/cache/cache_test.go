@@ -186,11 +186,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 	response := apiclient.ManifestResponse{
 		Namespace: "default",
 		Revision:  "revision",
-		Manifests: []*apiclient.Manifest{
-			{
-				CompiledManifest: "sample-text",
-			},
-		},
+		Manifests: []string{"sample-text"},
 	}
 	appSrc := &appv1.ApplicationSource{}
 	appKey := "key"
@@ -290,9 +286,9 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 		CacheEntryHash:        "value",
 		FirstFailureTimestamp: 1,
 		ManifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{
-				{CompiledManifest: "one"},
-				{CompiledManifest: "two"},
+			Manifests: []string{
+				"one",
+				"two",
 			},
 		},
 		MostRecentError:                 "error",
@@ -307,9 +303,9 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 		CacheEntryHash:        "diff-value",
 		FirstFailureTimestamp: 1,
 		ManifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{
-				{CompiledManifest: "one"},
-				{CompiledManifest: "two"},
+			Manifests: []string{
+				"one",
+				"two",
 			},
 		},
 		MostRecentError:                 "error",

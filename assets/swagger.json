@@ -5238,28 +5238,6 @@
         }
       }
     },
-    "repositoryManifest": {
-      "type": "object",
-      "properties": {
-        "compiledManifest": {
-          "type": "string",
-          "title": "The processed manifest that needs to be applied to the cluster"
-        },
-        "line": {
-          "type": "integer",
-          "format": "int32",
-          "title": "The line in the file where the object starts"
-        },
-        "path": {
-          "type": "string",
-          "title": "The path of the raw manifest inside the repo"
-        },
-        "rawManifest": {
-          "description": "The pre-processed manifest (for example the kustomization.yaml\nwhen using kustmize or the values.yaml when using helm).",
-          "type": "string"
-        }
-      }
-    },
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
@@ -5278,7 +5256,7 @@
         "manifests": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/repositoryManifest"
+            "type": "string"
           }
         },
         "namespace": {
@@ -5296,7 +5274,7 @@
         },
         "sourcesManifestsStartingIdx": {
           "type": "array",
-          "title": "for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one",
+          "title": "for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one\nTODO: cf",
           "items": {
             "type": "integer",
             "format": "int32"
