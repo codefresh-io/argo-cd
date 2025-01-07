@@ -1783,7 +1783,6 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			var objs []*unstructured.Unstructured
 			err := getObjsFromYAMLOrJson(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
 			if err != nil {
 				return nil, err
