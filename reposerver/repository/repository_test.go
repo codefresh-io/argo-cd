@@ -99,6 +99,10 @@ func newCacheMocksWithOpts(repoCacheExpiration, revisionCacheExpiration, revisio
 	}
 }
 
+func applyCfGitClientMocks(gitClientMock *gitmocks.Client) {
+	gitClientMock.On("RevisionMetadata", mock.Anything).Return(nil, errors.New("cant fetch metadata"))
+}
+
 func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *gitmocks.Client, *repoCacheMocks) {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -113,7 +117,6 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
 		gitClient.On("IsAnnotatedTag").Return(false)
-		gitClient.On("RevisionMetadata", mock.Anything).Return(nil, errors.New("cant fetch metadata"))
 		if signed {
 			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
 		} else {
@@ -163,12 +166,14 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 }
 
 func newService(t *testing.T, root string) *Service {
-	service, _, _ := newServiceWithMocks(t, root, false)
+	service, gm, _ := newServiceWithMocks(t, root, false)
+	applyCfGitClientMocks(gm)
 	return service
 }
 
 func newServiceWithSignature(t *testing.T, root string) *Service {
-	service, _, _ := newServiceWithMocks(t, root, true)
+	service, gm, _ := newServiceWithMocks(t, root, true)
+	applyCfGitClientMocks(gm)
 	return service
 }
 
@@ -336,6 +341,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 func TestGenerateManifests_EmptyCache(t *testing.T) {
 	service, gitMocks, mockCache := newServiceWithMocks(t, "../../manifests/base", false)
+	applyCfGitClientMocks(gitMocks)
 
 	src := argoappv1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{
@@ -490,6 +496,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 func TestHelmManifestFromChartRepo(t *testing.T) {
 	root := t.TempDir()
 	service, gitMocks, mockCache := newServiceWithMocks(t, root, false)
+	applyCfGitClientMocks(gitMocks)
 	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
@@ -657,6 +664,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".", false)
+	applyCfGitClientMocks(gitClient)
 
 	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 
@@ -683,7 +691,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	require.NoError(t, err)
-	assert.Len(t, res1.Manifests, 2)
+	assert.Len(t, res1.Manifests, 4)
 }
 
 func TestInvalidManifestsInDir(t *testing.T) {

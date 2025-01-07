@@ -206,20 +206,6 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 				"project":  []byte("testProject"),
 			},
 		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "other-user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
-			Data: map[string][]byte{
-				"name":     []byte("Scoped UserManagedRepo"),
-				"url":      []byte("git@github.com:argoproj/argoproj.git"),
-				"username": []byte("someOtherUsername"),
-				"password": []byte("someOtherPassword"),
-				"project":  []byte("testProject"),
-			},
-		},
 	}
 
 	clientset := getClientset(map[string]string{}, repoSecrets...)

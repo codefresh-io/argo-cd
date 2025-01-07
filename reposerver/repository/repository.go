@@ -1576,8 +1576,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		return nil, err
 	}
 
-	resManifests := make([]*apiclient.Manifest, len(manifests))
-	for i, m := range manifests {
+	resManifests := make([]*apiclient.Manifest, 0)
+	for _, m := range manifests {
 		if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(m.obj) {
 			err = resourceTracking.SetAppInstance(m.obj, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod), q.InstallationID)
 			if err != nil {
@@ -1590,12 +1590,12 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			return nil, err
 		}
 
-		resManifests[i] = &apiclient.Manifest{
+		resManifests = append(resManifests, &apiclient.Manifest{
 			CompiledManifest: string(manifestStr),
 			RawManifest:      string(m.rawManifest),
 			Path:             m.path,
 			Line:             int32(m.line),
-		}
+		})
 	}
 
 	res := apiclient.ManifestResponse{
