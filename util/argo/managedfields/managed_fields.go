@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,12 +33,15 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 	liveCopy := live.DeepCopy()
 	configCopy := config.DeepCopy()
+	normalized := false
+
 	results, err := newTypedResults(liveCopy, configCopy, pt)
+	// error might happen if the resources are not parsable and so cannot be normalized
 	if err != nil {
-		return nil, nil, fmt.Errorf("error building typed results: %w", err)
+		log.Debugf("error building typed results: %v", err)
+		return liveCopy, configCopy, nil
 	}
 
-	normalized := false
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
 			err := normalize(mf, results)

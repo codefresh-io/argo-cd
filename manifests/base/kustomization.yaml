@@ -13,5 +13,5 @@ resources:
 - ./server
 - ./config
 - ./redis
+- ./notification
 - ./applicationset-controller
-- ./event-reporter

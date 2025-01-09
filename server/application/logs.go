@@ -59,8 +59,6 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	// buffer of received log entries for each stream
 	entriesPerStream := make([][]logEntry, len(streams))
 	process := make(chan struct{})
-	signalToCloseMergedChannel := make(chan logEntry)
-	ticker := time.NewTicker(bufferingDuration)
 
 	var lock sync.Mutex
 	streamsCount := int32(len(streams))
@@ -112,17 +110,8 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 			}
 		}
 		lock.Unlock()
-		if isSignalToCloseMergedChannel(signalToCloseMergedChannel) && isChannelClosed(merged) {
-			return len(entries) > 0
-		}
-
 		for i := range entries {
 			merged <- entries[i]
-		}
-
-		if isSignalToCloseMergedChannel(signalToCloseMergedChannel) && !isChannelClosed(merged) {
-			close(merged)
-			ticker.Stop()
 		}
 		return len(entries) > 0
 	}
@@ -130,16 +119,23 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	var sentAtLock sync.Mutex
 	var sentAt time.Time
 
+	ticker := time.NewTicker(bufferingDuration)
+	done := make(chan struct{})
 	go func() {
-		for range ticker.C {
-			sentAtLock.Lock()
-			// waited long enough for logs from each streams, send everything accumulated
-			if sentAt.Add(bufferingDuration).Before(time.Now()) {
-				_ = send(true)
-				sentAt = time.Now()
-			}
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				sentAtLock.Lock()
+				// waited long enough for logs from each streams, send everything accumulated
+				if sentAt.Add(bufferingDuration).Before(time.Now()) {
+					_ = send(true)
+					sentAt = time.Now()
+				}
 
-			sentAtLock.Unlock()
+				sentAtLock.Unlock()
+			}
 		}
 	}()
 
@@ -154,20 +150,13 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 
 		_ = send(true)
 
-		close(signalToCloseMergedChannel)
+		ticker.Stop()
+		// ticker.Stop() does not close the channel, and it does not wait for the channel to be drained. So we need to
+		// explicitly prevent the gorountine from leaking by closing the channel. We also need to prevent the goroutine
+		// from calling `send` again, because `send` pushes to the `merged` channel which we're about to close.
+		// This describes the approach nicely: https://stackoverflow.com/questions/17797754/ticker-stop-behaviour-in-golang
+		done <- struct{}{}
+		close(merged)
 	}()
 	return merged
-}
-
-func isChannelClosed(channel chan logEntry) bool {
-	ok := true
-	select {
-	case _, ok = <-channel:
-	default:
-	}
-	return !ok
-}
-
-func isSignalToCloseMergedChannel(channel chan logEntry) bool {
-	return isChannelClosed(channel)
 }

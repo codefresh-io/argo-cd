@@ -33,6 +33,7 @@ type ReportedEntityParentApp struct {
 type ArgoTrackingMetadata struct {
 	AppInstanceLabelKey *string
 	TrackingMethod      *appv1.TrackingMethod
+	InstallationID      *string
 }
 
 func (rr *ReportedResource) GetApiVersion() string {

@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 )
 
@@ -270,7 +270,7 @@ func Test_ChangeRevision(r *testing.T) {
 	r.Run("Change revision", func(t *testing.T) {
 		client := &mocks.ApplicationClient{}
 		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
-			Revision: pointer.String("new-revision"),
+			Revision: ptr.To("new-revision"),
 		}, nil)
 		acrService := newTestACRService(client)
 		app := createTestApp(syncedAppWithHistory)
@@ -287,7 +287,7 @@ func Test_ChangeRevision(r *testing.T) {
 	r.Run("Change revision already exists", func(t *testing.T) {
 		client := &mocks.ApplicationClient{}
 		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
-			Revision: pointer.String("new-revision"),
+			Revision: ptr.To("new-revision"),
 		}, nil)
 
 		logger, logHook := test2.NewNullLogger()

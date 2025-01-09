@@ -22,6 +22,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application":                             schema_pkg_apis_application_v1alpha1_Application(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition":                    schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination":                  schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount":    schema_pkg_apis_application_v1alpha1_ApplicationDestinationServiceAccount(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationList":                         schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression":              schema_pkg_apis_application_v1alpha1_ApplicationMatchExpression(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields":              schema_pkg_apis_application_v1alpha1_ApplicationPreservedFields(ref),
@@ -56,6 +57,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":                   schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                                 schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":                schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket":                    schema_pkg_apis_application_v1alpha1_BearerTokenBitbucket(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucketCloud":               schema_pkg_apis_application_v1alpha1_BearerTokenBitbucketCloud(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                            schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                                 schema_pkg_apis_application_v1alpha1_Cluster(ref),
@@ -68,6 +70,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComparedTo":                              schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComponentParameter":                      schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigManagementPlugin":                  schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef":                         schema_pkg_apis_application_v1alpha1_ConfigMapKeyRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState":                         schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator":                       schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry":                                schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
@@ -471,11 +474,25 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"destinationServiceAccounts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -624,6 +641,40 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationDestinationServiceAccount(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"server": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace specifies the target namespace for the application's resources.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"defaultServiceAccount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceAccountName to be used for impersonation during the sync operation",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1833,6 +1884,35 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kubeVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses the Kubernetes version of the target cluster.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default, Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -1988,13 +2068,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
-					"forceNamespace": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Namespace sets the namespace that Kustomize adds to all resources",
@@ -2057,6 +2130,28 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Description: "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"kubeVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses the Kubernetes version of the target cluster.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default, Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -2557,6 +2652,28 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_BearerTokenBitbucket(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password (or personal access token) reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+				},
+				Required: []string{"tokenRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_BearerTokenBitbucketCloud(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2833,20 +2950,6 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "ExecProviderConfig contains configuration for an exec provider",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig"),
-						},
-					},
-					"disableCompression": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DisableCompression bypasses automatic GZip compression requests to the server.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"proxyUrl": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProxyURL is the URL to the proxy to be used for all requests send to the server",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 				},
@@ -3167,6 +3270,34 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ConfigMapKeyRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Utility struct for a reference to a configmap key.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configMapName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"configMapName", "key"},
+			},
+		},
 	}
 }
 
@@ -4047,15 +4178,8 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"SetNamespace": {
-						SchemaProps: spec.SchemaProps{
-							Default: false,
-							Type:    []string{"boolean"},
-							Format:  "",
-						},
-					},
 				},
-				Required: []string{"BuildOptions", "BinaryPath", "SetNamespace"},
+				Required: []string{"BuildOptions", "BinaryPath"},
 			},
 		},
 	}
@@ -5200,12 +5324,31 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(re
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"),
 						},
 					},
+					"bearerToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for AccessToken (Bearer auth)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"),
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow self-signed TLS / Certificates; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"project", "repo", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"},
 	}
 }
 
@@ -5291,12 +5434,18 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Format:      "",
 						},
 					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
@@ -5568,6 +5717,13 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"noProxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"url"},
 			},
@@ -5769,6 +5925,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"noProxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
@@ -6411,38 +6574,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 					"createdAt": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-					"labels": {
-						SchemaProps: spec.SchemaProps{
-							Description: "available for managed resource",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"annotations": {
-						SchemaProps: spec.SchemaProps{
-							Description: "available for managed resource without k8s-last-applied-configuration",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
 						},
 					},
 				},
@@ -7182,12 +7313,31 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucketServer(re
 							Format:      "",
 						},
 					},
+					"bearerToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for AccessToken (Bearer auth)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"),
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow self-signed TLS / Certificates; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"project", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"},
 	}
 }
 
@@ -7421,12 +7571,18 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 							Format:      "",
 						},
 					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"group"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
@@ -7591,26 +7747,6 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 									},
 								},
 							},
-						},
-					},
-					"changeRevisions": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"changeRevision": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
 						},
 					},
 				},
@@ -7838,11 +7974,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 						},
 					},
 					"comparedTo": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-patch-strategy": "replace",
-							},
-						},
 						SchemaProps: spec.SchemaProps{
 							Description: "ComparedTo contains information about what has been compared",
 							Default:     map[string]interface{}{},

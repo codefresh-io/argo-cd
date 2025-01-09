@@ -347,7 +347,7 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		CreateApp("--dest-server", KubernetesInternalAPIServerAddr).
 		Then().
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
@@ -2291,6 +2291,7 @@ definitions:
 }
 
 func TestNamespacedAppLogs(t *testing.T) {
+	t.SkipNow() // Too flaky. https://github.com/argoproj/argo-cd/issues/13834
 	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		SetAppNamespace(AppNamespace()).

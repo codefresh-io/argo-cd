@@ -99,6 +99,8 @@ func TestIncludeResource(t *testing.T) {
 		// !*:Service:*
 		excludeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: true}
 		// apps:ReplicaSet:backend
+		includeAllReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "*", Namespace: "", Exclude: false}
+		// apps:ReplicaSet:backend
 		includeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: false}
 		// !apps:ReplicaSet:backend
 		excludeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: true}
@@ -136,7 +138,7 @@ func TestIncludeResource(t *testing.T) {
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSetResource},
-			expectedResult:        true,
+			expectedResult:        false,
 		},
 		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
 		{
@@ -154,6 +156,15 @@ func TestIncludeResource(t *testing.T) {
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource},
+			expectedResult:        false,
+		},
+		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
+		{
+			testName:              "Exclude ReplicaSet backend resource and all service resources(dummy condition)",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource, &excludeAllServiceResources},
 			expectedResult:        false,
 		},
 		// --resource apps:ReplicaSet:backend
@@ -183,6 +194,15 @@ func TestIncludeResource(t *testing.T) {
 			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:        true,
 		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:backend
+		{
+			testName:              "Include & Exclude ReplicaSet resources",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSetResource},
+			expectedResult:        false,
+		},
 		// --resource !*:*:*
 		{
 			testName:              "Exclude all resources",
@@ -209,7 +229,10 @@ func TestIncludeResource(t *testing.T) {
 			syncOperationResource: []*argoappv1.SyncOperationResource{&blankValues},
 			expectedResult:        false,
 		},
-		{testName: "Default values"},
+		{
+			testName:       "Default values",
+			expectedResult: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -679,7 +702,7 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
@@ -712,7 +735,7 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
@@ -750,7 +773,7 @@ func TestValidatePermissions(t *testing.T) {
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "has not been configured")
+		assert.Contains(t, conditions[0].Message, "unable to find destination server")
 	})
 
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
@@ -811,8 +834,10 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
-		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		require.Error(t, err)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "Unknown error occurred")
 	})
 
 	t.Run("Destination cluster name resolves to valid server", func(t *testing.T) {
@@ -911,7 +936,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil)
-		require.NoError(t, appCond)
+		require.Error(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -1399,7 +1424,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)

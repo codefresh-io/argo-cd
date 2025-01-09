@@ -69,6 +69,16 @@ func (c *Cache) SetRepoConnectionState(repo string, project string, state *appv1
 	return c.cache.SetItem(repoConnectionStateKey(repo, project), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 
+func repoConnectionStateKey(repo string, project string) string {
+	return fmt.Sprintf("repo|%s|%s|connection-state", repo, project)
+}
+
+func (c *Cache) GetRepoConnectionState(repo string, project string) (appv1.ConnectionState, error) {
+	res := appv1.ConnectionState{}
+	err := c.cache.GetItem(repoConnectionStateKey(repo, project), &res)
+	return res, err
+}
+
 func (c *Cache) SetLastApplicationEvent(a *appv1.Application, exp time.Duration) error {
 	return c.cache.SetItem(lastApplicationEventKey(a), a, exp, false)
 }
@@ -94,16 +104,6 @@ func lastApplicationEventKey(a *appv1.Application) string {
 func lastResourceEventKey(a *appv1.Application, rs appv1.ResourceStatus, revision string) string {
 	return fmt.Sprintf("app|%s/%s|%s|res|%s/%s/%s/%s/%s|last-sent-event",
 		a.Namespace, a.Name, revision, rs.Group, rs.Version, rs.Kind, rs.Name, rs.Namespace)
-}
-
-func repoConnectionStateKey(repo string, project string) string {
-	return fmt.Sprintf("repo|%s|%s|connection-state", repo, project)
-}
-
-func (c *Cache) GetRepoConnectionState(repo string, project string) (appv1.ConnectionState, error) {
-	res := appv1.ConnectionState{}
-	err := c.cache.GetItem(repoConnectionStateKey(repo, project), &res)
-	return res, err
 }
 
 func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {

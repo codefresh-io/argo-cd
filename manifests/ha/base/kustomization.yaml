@@ -20,4 +20,5 @@ resources:
 - ../../base/repo-server
 - ../../base/server
 - ../../base/config
+- ../../base/notification
 - ./redis-ha

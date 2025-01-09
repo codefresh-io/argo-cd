@@ -234,7 +234,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return a.Sources != nil && len(a.Sources) > 0
+	return len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
@@ -293,6 +293,51 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Plugin.IsZero()
 }
 
+// GetNamespaceOrDefault gets the static namespace configured in the source. If none is configured, returns the given
+// default.
+func (a *ApplicationSource) GetNamespaceOrDefault(defaultNamespace string) string {
+	if a == nil {
+		return defaultNamespace
+	}
+	if a.Helm != nil && a.Helm.Namespace != "" {
+		return a.Helm.Namespace
+	}
+	if a.Kustomize != nil && a.Kustomize.Namespace != "" {
+		return a.Kustomize.Namespace
+	}
+	return defaultNamespace
+}
+
+// GetKubeVersionOrDefault gets the static Kubernetes API version configured in the source. If none is configured,
+// returns the given default.
+func (a *ApplicationSource) GetKubeVersionOrDefault(defaultKubeVersion string) string {
+	if a == nil {
+		return defaultKubeVersion
+	}
+	if a.Helm != nil && a.Helm.KubeVersion != "" {
+		return a.Helm.KubeVersion
+	}
+	if a.Kustomize != nil && a.Kustomize.KubeVersion != "" {
+		return a.Kustomize.KubeVersion
+	}
+	return defaultKubeVersion
+}
+
+// GetAPIVersionsOrDefault gets the static API versions list configured in the source. If none is configured, returns
+// the given default.
+func (a *ApplicationSource) GetAPIVersionsOrDefault(defaultAPIVersions []string) []string {
+	if a == nil {
+		return defaultAPIVersions
+	}
+	if a.Helm != nil && len(a.Helm.APIVersions) > 0 {
+		return a.Helm.APIVersions
+	}
+	if a.Kustomize != nil && len(a.Kustomize.APIVersions) > 0 {
+		return a.Kustomize.APIVersions
+	}
+	return defaultAPIVersions
+}
+
 // ApplicationSourceType specifies the type of the application's source
 type ApplicationSourceType string
 
@@ -343,6 +388,14 @@ type ApplicationSourceHelm struct {
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,11,opt,name=namespace"`
+	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+	// uses the Kubernetes version of the target cluster.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,12,opt,name=kubeVersion"`
+	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -424,7 +477,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -493,6 +546,12 @@ type ApplicationSourceKustomize struct {
 	Components []string `json:"components,omitempty" protobuf:"bytes,14,rep,name=components"`
 	// LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
 	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,15,opt,name=labelWithoutSelector"`
+	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+	// uses the Kubernetes version of the target cluster.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,16,opt,name=kubeVersion"`
+	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,17,opt,name=apiVersions"`
 }
 
 type KustomizeReplica struct {
@@ -599,6 +658,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.CommonAnnotations) == 0 &&
 			len(k.Patches) == 0 &&
 			len(k.Components) == 0 &&
+			k.KubeVersion == "" &&
+			len(k.APIVersions) == 0 &&
 			!k.ForceNamespace
 }
 
@@ -612,7 +673,7 @@ func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	}
 }
 
-// MergeReplicas merges a new Kustomize replica identifier in to a list of replicas
+// MergeReplica merges a new Kustomize replica identifier in to a list of replicas
 func (k *ApplicationSourceKustomize) MergeReplica(replica KustomizeReplica) {
 	i := k.Replicas.FindByName(replica.Name)
 	if i >= 0 {
@@ -940,6 +1001,14 @@ type ApplicationDestination struct {
 
 	// nolint:govet
 	isServerInferred bool `json:"-"`
+	// nolint:govet
+	isNameInferred bool `json:"-"`
+}
+
+// SetIsServerInferred sets the isServerInferred flag. This is used to allow comparison between two destinations where
+// one server is inferred and the other is not.
+func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
+	d.isServerInferred = inferred
 }
 
 type ResourceHealthLocation string
@@ -996,15 +1065,15 @@ func (a *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (app *Application) BuildComparedToStatus() ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
 	ct := ComparedTo{
-		Destination:       app.Spec.Destination,
-		IgnoreDifferences: app.Spec.IgnoreDifferences,
+		Destination:       spec.Destination,
+		IgnoreDifferences: spec.IgnoreDifferences,
 	}
-	if app.Spec.HasMultipleSources() {
-		ct.Sources = app.Spec.Sources
+	if spec.HasMultipleSources() {
+		ct.Sources = spec.Sources
 	} else {
-		ct.Source = app.Spec.GetSource()
+		ct.Source = spec.GetSource()
 	}
 	return ct
 }
@@ -1113,9 +1182,11 @@ type SyncOperation struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,10,opt,name=sources"`
 	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
 	// If omitted, will use the revision specified in app spec.
-	Revisions       []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
-	ChangeRevisions []string `json:"changeRevisions,omitempty" protobuf:"-"`
-	ChangeRevision  string   `json:"changeRevision,omitempty" protobuf:"-"`
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
+	// SelfHealAttemptsCount contains the number of auto-heal attempts
+	SelfHealAttemptsCount int64    `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	ChangeRevisions       []string `json:"changeRevisions,omitempty" protobuf:"-"`
+	ChangeRevision        string   `json:"changeRevision,omitempty" protobuf:"-"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1465,7 +1536,7 @@ type SyncStatusCode string
 const (
 	// SyncStatusCodeUnknown indicates that the status of a sync could not be reliably determined
 	SyncStatusCodeUnknown SyncStatusCode = "Unknown"
-	// SyncStatusCodeOutOfSync indicates that desired and live states match
+	// SyncStatusCodeSynced indicates that desired and live states match
 	SyncStatusCodeSynced SyncStatusCode = "Synced"
 	// SyncStatusCodeOutOfSync indicates that there is a drift between desired and live states
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
@@ -1525,8 +1596,7 @@ type SyncStatus struct {
 	// Status is the sync state of the comparison
 	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
-	// +patchStrategy=replace
-	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo" patchStrategy:"replace"`
+	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
@@ -1586,6 +1656,60 @@ type ApplicationTree struct {
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
 	// Hosts holds list of Kubernetes nodes that run application related pods
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
+	// ShardsCount contains total number of shards the application tree is split into
+	ShardsCount int64 `json:"shardsCount,omitempty" protobuf:"bytes,4,opt,name=shardsCount"`
+}
+
+func (t *ApplicationTree) Merge(other *ApplicationTree) {
+	t.Nodes = append(t.Nodes, other.Nodes...)
+	t.OrphanedNodes = append(t.OrphanedNodes, other.OrphanedNodes...)
+	t.Hosts = append(t.Hosts, other.Hosts...)
+	t.Normalize()
+}
+
+// GetShards split application tree into shards with populated metadata
+func (t *ApplicationTree) GetShards(size int64) []*ApplicationTree {
+	t.Normalize()
+	if size == 0 {
+		return []*ApplicationTree{t}
+	}
+
+	var items []func(*ApplicationTree)
+	for i := range t.Nodes {
+		item := t.Nodes[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.Nodes = append(shard.Nodes, item)
+		})
+	}
+	for i := range t.OrphanedNodes {
+		item := t.OrphanedNodes[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.OrphanedNodes = append(shard.OrphanedNodes, item)
+		})
+	}
+	for i := range t.Hosts {
+		item := t.Hosts[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.Hosts = append(shard.Hosts, item)
+		})
+	}
+	var shards []*ApplicationTree
+	for len(items) > 0 {
+		shard := &ApplicationTree{}
+		shards = append(shards, shard)
+		cnt := 0
+		for i := int64(0); i < size && i < int64(len(items)); i++ {
+			items[i](shard)
+			cnt++
+		}
+		items = items[cnt:]
+	}
+	if len(shards) > 0 {
+		shards[0].ShardsCount = int64(len(shards))
+	} else {
+		shards = []*ApplicationTree{{ShardsCount: 0}}
+	}
+	return shards
 }
 
 // Normalize sorts application tree nodes and hosts. The persistent order allows to
@@ -2091,8 +2215,9 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 // TODO: describe this type
 // TODO: describe members of this type
 type ResourceActions struct {
-	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
-	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
+	ActionDiscoveryLua  string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
+	Definitions         []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
+	MergeBuiltinActions bool                       `json:"mergeBuiltinActions,omitempty" yaml:"mergeBuiltinActions,omitempty" protobuf:"bytes,3,opt,name=mergeBuiltinActions"`
 }
 
 // TODO: describe this type
@@ -2292,6 +2417,8 @@ type AppProjectSpec struct {
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
+	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
+	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2323,11 +2450,11 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 // Active returns a list of sync windows that are currently active
-func (s *SyncWindows) Active() *SyncWindows {
+func (s *SyncWindows) Active() (*SyncWindows, error) {
 	return s.active(time.Now())
 }
 
-func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2336,8 +2463,14 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
-			schedule, _ := specParser.Parse(w.Schedule)
-			duration, _ := time.ParseDuration(w.Duration)
+			schedule, sErr := specParser.Parse(w.Schedule)
+			if sErr != nil {
+				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			}
+			duration, dErr := time.ParseDuration(w.Duration)
+			if dErr != nil {
+				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+			}
 
 			// Offset the nextWindow time to consider the timeZone of the sync window
 			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
@@ -2347,20 +2480,20 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 			}
 		}
 		if len(active) > 0 {
-			return &active
+			return &active, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
 // for the current time. If the current time is in an inactive allow window, syncs will
 // be denied.
-func (s *SyncWindows) InactiveAllows() *SyncWindows {
+func (s *SyncWindows) InactiveAllows() (*SyncWindows, error) {
 	return s.inactiveAllows(time.Now())
 }
 
-func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2371,21 +2504,27 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
+				if sErr != nil {
+					return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+				}
 				duration, dErr := time.ParseDuration(w.Duration)
+				if dErr != nil {
+					return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+				}
 				// Offset the nextWindow time to consider the timeZone of the sync window
 				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 					inactive = append(inactive, w)
 				}
 			}
 		}
 		if len(inactive) > 0 {
-			return &inactive
+			return &inactive, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
@@ -2489,36 +2628,42 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) bool {
+func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if !w.HasWindows() {
-		return true
+		return true, nil
 	}
 
-	active := w.Active()
+	active, err := w.Active()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
 		if isManual && manualEnabled {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
 	if active.hasAllow() {
-		return true
+		return true, nil
 	}
 
-	inactiveAllows := w.InactiveAllows()
+	inactiveAllows, err := w.InactiveAllows()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 // hasDeny will iterate over the SyncWindows and return if a deny window is found and if
@@ -2573,24 +2718,30 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() bool {
+func (w SyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) bool {
+func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, _ := specParser.Parse(w.Schedule)
-	duration, _ := time.ParseDuration(w.Duration)
+	schedule, sErr := specParser.Parse(w.Schedule)
+	if sErr != nil {
+		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+	}
+	duration, dErr := time.ParseDuration(w.Duration)
+	if dErr != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+	}
 
 	// Offset the nextWindow time to consider the timeZone of the sync window
 	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
 }
 
 // Update updates a sync window's settings with the given parameter
@@ -2708,6 +2859,16 @@ type KustomizeOptions struct {
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
 
 	SetNamespace bool `protobuf:"varint,3,opt,name=setNamespace"`
+}
+
+// ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
+type ApplicationDestinationServiceAccount struct {
+	// Server specifies the URL of the target cluster's Kubernetes control plane API.
+	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
+	// Namespace specifies the target namespace for the application's resources.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// DefaultServiceAccount to be used for impersonation during the sync operation
+	DefaultServiceAccount string `json:"defaultServiceAccount" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
 }
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
@@ -2936,6 +3097,17 @@ func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 		other.Server = ""
 		other.isServerInferred = false
 	}
+
+	if dest.isNameInferred {
+		dest.Name = ""
+		dest.isNameInferred = false
+	}
+
+	if other.isNameInferred {
+		other.Name = ""
+		other.isNameInferred = false
+	}
+
 	return reflect.DeepEqual(dest, other)
 }
 
@@ -3015,9 +3187,6 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 		DisableCompression:  config.DisableCompression,
 		IdleConnTimeout:     K8sTCPIdleConnTimeout,
 	})
-	if config.Proxy != nil {
-		transport.Proxy = config.Proxy
-	}
 	tr, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
 		return err
@@ -3142,14 +3311,6 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
-	if c.Config.ProxyUrl != "" {
-		u, err := ParseProxyUrl(c.Config.ProxyUrl)
-		if err != nil {
-			panic(fmt.Sprintf("Unable to create K8s REST config, can`t parse proxy url: %v", err))
-		}
-		config.Proxy = http.ProxyURL(u)
-	}
-	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
@@ -3195,6 +3356,12 @@ func (d *ApplicationDestination) SetInferredServer(server string) {
 	d.Server = server
 }
 
+// SetInferredName sets the Name field of the destination. See IsNameInferred() for details.
+func (d *ApplicationDestination) SetInferredName(name string) {
+	d.isNameInferred = true
+	d.Name = name
+}
+
 // An ApplicationDestination has an 'inferred server' if the ApplicationDestination
 // contains a Name, but not a Server URL. In this case it is necessary to retrieve
 // the Server URL by looking up the cluster name.
@@ -3205,6 +3372,10 @@ func (d *ApplicationDestination) IsServerInferred() bool {
 	return d.isServerInferred
 }
 
+func (d *ApplicationDestination) IsNameInferred() bool {
+	return d.isNameInferred
+}
+
 // MarshalJSON marshals an application destination to JSON format
 func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	type Alias ApplicationDestination
@@ -3213,6 +3384,11 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 		dest = dest.DeepCopy()
 		dest.Server = ""
 	}
+	if d.isNameInferred {
+		dest = dest.DeepCopy()
+		dest.Name = ""
+	}
+
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
 

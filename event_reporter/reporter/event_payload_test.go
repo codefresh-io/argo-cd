@@ -21,10 +21,12 @@ import (
 func getMockedArgoTrackingMetadata() *ArgoTrackingMetadata {
 	appInstanceLabelKey := common.LabelKeyAppInstance
 	trackingMethod := argo.TrackingMethodLabel
+	installationID := ""
 
 	return &ArgoTrackingMetadata{
 		AppInstanceLabelKey: &appInstanceLabelKey,
 		TrackingMethod:      &trackingMethod,
+		InstallationID:      &installationID,
 	}
 }
 

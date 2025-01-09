@@ -159,7 +159,7 @@ func (a *EventReporterServer) RunController(ctx context.Context) {
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *EventReporterServer) newHTTPServer(ctx context.Context, port int) *http.Server {
+func (a *EventReporterServer) newHTTPServer(ctx context.Context, port int) *http.Server { //nolint:golint,unparam
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{

@@ -330,6 +330,7 @@ func ValidateRepo(
 		return conditions, nil
 	}
 	config := cluster.RESTConfig()
+	// nolint:staticcheck
 	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
@@ -428,6 +429,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
+		// nolint:staticcheck
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -483,16 +485,18 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 	return refSources, nil
 }
 
-// ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
+// ValidateDestination sets the 'Server' or the `Name` value of the ApplicationDestination, if it is not set.
 // NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
-//
 // If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
 // ValidationDestination will look up the cluster by name (to get the server URL), and
-// set the corresponding Server field value.
+// set the corresponding Server field value. Same goes for the opposite case.
 //
 // It also checks:
 // - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
+	if dest.IsServerInferred() && dest.IsNameInferred() {
+		return fmt.Errorf("application destination can't have both name and server inferred: %s %s", dest.Name, dest.Server)
+	}
 	if dest.Name != "" {
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, db, dest.Name)
@@ -503,14 +507,25 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else if !dest.IsServerInferred() {
+		} else if !dest.IsServerInferred() && !dest.IsNameInferred() {
 			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
+		}
+	} else if dest.Server != "" {
+		if dest.Name == "" {
+			serverName, err := getDestinationServerName(ctx, db, dest.Server)
+			if err != nil {
+				return fmt.Errorf("unable to find destination server: %w", err)
+			}
+			if serverName == "" {
+				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Server)
+			}
+			dest.SetInferredName(serverName)
 		}
 	}
 	return nil
 }
 
-func validateSourcePermissions(ctx context.Context, source argoappv1.ApplicationSource, proj *argoappv1.AppProject, project string, hasMultipleSources bool) []argoappv1.ApplicationCondition {
+func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if hasMultipleSources {
 		if source.RepoURL == "" || (source.Path == "" && source.Chart == "" && source.Ref == "") {
@@ -546,7 +561,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 
 	if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
-			condition := validateSourcePermissions(ctx, source, proj, spec.Project, spec.HasMultipleSources())
+			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
 				conditions = append(conditions, condition...)
 				return conditions, nil
@@ -560,7 +575,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			}
 		}
 	} else {
-		conditions = validateSourcePermissions(ctx, spec.GetSource(), proj, spec.Project, spec.HasMultipleSources())
+		conditions = validateSourcePermissions(spec.GetSource(), spec.HasMultipleSources())
 		if len(conditions) > 0 {
 			return conditions, nil
 		}
@@ -753,12 +768,21 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+		installationID, err := settingsMgr.GetInstallationID()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting installation ID: %v", err),
+			})
+			continue
+		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
-				Repo:  source.RepoURL,
-				Type:  repoRes.Type,
-				Name:  repoRes.Name,
-				Proxy: repoRes.Proxy,
+				Repo:    source.RepoURL,
+				Type:    repoRes.Type,
+				Name:    repoRes.Name,
+				Proxy:   repoRes.Proxy,
+				NoProxy: repoRes.NoProxy,
 			},
 			Repos:               helmRepos,
 			Revision:            source.TargetRevision,
@@ -775,6 +799,9 @@ func verifyGenerateManifests(
 			NoRevisionCache:     true,
 			HasMultipleSources:  hasMultipleSources,
 			RefSources:          refSources,
+			ProjectName:         proj.Name,
+			ProjectSourceRepos:  proj.Spec.SourceRepos,
+			InstallationID:      installationID,
 			ApplicationMetadata: metadata,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
@@ -831,20 +858,42 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 	return false
 }
 
-// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+// IncludeResource The app resource is checked against the include or exclude filters.
+// If exclude filters are present, they are evaluated only after all include filters have been assessed.
 func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
 	syncOperationResources []*argoappv1.SyncOperationResource,
 ) bool {
+	includeResource := false
+	foundIncludeRule := false
+	// Evaluate include filters only in this loop.
 	for _, syncOperationResource := range syncOperationResources {
-		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if syncOperationResource.Exclude {
-			includeResource = !includeResource
+			continue
 		}
+		foundIncludeRule = true
+		includeResource = syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if includeResource {
-			return true
+			break
 		}
 	}
-	return false
+
+	// if a resource is present both in include and in exclude, the exclude wins.
+	// that including it here is a temporary decision for the use case when no include rules exist,
+	// but it still might be excluded later if it matches an exclude rule:
+	if !foundIncludeRule {
+		includeResource = true
+	}
+	// No needs to evaluate exclude filters when the resource is not included.
+	if !includeResource {
+		return false
+	}
+	// Evaluate exclude filters only in this loop.
+	for _, syncOperationResource := range syncOperationResources {
+		if syncOperationResource.Exclude && syncOperationResource.Compare(resourceName, resourceNamespace, gvk) {
+			return false
+		}
+	}
+	return true
 }
 
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
@@ -858,7 +907,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.SyncPolicy.IsZero() {
 		spec.SyncPolicy = nil
 	}
-	if spec.Sources != nil && len(spec.Sources) > 0 {
+	if len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
@@ -924,6 +973,22 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
 	}
 	return servers[0], nil
+}
+
+func getDestinationServerName(ctx context.Context, db db.ArgoDB, server string) (string, error) {
+	if db == nil {
+		return "", fmt.Errorf("there are no clusters registered in the database")
+	}
+
+	cluster, err := db.GetCluster(ctx, server)
+	if err != nil {
+		return "", fmt.Errorf("error getting cluster name by server %q: %w", server, err)
+	}
+
+	if cluster.Name == "" {
+		return "", fmt.Errorf("there are no clusters with this URL: %s", server)
+	}
+	return cluster.Name, nil
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
@@ -1020,26 +1085,25 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseName will
-func parseName(appName string, defaultNs string, delim string) (string, string) {
-	var ns string
-	var name string
-	t := strings.SplitN(appName, delim, 2)
+// parseName will split the qualified name into its components, which are separated by the delimiter.
+// If delimiter is not contained in the string qualifiedName then returned namespace is defaultNs.
+func parseName(qualifiedName string, defaultNs string, delim string) (name string, namespace string) {
+	t := strings.SplitN(qualifiedName, delim, 2)
 	if len(t) == 2 {
-		ns = t[0]
+		namespace = t[0]
 		name = t[1]
 	} else {
-		ns = defaultNs
+		namespace = defaultNs
 		name = t[0]
 	}
-	return name, ns
+	return
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
-	return parseName(appName, defaultNs, "/")
+func ParseFromQualifiedName(qualifiedAppName string, defaultNs string) (appName string, appNamespace string) {
+	return parseName(qualifiedAppName, defaultNs, "/")
 }
 
 // ParseInstanceName parses a namespaced name in the format namespace_name

@@ -14,7 +14,6 @@ redis-ha:
     IPv6:
       enabled: false
     image:
-      repository: public.ecr.aws/docker/library/haproxy
       tag: 2.6.17-alpine
     containerSecurityContext: null
     timeout:
@@ -24,7 +23,6 @@ redis-ha:
     metrics:
       enabled: true
   image:
-    repository: public.ecr.aws/docker/library/haproxy
     tag: 7.0.15-alpine
   containerSecurityContext: null
   sentinel:
