@@ -37,7 +37,8 @@ var allowedResourceTypes = map[ResourceTypeKey]bool{
 	{Group: "argoproj.io", Kind: "ClusterWorkflowTemplate"}: true,
 
 	// Argo Events resources
-	{Group: "argoproj.io", Kind: "Sensor"}: true,
+	{Group: "argoproj.io", Kind: "Sensor"}:      true,
+	{Group: "argoproj.io", Kind: "EventSource"}: true,
 
 	// Codefresh resources
 	{Group: "codefresh.io", Kind: "Product"}:             true,
@@ -45,12 +46,14 @@ var allowedResourceTypes = map[ResourceTypeKey]bool{
 	{Group: "codefresh.io", Kind: "PromotionPolicy"}:     true,
 	{Group: "codefresh.io", Kind: "PromotionTemplate"}:   true,
 	{Group: "codefresh.io", Kind: "RestrictedGitSource"}: true,
+
+	// Bitnami resources
+	{Group: "bitnami.com", Kind: "SealedSecret"}: true,
 }
 
 const (
-	CODEFRESH_IO_ENTITY   = "codefresh_io_entity"
-	GIT_PAT_OBTAINER_NAME = "git-pat-obtainer-name"
-	CODEFRESH_CM_NAME     = "codefresh-cm"
+	CODEFRESH_IO_ENTITY = "codefresh_io_entity"
+	CODEFRESH_CM_NAME   = "codefresh-cm"
 )
 
 func isAllowedResource(rs appv1.ResourceStatus) bool {
@@ -74,7 +77,8 @@ func isAllowedConfigMap(manifest string) bool {
 		return true
 	}
 
-	// Check for the git-pat-obtainer label
+	// Check for the codefresh_io_entity label
 	labels := u.GetLabels()
-	return labels != nil && labels[CODEFRESH_IO_ENTITY] == GIT_PAT_OBTAINER_NAME
+	_, hasCodefreshEntityLabel := labels[CODEFRESH_IO_ENTITY]
+	return labels != nil && hasCodefreshEntityLabel
 }
