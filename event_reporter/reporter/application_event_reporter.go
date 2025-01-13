@@ -314,6 +314,10 @@ func (s *applicationEventReporter) processResource(
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 ) error {
+	if !isAllowedResource(rs) {
+		return nil
+	}
+
 	metricsEventType := metrics.MetricResourceEventType
 	if utils.IsApp(rs) {
 		metricsEventType = metrics.MetricChildAppEventType
@@ -332,6 +336,10 @@ func (s *applicationEventReporter) processResource(
 		return err
 	}
 	if actualState == nil {
+		return nil
+	}
+
+	if rs.Kind == "ConfigMap" && !isAllowedConfigMap(*actualState.Manifest) {
 		return nil
 	}
 
