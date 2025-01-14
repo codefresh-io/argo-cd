@@ -7,46 +7,37 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
-	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/aws/smithy-go/ptr"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/watch"
-
-	"google.golang.org/grpc"
-	"k8s.io/apimachinery/pkg/runtime"
-
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	appMocks "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	apiclientapppkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/io"
-
-	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
-
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
+	"github.com/aws/smithy-go/ptr"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -196,7 +187,7 @@ type MockEventing_StartEventSourceServer struct {
 	grpc.ServerStream
 }
 
-var result func(*events.EventPayload) error
+var result func(*codefresh.ApplicationPayload) error
 
 func TestStreamApplicationEvent(t *testing.T) {
 	eventReporter := fakeReporter(fakeAppServiceClient())
@@ -208,9 +199,9 @@ func TestStreamApplicationEvent(t *testing.T) {
 			},
 		}
 
-		result = func(payload *events.EventPayload) error {
+		result = func(payload *codefresh.ApplicationPayload) error {
 			var actualApp v1alpha1.Application
-			_ = json.Unmarshal([]byte(payload.Source.ActualManifest), &actualApp)
+			_ = json.Unmarshal([]byte(payload.ActualManifest), &actualApp)
 			assert.Equal(t, *app, actualApp)
 			return nil
 		}

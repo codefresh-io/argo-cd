@@ -4,14 +4,14 @@ import (
 	"math"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/watch"
-
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
+
+	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type subscriber struct {
