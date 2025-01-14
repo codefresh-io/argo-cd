@@ -3,21 +3,10 @@ package utils
 import (
 	"encoding/json"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	log "github.com/sirupsen/logrus"
 )
-
-func RepoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) (*events.ApplicationVersions, error) {
-	applicationVersionsEvents := &events.ApplicationVersions{}
-	applicationVersionsData, _ := json.Marshal(applicationVersions)
-	err := json.Unmarshal(applicationVersionsData, applicationVersionsEvents)
-	if err != nil {
-		return nil, err
-	}
-	return applicationVersionsEvents, nil
-}
 
 func SourcesAppVersionsToRepo(logCtx *log.Logger, applicationVersions *sources_server_client.AppVersionResult) *apiclient.ApplicationVersions {
 	if applicationVersions == nil {
