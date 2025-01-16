@@ -1,2 +1,2 @@
 ### Features
--  feat(event-reporter): using sources-server for getting application version 
+-  feat(event-reporter): allow git integration ConfigMap reporting
