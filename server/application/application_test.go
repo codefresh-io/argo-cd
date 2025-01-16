@@ -48,7 +48,6 @@ import (
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	appmocks "github.com/argoproj/argo-cd/v2/server/application/mocks"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
@@ -70,6 +69,35 @@ const (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+type broadcasterMock struct {
+	objects []runtime.Object
+}
+
+func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func() {
+	// Simulate the broadcaster notifying the subscriber of an application update.
+	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
+	// might require implementing those.
+	go func() {
+		for _, obj := range b.objects {
+			app, ok := obj.(*appsv1.Application)
+			if ok {
+				oldVersion, err := strconv.Atoi(app.ResourceVersion)
+				if err != nil {
+					oldVersion = 0
+				}
+				clonedApp := app.DeepCopy()
+				clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
+				ch <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
+			}
+		}
+	}()
+	return func() {}
+}
+
+func (broadcasterMock) OnAdd(interface{}, bool)           {}
+func (broadcasterMock) OnUpdate(interface{}, interface{}) {}
+func (broadcasterMock) OnDelete(interface{})              {}
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -225,30 +253,9 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 		panic("Timed out waiting for caches to sync")
 	}
 
-	broadcaster := new(appmocks.Broadcaster)
-	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
-		// Simulate the broadcaster notifying the subscriber of an application update.
-		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
-		// might require implementing those.
-		go func() {
-			events := args.Get(0).(chan *appsv1.ApplicationWatchEvent)
-			for _, obj := range objects {
-				app, ok := obj.(*appsv1.Application)
-				if ok {
-					oldVersion, err := strconv.Atoi(app.ResourceVersion)
-					if err != nil {
-						oldVersion = 0
-					}
-					clonedApp := app.DeepCopy()
-					clonedApp.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
-					events <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
-				}
-			}
-		}()
-	})
-	broadcaster.On("OnAdd", mock.Anything, mock.Anything).Return()
-	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
-	broadcaster.On("OnDelete", mock.Anything).Return()
+	broadcaster := broadcasterMock{
+		objects: objects,
+	}
 
 	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
@@ -406,31 +413,9 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 		panic("Timed out waiting for caches to sync")
 	}
 
-	broadcaster := new(appmocks.Broadcaster)
-	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
-		// Simulate the broadcaster notifying the subscriber of an application update.
-		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
-		// might require implementing those.
-		go func() {
-			events := args.Get(0).(chan *appsv1.ApplicationWatchEvent)
-			for _, obj := range objects {
-				app, ok := obj.(*appsv1.Application)
-				if ok {
-					oldVersion, err := strconv.Atoi(app.ResourceVersion)
-					if err != nil {
-						oldVersion = 0
-					}
-					clonedApp := app.DeepCopy()
-					clonedApp.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
-					events <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
-				}
-			}
-		}()
-	})
-	broadcaster.On("OnAdd", mock.Anything, mock.Anything).Return()
-	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
-	broadcaster.On("OnDelete", mock.Anything).Return()
-
+	broadcaster := broadcasterMock{
+		objects: objects,
+	}
 	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
