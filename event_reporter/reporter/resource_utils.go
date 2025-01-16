@@ -52,8 +52,9 @@ var allowedResourceTypes = map[ResourceTypeKey]bool{
 }
 
 const (
-	CODEFRESH_IO_ENTITY = "codefresh_io_entity"
-	CODEFRESH_CM_NAME   = "codefresh-cm"
+	CODEFRESH_IO_ENTITY     = "codefresh.io/entity"
+	CODEFRESH_IO_ENTITY_ALT = "codefresh_io_entity"
+	CODEFRESH_CM_NAME       = "codefresh-cm"
 )
 
 func isAllowedResource(rs appv1.ResourceStatus) bool {
@@ -77,8 +78,13 @@ func isAllowedConfigMap(manifest string) bool {
 		return true
 	}
 
-	// Check for the codefresh_io_entity label
+	// Check for both possible Codefresh entity label formats
 	labels := u.GetLabels()
-	_, hasCodefreshEntityLabel := labels[CODEFRESH_IO_ENTITY]
-	return labels != nil && hasCodefreshEntityLabel
+	if labels == nil {
+		return false
+	}
+
+	_, hasUnderscoreLabel := labels[CODEFRESH_IO_ENTITY]
+	_, hasDotLabel := labels[CODEFRESH_IO_ENTITY_ALT]
+	return hasUnderscoreLabel || hasDotLabel
 }
