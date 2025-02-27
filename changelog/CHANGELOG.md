@@ -1,2 +1,2 @@
 ### Features
-- fix(release): bumped GitHub actions download-artifact to v4.1.8 in generate sbom job
+- fix(ci): removed null security context from redis-ha values.yaml to placate helm 3.17.1
