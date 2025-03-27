@@ -2159,7 +2159,15 @@ func (c *fakeAppServiceClient) RunResourceAction(ctx context.Context, in *applic
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) RollbackApplicationRollout(context.Context, *applicationpkg.ApplicationRolloutRollbackRequest, ...grpc.CallOption) (*applicationpkg.ApplicationRolloutRollbackResponse, error) {
+	return nil, nil
+}
+
 func (c *fakeAppServiceClient) DeleteResource(ctx context.Context, in *applicationpkg.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ValidateSrcAndDst(ctx context.Context, in *applicationpkg.ApplicationValidationRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationValidateResponse, error) {
 	return nil, nil
 }
 
@@ -2172,6 +2180,10 @@ func (c *fakeAppServiceClient) ListLinks(ctx context.Context, in *applicationpkg
 }
 
 func (c *fakeAppServiceClient) ListResourceLinks(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetChangeRevision(ctx context.Context, in *applicationpkg.ChangeRevisionRequest, opts ...grpc.CallOption) (*applicationpkg.ChangeRevisionResponse, error) {
 	return nil, nil
 }
 

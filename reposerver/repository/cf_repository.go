@@ -1,0 +1,88 @@
+package repository
+
+import (
+	goio "io"
+	"os"
+	"path/filepath"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/kustomize"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+)
+
+func (s *Service) getCacheKeyWithKustomizeComponents(
+	revision string,
+	repo *v1alpha1.Repository,
+	source *v1alpha1.ApplicationSource,
+	settings operationSettings,
+	gitClient git.Client,
+) (string, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+	})
+	if err != nil {
+		return "", err
+	}
+
+	defer io.Close(closer)
+
+	appPath, err := argopath.Path(gitClient.Root(), source.Path)
+	if err != nil {
+		return "", err
+	}
+
+	k := kustomize.NewKustomizeApp(gitClient.Root(), appPath, repo.GetGitCreds(s.gitCredsStore), repo.Repo, source.Kustomize.Version, "", "")
+
+	resolveRevisionFunc := func(repoURL, revision string, creds git.Creds) (string, error) {
+		cloneRepo := *repo
+		cloneRepo.Repo = repoURL
+		_, res, err := s.newClientResolveRevision(&cloneRepo, revision)
+		return res, err
+	}
+
+	return k.GetCacheKeyWithComponents(revision, source.Kustomize, resolveRevisionFunc)
+}
+
+func kustomizeBuild(
+	k kustomize.Kustomize,
+	repoRoot string,
+	appPath string,
+	opts *v1alpha1.ApplicationSourceKustomize,
+	kustomizeOptions *v1alpha1.KustomizeOptions,
+	env *v1alpha1.Env,
+	buildOpts *kustomize.BuildOpts,
+	namespace string,
+) ([]manifest, []kustomize.Image, []string, error) {
+	var targetObjs []*unstructured.Unstructured
+
+	rawBytes, err := os.ReadFile(filepath.Join(appPath, "kustomization.yaml"))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	relPath, _ := filepath.Rel(repoRoot, appPath)
+	targetObjs, images, commands, err := k.Build(opts, kustomizeOptions, env, buildOpts, namespace)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	jsonObjs, err := expandUnstructuredObjs(targetObjs)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	manifests := make([]manifest, len(jsonObjs))
+	for i, obj := range jsonObjs {
+		manifests[i] = manifest{
+			rawManifest: rawBytes,
+			obj:         obj,
+			path:        relPath,
+			line:        0,
+		}
+	}
+
+	return manifests, images, commands, nil
+}

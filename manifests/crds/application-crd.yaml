@@ -119,6 +119,12 @@ spec:
                       attempts
                     format: int64
                     type: integer
+                  changeRevision:
+                    type: string
+                  changeRevisions:
+                    items:
+                      type: string
+                    type: array
                   dryRun:
                     description: DryRun specifies to perform a `kubectl apply --dry-run`
                       without actually performing the sync
@@ -378,6 +384,10 @@ spec:
                           forceCommonLabels:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
+                            type: boolean
+                          forceNamespace:
+                            description: ForceNamespace if true, will use the application's
+                              destination namespace as a kustomization file namespace
                             type: boolean
                           images:
                             description: Images is a list of Kustomize image override
@@ -758,6 +768,10 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
+                              type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -1249,6 +1263,10 @@ spec:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
                         type: boolean
+                      forceNamespace:
+                        description: ForceNamespace if true, will use the application's
+                          destination namespace as a kustomization file namespace
+                        type: boolean
                       images:
                         description: Images is a list of Kustomize image override
                           specifications
@@ -1676,6 +1694,10 @@ spec:
                         forceCommonLabels:
                           description: ForceCommonLabels specifies whether to force
                             applying common labels to resources for Kustomize apps
+                          type: boolean
+                        forceNamespace:
+                          description: ForceNamespace if true, will use the application's
+                            destination namespace as a kustomization file namespace
                           type: boolean
                         images:
                           description: Images is a list of Kustomize image override
@@ -2218,6 +2240,10 @@ spec:
                                 force applying common labels to resources for Kustomize
                                 apps
                               type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
+                              type: boolean
                             images:
                               description: Images is a list of Kustomize image override
                                 specifications
@@ -2600,6 +2626,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -2854,6 +2885,12 @@ spec:
                               of auto-heal attempts
                             format: int64
                             type: integer
+                          changeRevision:
+                            type: string
+                          changeRevisions:
+                            items:
+                              type: string
+                            type: array
                           dryRun:
                             description: DryRun specifies to perform a `kubectl apply
                               --dry-run` without actually performing the sync
@@ -3131,6 +3168,11 @@ spec:
                                     description: ForceCommonLabels specifies whether
                                       to force applying common labels to resources
                                       for Kustomize apps
+                                    type: boolean
+                                  forceNamespace:
+                                    description: ForceNamespace if true, will use
+                                      the application's destination namespace as a
+                                      kustomization file namespace
                                     type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
@@ -3533,6 +3575,11 @@ spec:
                                       description: ForceCommonLabels specifies whether
                                         to force applying common labels to resources
                                         for Kustomize apps
+                                      type: boolean
+                                    forceNamespace:
+                                      description: ForceNamespace if true, will use
+                                        the application's destination namespace as
+                                        a kustomization file namespace
                                       type: boolean
                                     images:
                                       description: Images is a list of Kustomize image
@@ -4048,6 +4095,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -4441,6 +4493,11 @@ spec:
                                   description: ForceCommonLabels specifies whether
                                     to force applying common labels to resources for
                                     Kustomize apps
+                                  type: boolean
+                                forceNamespace:
+                                  description: ForceNamespace if true, will use the
+                                    application's destination namespace as a kustomization
+                                    file namespace
                                   type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
@@ -5156,6 +5213,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -5549,6 +5611,11 @@ spec:
                                   description: ForceCommonLabels specifies whether
                                     to force applying common labels to resources for
                                     Kustomize apps
+                                  type: boolean
+                                forceNamespace:
+                                  description: ForceNamespace if true, will use the
+                                    application's destination namespace as a kustomization
+                                    file namespace
                                   type: boolean
                                 images:
                                   description: Images is a list of Kustomize image

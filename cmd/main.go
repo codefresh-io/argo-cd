@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	changerevisioncontroller "github.com/argoproj/argo-cd/v2/cmd/application-change-revision-controller/commands"
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
@@ -19,6 +20,7 @@ import (
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
+	eventreporterserver "github.com/argoproj/argo-cd/v2/cmd/event-reporter-server/commands"
 )
 
 const (
@@ -40,6 +42,10 @@ func main() {
 		isCLI = true
 	case "argocd-server":
 		command = apiserver.NewCommand()
+	case "event-reporter-server":
+		command = eventreporterserver.NewCommand()
+	case "argocd-application-change-revision-controller":
+		command = changerevisioncontroller.NewCommand()
 	case "argocd-application-controller":
 		command = appcontroller.NewCommand()
 	case "argocd-repo-server":

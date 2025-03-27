@@ -802,7 +802,7 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+		kustomizeOptions, err := kustomizeSettings.GetOptions(source, settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -845,6 +845,7 @@ func verifyGenerateManifests(
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
 			AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
 			InstallationID:                  installationID,
+			ApplicationMetadata:             &app.ObjectMeta,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
