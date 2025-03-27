@@ -30,10 +30,11 @@ var (
 )
 
 type Cache struct {
-	cache                    *cacheutil.Cache
-	repoCacheExpiration      time.Duration
-	revisionCacheExpiration  time.Duration
-	revisionCacheLockTimeout time.Duration
+	cache                      *cacheutil.Cache
+	repoCacheExpiration        time.Duration
+	revisionCacheExpiration    time.Duration
+	revisionCacheLockTimeout   time.Duration
+	cfAppConfigCacheExpiration time.Duration
 }
 
 // ClusterRuntimeInfo holds cluster runtime information
@@ -44,18 +45,20 @@ type ClusterRuntimeInfo interface {
 	GetKubeVersion() string
 }
 
-func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
+func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration, cfAppConfigCacheExpiration time.Duration) *Cache {
+	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout, cfAppConfigCacheExpiration}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 	var revisionCacheLockTimeout time.Duration
+	var cfAppConfigCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
 	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
 	cmd.Flags().DurationVar(&revisionCacheLockTimeout, "revision-cache-lock-timeout", env.ParseDurationFromEnv("ARGOCD_REVISION_CACHE_LOCK_TIMEOUT", 10*time.Second, 0, math.MaxInt64), "Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable")
+	cmd.Flags().DurationVar(&cfAppConfigCacheExpiration, "cf-app-config-cache-expiration", env.ParseDurationFromEnv("ARGOCD_CF_APP_CONFIG_CACHE_EXPIRATION", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for Codefresh application configs")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -64,7 +67,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 		if err != nil {
 			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
-		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout), nil
+		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout, cfAppConfigCacheExpiration), nil
 	}
 }
 

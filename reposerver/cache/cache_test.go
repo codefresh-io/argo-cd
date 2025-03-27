@@ -33,7 +33,7 @@ type fixtures struct {
 func newFixtures() *fixtures {
 	mockCache := mocks.NewMockRepoCache(&mocks.MockCacheOptions{RevisionCacheExpiration: 1 * time.Minute, RepoCacheExpiration: 1 * time.Minute})
 	newBaseCache := cacheutil.NewCache(mockCache.RedisClient)
-	baseCache := NewCache(newBaseCache, 1*time.Minute, 1*time.Minute, 10*time.Second)
+	baseCache := NewCache(newBaseCache, 1*time.Minute, 1*time.Minute, 10*time.Second, 1*time.Minute)
 	return &fixtures{mockCache: mockCache, cache: &MockedCache{Cache: baseCache}}
 }
 
@@ -146,7 +146,7 @@ func TestCache_GetAppDetails(t *testing.T) {
 	mockCache := fixtures.mockCache
 	// cache miss
 	value := &apiclient.RepoAppDetailsResponse{}
-	emptyRefSources := map[string]*RefTarget{}
+	emptyRefSources := map[string]*appv1.RefTarget{}
 	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
 	assert.Equal(t, ErrCacheMiss, err)
 	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
@@ -179,14 +179,19 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
+		1*time.Minute,
 	)
 
 	response := apiclient.ManifestResponse{
 		Namespace: "default",
 		Revision:  "revision",
-		Manifests: []string{"sample-text"},
+		Manifests: []*apiclient.Manifest{
+			{
+				CompiledManifest: "sample-text",
+			},
+		},
 	}
-	appSrc := &ApplicationSource{}
+	appSrc := &appv1.ApplicationSource{}
 	appKey := "key"
 	appValue := "value"
 
@@ -285,7 +290,10 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 		CacheEntryHash:        "value",
 		FirstFailureTimestamp: 1,
 		ManifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{"one", "two"},
+			Manifests: []*apiclient.Manifest{
+				{CompiledManifest: "one"},
+				{CompiledManifest: "two"},
+			},
 		},
 		MostRecentError:                 "error",
 		NumberOfCachedResponsesReturned: 2,
@@ -299,7 +307,10 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 		CacheEntryHash:        "diff-value",
 		FirstFailureTimestamp: 1,
 		ManifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{"one", "two"},
+			Manifests: []*apiclient.Manifest{
+				{CompiledManifest: "one"},
+				{CompiledManifest: "two"},
+			},
 		},
 		MostRecentError:                 "error",
 		NumberOfCachedResponsesReturned: 2,
