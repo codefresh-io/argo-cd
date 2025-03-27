@@ -38,6 +38,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	applicationType "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -59,8 +60,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-
-	applicationType "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
@@ -453,6 +452,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
+	manifestInfosAppVersionsIdx := -1 // defines index of spec source to take app appVersion
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
@@ -502,7 +502,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
 
-		for _, source := range sources {
+		for sIdx, source := range sources {
 			repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
@@ -513,7 +513,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+			kustomizeOptions, err := kustomizeSettings.GetOptions(source, s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
@@ -543,11 +543,15 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				RefSources:                      refSources,
 				AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 				InstallationID:                  installationID,
+				ApplicationMetadata:             &a.ObjectMeta,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
 			}
 			manifestInfos = append(manifestInfos, manifestInfo)
+			if source.Ref == "" && manifestInfosAppVersionsIdx < 0 {
+				manifestInfosAppVersionsIdx = sIdx
+			}
 		}
 		return nil
 	})
@@ -559,7 +563,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
 			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest), obj)
+			err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
@@ -572,10 +576,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				if err != nil {
 					return nil, fmt.Errorf("error marshaling manifest: %w", err)
 				}
-				manifestInfo.Manifests[i] = string(data)
+				manifestInfo.Manifests[i].CompiledManifest = string(data)
 			}
 		}
+		manifests.SourcesManifestsStartingIdx = append(manifests.SourcesManifestsStartingIdx, int32(len(manifests.Manifests)))
 		manifests.Manifests = append(manifests.Manifests, manifestInfo.Manifests...)
+	}
+	if manifestInfosAppVersionsIdx >= 0 && manifestInfos[manifestInfosAppVersionsIdx] != nil {
+		manifests.ApplicationVersions = manifestInfos[manifestInfosAppVersionsIdx].ApplicationVersions
 	}
 
 	return manifests, nil
@@ -637,7 +645,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings options: %w", err)
 		}
@@ -686,7 +694,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	for i, manifest := range manifestInfo.Manifests {
 		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
@@ -699,7 +707,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			if err != nil {
 				return fmt.Errorf("error marshaling manifest: %w", err)
 			}
-			manifestInfo.Manifests[i] = string(data)
+			manifestInfo.Manifests[i].CompiledManifest = string(data)
 		}
 	}
 
@@ -770,7 +778,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
-			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}

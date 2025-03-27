@@ -120,6 +120,12 @@ spec:
                       attempts
                     format: int64
                     type: integer
+                  changeRevision:
+                    type: string
+                  changeRevisions:
+                    items:
+                      type: string
+                    type: array
                   dryRun:
                     description: DryRun specifies to perform a `kubectl apply --dry-run`
                       without actually performing the sync
@@ -379,6 +385,10 @@ spec:
                           forceCommonLabels:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
+                            type: boolean
+                          forceNamespace:
+                            description: ForceNamespace if true, will use the application's
+                              destination namespace as a kustomization file namespace
                             type: boolean
                           images:
                             description: Images is a list of Kustomize image override
@@ -759,6 +769,10 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
+                              type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -1250,6 +1264,10 @@ spec:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
                         type: boolean
+                      forceNamespace:
+                        description: ForceNamespace if true, will use the application's
+                          destination namespace as a kustomization file namespace
+                        type: boolean
                       images:
                         description: Images is a list of Kustomize image override
                           specifications
@@ -1677,6 +1695,10 @@ spec:
                         forceCommonLabels:
                           description: ForceCommonLabels specifies whether to force
                             applying common labels to resources for Kustomize apps
+                          type: boolean
+                        forceNamespace:
+                          description: ForceNamespace if true, will use the application's
+                            destination namespace as a kustomization file namespace
                           type: boolean
                         images:
                           description: Images is a list of Kustomize image override
@@ -2219,6 +2241,10 @@ spec:
                                 force applying common labels to resources for Kustomize
                                 apps
                               type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
+                              type: boolean
                             images:
                               description: Images is a list of Kustomize image override
                                 specifications
@@ -2601,6 +2627,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -2855,6 +2886,12 @@ spec:
                               of auto-heal attempts
                             format: int64
                             type: integer
+                          changeRevision:
+                            type: string
+                          changeRevisions:
+                            items:
+                              type: string
+                            type: array
                           dryRun:
                             description: DryRun specifies to perform a `kubectl apply
                               --dry-run` without actually performing the sync
@@ -3132,6 +3169,11 @@ spec:
                                     description: ForceCommonLabels specifies whether
                                       to force applying common labels to resources
                                       for Kustomize apps
+                                    type: boolean
+                                  forceNamespace:
+                                    description: ForceNamespace if true, will use
+                                      the application's destination namespace as a
+                                      kustomization file namespace
                                     type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
@@ -3534,6 +3576,11 @@ spec:
                                       description: ForceCommonLabels specifies whether
                                         to force applying common labels to resources
                                         for Kustomize apps
+                                      type: boolean
+                                    forceNamespace:
+                                      description: ForceNamespace if true, will use
+                                        the application's destination namespace as
+                                        a kustomization file namespace
                                       type: boolean
                                     images:
                                       description: Images is a list of Kustomize image
@@ -4049,6 +4096,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -4442,6 +4494,11 @@ spec:
                                   description: ForceCommonLabels specifies whether
                                     to force applying common labels to resources for
                                     Kustomize apps
+                                  type: boolean
+                                forceNamespace:
+                                  description: ForceNamespace if true, will use the
+                                    application's destination namespace as a kustomization
+                                    file namespace
                                   type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
@@ -5157,6 +5214,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -5550,6 +5612,11 @@ spec:
                                   description: ForceCommonLabels specifies whether
                                     to force applying common labels to resources for
                                     Kustomize apps
+                                  type: boolean
+                                forceNamespace:
+                                  description: ForceNamespace if true, will use the
+                                    application's destination namespace as a kustomization
+                                    file namespace
                                   type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
@@ -6016,6 +6083,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -6287,6 +6356,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -6688,6 +6759,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -6959,6 +7032,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -7359,6 +7434,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -7630,6 +7707,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -8010,6 +8089,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -8281,6 +8362,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -8686,6 +8769,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -8957,6 +9042,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -9358,6 +9445,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -9629,6 +9718,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -10029,6 +10120,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -10300,6 +10393,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -10680,6 +10775,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -10951,6 +11048,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -11339,6 +11438,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -11610,6 +11711,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -12217,6 +12320,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -12488,6 +12593,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -13090,6 +13197,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -13361,6 +13470,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -13758,6 +13869,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -14029,6 +14142,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -14436,6 +14551,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -14707,6 +14824,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -15108,6 +15227,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -15379,6 +15500,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -15779,6 +15902,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -16050,6 +16175,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -16430,6 +16557,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -16701,6 +16830,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -17089,6 +17220,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -17360,6 +17493,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -17967,6 +18102,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -18238,6 +18375,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -18840,6 +18979,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  forceNamespace:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -19111,6 +19252,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -19512,6 +19655,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -19783,6 +19928,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -20170,6 +20317,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -20441,6 +20590,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -21048,6 +21199,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -21319,6 +21472,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -21921,6 +22076,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        forceNamespace:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -22192,6 +22349,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -22664,6 +22823,8 @@ spec:
                                 type: boolean
                               forceCommonLabels:
                                 type: boolean
+                              forceNamespace:
+                                type: boolean
                               images:
                                 items:
                                   type: string
@@ -22935,6 +23096,8 @@ spec:
                                 forceCommonAnnotations:
                                   type: boolean
                                 forceCommonLabels:
+                                  type: boolean
+                                forceNamespace:
                                   type: boolean
                                 images:
                                   items:
@@ -24165,7 +24328,7 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.14.9
+        image: quay.io/codefresh/argocd:v2.14.9
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -24435,7 +24598,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:v2.14.9
+        image: quay.io/codefresh/argocd:v2.14.9
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -24696,7 +24859,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.14.9
+        image: quay.io/codefresh/argocd:v2.14.9
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -24748,7 +24911,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.14.9
+        image: quay.io/codefresh/argocd:v2.14.9
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -25066,7 +25229,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:v2.14.9
+        image: quay.io/codefresh/argocd:v2.14.9
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

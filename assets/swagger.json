@@ -218,6 +218,83 @@
         }
       }
     },
+    "/api/v1/application-validate": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Create creates an application",
+        "operationId": "ApplicationService_ValidateSrcAndDst",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationValidateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/application/changeRevision": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ApplicationService_GetChangeRevision",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "currentRevision",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "previousRevision",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationChangeRevisionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [
@@ -1757,6 +1834,45 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/rollout-rollback": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Rollback application rollout",
+        "operationId": "ApplicationService_RollbackApplicationRollout",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRolloutRollbackRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRolloutRollbackResponse"
             }
           },
           "default": {
@@ -4826,6 +4942,39 @@
         }
       }
     },
+    "applicationApplicationRolloutRollbackRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "rolloutName": {
+          "type": "string"
+        },
+        "rolloutNamespace": {
+          "type": "string"
+        },
+        "rolloutRevision": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "applicationApplicationRolloutRollbackResponse": {
+      "type": "object",
+      "properties": {
+        "newRevision": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "rollout": {
+          "type": "string"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -4924,6 +5073,25 @@
         },
         "canSync": {
           "type": "boolean"
+        }
+      }
+    },
+    "applicationApplicationValidateResponse": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationChangeRevisionResponse": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string"
         }
       }
     },
@@ -5578,6 +5746,35 @@
         }
       }
     },
+    "repositoryApplicationVersions": {
+      "type": "object",
+      "properties": {
+        "appVersion": {
+          "type": "string",
+          "title": "Application version presented by single value"
+        },
+        "dependencies": {
+          "$ref": "#/definitions/repositoryDependencies"
+        }
+      }
+    },
+    "repositoryDependencies": {
+      "type": "object",
+      "properties": {
+        "deps": {
+          "type": "string",
+          "title": "Content of Cart.yaml/dependencies"
+        },
+        "lock": {
+          "type": "string",
+          "title": "Content of Chart.lock"
+        },
+        "requirements": {
+          "type": "string",
+          "title": "Content of requirements.yaml"
+        }
+      }
+    },
     "repositoryDirectoryAppSpec": {
       "type": "object",
       "title": "DirectoryAppSpec contains directory"
@@ -5653,9 +5850,34 @@
         }
       }
     },
+    "repositoryManifest": {
+      "type": "object",
+      "properties": {
+        "compiledManifest": {
+          "type": "string",
+          "title": "The processed manifest that needs to be applied to the cluster"
+        },
+        "line": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The line in the file where the object starts"
+        },
+        "path": {
+          "type": "string",
+          "title": "The path of the raw manifest inside the repo"
+        },
+        "rawManifest": {
+          "description": "The pre-processed manifest (for example the kustomization.yaml\nwhen using kustmize or the values.yaml when using helm).",
+          "type": "string"
+        }
+      }
+    },
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "applicationVersions": {
+          "$ref": "#/definitions/repositoryApplicationVersions"
+        },
         "commands": {
           "type": "array",
           "title": "Commands is the list of commands used to hydrate the manifests",
@@ -5663,10 +5885,19 @@
             "type": "string"
           }
         },
+        "commitAuthor": {
+          "type": "string"
+        },
+        "commitDate": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "commitMessage": {
+          "type": "string"
+        },
         "manifests": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/repositoryManifest"
           }
         },
         "namespace": {
@@ -5681,6 +5912,14 @@
         },
         "sourceType": {
           "type": "string"
+        },
+        "sourcesManifestsStartingIdx": {
+          "type": "array",
+          "title": "for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          }
         },
         "verifyResult": {
           "type": "string",
@@ -7263,6 +7502,10 @@
           "type": "boolean",
           "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
         },
+        "forceNamespace": {
+          "type": "boolean",
+          "title": "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace"
+        },
         "images": {
           "type": "array",
           "title": "Images is a list of Kustomize image override specifications",
@@ -8300,6 +8543,9 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "setNamespace": {
+          "type": "boolean"
         }
       }
     },
@@ -9285,6 +9531,13 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children\nTODO: describe members of this type",
       "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "available for managed resource without k8s-last-applied-configuration",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "createdAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -9301,6 +9554,13 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1InfoItem"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "title": "available for managed resource",
+          "additionalProperties": {
+            "type": "string"
           }
         },
         "networkingInfo": {
