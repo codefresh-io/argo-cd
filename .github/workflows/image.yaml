@@ -3,12 +3,11 @@ name: Image
 on:
   push:
     branches:
-      # - master
-      - "release-*" # Codefresh change instead of `master`
-  # pull_request:
-  #   branches:
-  #     - master
-  #   types: [ labeled, unlabeled, opened, synchronize, reopened ]
+      - master
+  pull_request:
+    branches:
+      - master
+    types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,7 +19,7 @@ jobs:
   set-vars:
     permissions:
       contents: read
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     outputs:
       image-tag: ${{ steps.image.outputs.tag}}
@@ -117,3 +116,4 @@ jobs:
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
+
