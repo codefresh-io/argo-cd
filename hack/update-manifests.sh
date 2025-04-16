@@ -18,7 +18,7 @@ IMAGE_TAG="${IMAGE_TAG:-}"
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
 if [ "$IMAGE_TAG" = "" ]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
-  if [[ $branch = release-* ]]; then
+  if [[ $branch = sync-* ]]; then
     pwd
     IMAGE_TAG=v$(cat $SRCROOT/VERSION)
   fi
