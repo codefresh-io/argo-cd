@@ -180,7 +180,7 @@ func getCurrentRevisionFromOperation(a *application.Application) string {
 }
 
 func (c *acrService) getRevisions(_ context.Context, a *application.Application) (string, string) {
-	if a.Status.History == nil || len(a.Status.History) == 0 {
+	if len(a.Status.History) == 0 {
 		// it is first sync operation, and we have only current revision
 		return getCurrentRevisionFromOperation(a), ""
 	}

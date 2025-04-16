@@ -59,7 +59,7 @@ func revisionsToCheck(obj RevisionsData, fieldToCheck *AppRevisionsFieldNames) b
 	}
 
 	if *fieldToCheck == AppRevisionsFieldName {
-		return obj.Revisions != nil && len(obj.Revisions) > 0
+		return len(obj.Revisions) > 0
 	}
 	return true
 }

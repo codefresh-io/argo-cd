@@ -77,7 +77,7 @@ func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *
 			return err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "POST", url, io.NopCloser(&buf))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, io.NopCloser(&buf))
 		if err != nil {
 			return err
 		}
@@ -111,7 +111,7 @@ func (c *CodefreshClient) SendGraphQL(query GraphQLQuery) (*json.RawMessage, err
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.cfConfig.BaseURL+"/2.0/api/graphql", bytes.NewBuffer(queryJSON))
+	req, err := http.NewRequest(http.MethodPost, c.cfConfig.BaseURL+"/2.0/api/graphql", bytes.NewBuffer(queryJSON))
 	if err != nil {
 		return nil, err
 	}

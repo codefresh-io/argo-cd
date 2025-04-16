@@ -81,7 +81,7 @@ func NewCommand() *cobra.Command {
 		helmRegistryMaxIndexSize              string
 		disableManifestMaxExtractedSize       bool
 		includeHiddenDirectories              bool
-		cmpUseManifestGeneratePaths       bool
+		cmpUseManifestGeneratePaths           bool
 	)
 	command := cobra.Command{
 		Use:               cliName,

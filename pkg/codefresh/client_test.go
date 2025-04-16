@@ -44,6 +44,7 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 			authToken: "some-token",
 			payload:   []byte(`{"key": "value"}`),
 			beforeFn: func(t *testing.T, rt *MockRoundTripper) {
+				t.Helper()
 				rt.On("RoundTrip", mock.Anything).Run(func(args mock.Arguments) {
 					req := args.Get(0).(*http.Request)
 					assert.Equal(t, "POST", req.Method, "invalid request method")
@@ -57,7 +58,7 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 					require.NoError(t, err, "failed to read request body")
 					assert.JSONEq(t, `{"data":{"key":"value"}}`, string(body), "invalid request body")
 				}).Return(&http.Response{
-					StatusCode: 200,
+					StatusCode: http.StatusOK,
 				}, nil)
 			},
 		},
@@ -67,11 +68,12 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 			authToken: "some-token",
 			payload:   []byte(`{"key": "value"}`),
 			beforeFn: func(t *testing.T, rt *MockRoundTripper) {
+				t.Helper()
 				rt.On("RoundTrip", mock.Anything).Run(func(args mock.Arguments) {
 					req := args.Get(0).(*http.Request)
 					assert.Equal(t, "http://some.host/2.0/api/events", req.URL.String(), "invalid request URL")
 				}).Return(&http.Response{
-					StatusCode: 200,
+					StatusCode: http.StatusOK,
 				}, nil)
 			},
 		},

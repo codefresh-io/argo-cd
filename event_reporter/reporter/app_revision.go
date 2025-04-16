@@ -12,7 +12,7 @@ import (
 
 // treats multi-sourced apps as single source and gets first revision details
 func getApplicationLegacyRevisionDetails(a *v1alpha1.Application, revisionsWithMetadata *utils.AppSyncRevisionsMetadata) *v1alpha1.RevisionMetadata {
-	if revisionsWithMetadata.SyncRevisions == nil || len(revisionsWithMetadata.SyncRevisions) == 0 {
+	if len(revisionsWithMetadata.SyncRevisions) == 0 {
 		return nil
 	}
 
@@ -66,7 +66,7 @@ func (s *applicationEventReporter) getRevisionsDetails(ctx context.Context, a *v
 func (s *applicationEventReporter) getApplicationRevisionsMetadata(ctx context.Context, logCtx *log.Entry, a *v1alpha1.Application) (*utils.AppSyncRevisionsMetadata, error) { //nolint:golint,unparam
 	result := &utils.AppSyncRevisionsMetadata{}
 
-	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || (a.Status.History != nil && len(a.Status.History) > 0) {
+	if a.Status.Sync.Revision != "" || a.Status.Sync.Revisions != nil || len(a.Status.History) > 0 {
 		// can be the latest revision of repository
 		operationSyncRevisionsMetadata, err := s.getRevisionsDetails(ctx, a, utils.GetOperationSyncRevisions(a))
 		if err != nil {

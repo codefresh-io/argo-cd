@@ -41,7 +41,7 @@ func GetLatestAppHistoryId(a *appv1.Application) int64 {
 }
 
 func getLatestAppHistoryItem(a *appv1.Application) *appv1.RevisionHistory {
-	if a.Status.History != nil && len(a.Status.History) > 0 {
+	if len(a.Status.History) > 0 {
 		return &a.Status.History[len(a.Status.History)-1]
 	}
 

@@ -78,8 +78,8 @@ func TestGetResourceEventPayload(t *testing.T) {
 		err = json.Unmarshal(event.Payload, &eventPayload)
 		require.NoError(t, err)
 
-		assert.Equal(t, "{ \"key\" : \"manifest\" }", eventPayload.Source.DesiredManifest)
-		assert.Equal(t, "{ \"key\" : \"manifest\" }", eventPayload.Source.ActualManifest)
+		assert.JSONEq(t, "{ \"key\" : \"manifest\" }", eventPayload.Source.DesiredManifest)
+		assert.JSONEq(t, "{ \"key\" : \"manifest\" }", eventPayload.Source.ActualManifest)
 	})
 
 	t.Run("Deleting timestamp not empty", func(t *testing.T) {
