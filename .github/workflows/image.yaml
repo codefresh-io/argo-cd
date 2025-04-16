@@ -48,14 +48,14 @@ jobs:
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
           docker tag ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }} ${IMAGE_NAMESPACE}/argocd:${{ steps.image.outputs.tag }}
           docker push ${IMAGE_NAMESPACE}/argocd:${{ steps.image.outputs.tag }}
-      # deploy
-      - run: git clone "https://$TOKEN@github.com/codefresh-io/argoproj-deployments"
-        env:
-          TOKEN: ${{ secrets.TOKEN }}
-      - run: |
-          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
-          git config --global user.email 'integration@codefresh.io'
-          git config --global user.name 'CI-Codefresh'
-          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
-        if: github.event_name == 'push'
-        working-directory: argoproj-deployments/argocd
+      # # deploy
+      # - run: git clone "https://$TOKEN@github.com/codefresh-io/argoproj-deployments"
+      #   env:
+      #     TOKEN: ${{ secrets.TOKEN }}
+      # - run: |
+      #     docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
+      #     git config --global user.email 'integration@codefresh.io'
+      #     git config --global user.name 'CI-Codefresh'
+      #     git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
+      #   if: github.event_name == 'push'
+      #   working-directory: argoproj-deployments/argocd
