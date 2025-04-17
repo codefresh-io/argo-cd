@@ -652,26 +652,24 @@ type ApplicationSourceKustomize struct {
 	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
-	// ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace
-	ForceNamespace bool `json:"forceNamespace,omitempty" protobuf:"bytes,9,opt,name=forceNamespace"`
 	// Namespace sets the namespace that Kustomize adds to all resources
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,10,opt,name=namespace"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
 	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,11,opt,name=commonAnnotationsEnvsubst"`
+	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
 	// Replicas is a list of Kustomize Replicas override specifications
-	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,12,opt,name=replicas"`
+	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// Patches is a list of Kustomize patches
-	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,13,opt,name=patches"`
+	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
 	// Components specifies a list of kustomize components to add to the kustomization before building
-	Components []string `json:"components,omitempty" protobuf:"bytes,14,rep,name=components"`
+	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
 	// LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
-	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,15,opt,name=labelWithoutSelector"`
+	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
 	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
 	// uses the Kubernetes version of the target cluster.
-	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,16,opt,name=kubeVersion"`
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,15,opt,name=kubeVersion"`
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,17,opt,name=apiVersions"`
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
 }
 
 type KustomizeReplica struct {
@@ -778,8 +776,7 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Patches) == 0 &&
 			len(k.Components) == 0 &&
 			k.KubeVersion == "" &&
-			len(k.APIVersions) == 0 &&
-			!k.ForceNamespace
+			len(k.APIVersions) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
