@@ -235,7 +235,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Len(t, res1.Manifests, countOfManifests)
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, res2.Manifests, 3)
 }
@@ -294,7 +294,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 				Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
 				ProjectSourceRepos: []string{"*"},
 			}
-			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
 			require.ErrorContains(t, err, "illegal filepath")
@@ -312,7 +312,7 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 		Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	require.NoError(t, err)
 }
 
@@ -1589,7 +1589,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, nil, false, &git.NoopCredsStore{}, nil, resource.MustParse("0"), nil)
+	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }

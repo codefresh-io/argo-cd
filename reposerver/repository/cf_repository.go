@@ -17,6 +17,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+type (
+	CfOptions struct {
+		ApplicationVersioningEnabled bool
+		VersionConfig                *version_config_manager.VersionConfig
+		GitClient                    git.Client
+	}
+)
+
 func (s *Service) getCacheKeyWithKustomizeComponents(
 	revision string,
 	repo *v1alpha1.Repository,

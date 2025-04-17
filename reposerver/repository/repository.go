@@ -865,7 +865,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, s.initConstants.CodefreshApplicationVersioningEnabled, versionConfig, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		cfOptions := &CfOptions{
+			ApplicationVersioningEnabled: s.initConstants.CodefreshApplicationVersioningEnabled,
+			VersionConfig:                versionConfig,
+			GitClient:                    gitClient,
+		}
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, cfOptions, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1509,7 +1514,7 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, codefreshApplicationVersioningEnabled bool, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, cfOptions *CfOptions, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 
 	var (
@@ -1599,11 +1604,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}
 
 	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
-		if codefreshApplicationVersioningEnabled {
-			appVersions, err := getAppVersions(appPath, versionConfig)
+		if cfOptions != nil && cfOptions.ApplicationVersioningEnabled {
+			appVersions, err := getAppVersions(appPath, cfOptions.VersionConfig)
 			if err != nil {
 				errorMessage := fmt.Sprintf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
-				if (versionConfig.ResourceName == version_config_manager.DefaultVersionSource) &&
+				if (cfOptions.VersionConfig.ResourceName == version_config_manager.DefaultVersionSource) &&
 					(err.Error() == "unknown key appVersion") {
 					log.Info(errorMessage)
 				} else {
@@ -1624,8 +1629,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 	}
 
-	if gitClient != nil {
-		m, err := gitClient.RevisionMetadata(revision)
+	if cfOptions != nil && cfOptions.GitClient != nil {
+		m, err := cfOptions.GitClient.RevisionMetadata(revision)
 		if err != nil {
 			log.Errorf("failed to retrieve git information, app name: %q: %s", q.AppName, err.Error())
 		} else {
