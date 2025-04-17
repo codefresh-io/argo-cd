@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
 
       - name: Set image tag for ghcr
-        run: echo "tag=$(cat ./VERSION)-$(date +%Y-%m-%d)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        run: echo "tag=v$(cat ./VERSION)-$(date +%Y-%m-%d)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
         id: image
 
   argocd-image:
