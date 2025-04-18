@@ -28,7 +28,9 @@ jobs:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
 
       - name: Set image tag for ghcr
-        run: echo "tag=v$(cat ./VERSION)-${{ github.ref_name }}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        run: |
+          CLEAN_REF=$(echo "${{ github.ref }}" | sed 's|^refs/[^/]*||; s|/|_|g')
+          echo "tag=v$(cat ./VERSION)-${CLEAN_REF}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
         id: image
 
       - name: Determine image platforms to use
