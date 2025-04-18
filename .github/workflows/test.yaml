@@ -22,7 +22,7 @@ jobs:
     if: github.repository == 'codefresh-io/argo-cd'
     runs-on: ubuntu-22.04
     outputs:
-      image-tag: ${{ steps.image-pr.outputs.tag }}
+      image-tag: ${{ steps.image-pr.outputs.tag || steps.image-push.outputs.tag }}
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
