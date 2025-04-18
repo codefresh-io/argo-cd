@@ -3,7 +3,7 @@ name: Image
 on:
   push:
     branches:
-      - 'sync-*'
+      - sync-*
   pull_request:
     branches:
       - sync-*
