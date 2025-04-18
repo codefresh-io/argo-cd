@@ -2,7 +2,7 @@ name: Publish ArgoCD Release
 on:
   push:
     branches:
-      - synca-*
+      - 'sync-*'
     # tags:
     #   - 'v*'
     #   - '!v2.4*'
