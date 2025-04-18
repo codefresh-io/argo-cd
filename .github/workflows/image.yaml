@@ -69,13 +69,12 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      # packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     if: ${{ github.repository == 'codefresh-io/argo-cd' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      # quay_image_name: ${{ github.event_name == 'pull_request' && 'quay.io/codefresh/dev/argocd' || 'quay.io/codefresh/argocd' }}:${{ needs.set-vars.outputs.image-tag }}
-      quay_image_name: quay.io/codefresh/argocd:${{ needs.set-vars.outputs.image-tag }}
+      quay_image_name: ${{ github.event_name == 'pull_request' && 'quay.io/codefresh/dev/argocd' || 'quay.io/codefresh/argocd' }}:${{ needs.set-vars.outputs.image-tag }}
       # ghcr_image_name: ghcr.io/codefresh-io/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
