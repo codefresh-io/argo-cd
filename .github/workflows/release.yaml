@@ -1,13 +1,11 @@
 name: Publish ArgoCD Release
 on:
   push:
-    branches:
-      - 'sync-*'
-    # tags:
-    #   - 'v*'
-    #   - '!v2.4*'
-    #   - '!v2.5*'
-    #   - '!v2.6*'
+    tags:
+      - 'v*'
+      - '!v2.4*'
+      - '!v2.5*'
+      - '!v2.6*'
 
 permissions: {}
 
@@ -16,30 +14,15 @@ env:
   GOLANG_VERSION: '1.23.3' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
-  set-vars:
-    permissions:
-      contents: read
-    if: github.repository == 'codefresh-io/argo-cd'
-    runs-on: ubuntu-22.04
-    outputs:
-      image-tag: ${{ steps.image.outputs.tag}}
-    steps:
-      - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-
-      - name: Set image tag for ghcr
-        run: echo "tag=v$(cat ./VERSION)-$(date +%Y-%m-%d)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
-        id: image
-
   argocd-image:
-    needs: [set-vars]
     permissions:
       contents: read
       id-token: write # for creating OIDC tokens for signing.
       packages: write # used to push images to `ghcr.io` if used.
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/codefresh-io/argocd:${{ needs.set-vars.outputs.image-tag }}
+      quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.23.3
@@ -56,10 +39,10 @@ jobs:
         id-token: write # for creating OIDC tokens for signing.
         packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
       # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-      if: github.repository == 'codefresh-io/argo-cd'
+      if: github.repository == 'argoproj/argo-cd'
       uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
       with:
-        image: quay.io/codefresh-io/argocd
+        image: quay.io/argoproj/argocd
         digest: ${{ needs.argocd-image.outputs.image-digest }}
       secrets:
         registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
@@ -71,7 +54,7 @@ jobs:
       - argocd-image-provenance
     permissions:
       contents: write # used for uploading assets
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
@@ -141,7 +124,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
@@ -158,7 +141,7 @@ jobs:
       contents: write # Needed for release uploads
     outputs:
       hashes: ${{ steps.sbom-hash.outputs.hashes}}
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -183,7 +166,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: ".,./ui"
           # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: quay.io/codefresh-io/argocd:${{ github.ref_name }}
+          DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
         run: |
           yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
@@ -225,7 +208,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
@@ -241,7 +224,7 @@ jobs:
     permissions:
       contents: write # Needed to push commit to update stable tag
       pull-requests: write # Needed to create PR for VERSION update.
-    if: github.repository == 'codefresh-io/argo-cd'
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
