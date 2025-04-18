@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - sync-*
-    types: [labeled, unlabeled, opened, synchronize, reopened]
+    types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -54,7 +54,7 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     if: ${{ false }}
     uses: ./.github/workflows/image-reuse.yaml
@@ -109,8 +109,8 @@ jobs:
       - build-and-publish
       - set-vars
     permissions:
-      contents: write  # for git to push upgrade commit if not already deployed
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      contents: write # for git to push upgrade commit if not already deployed
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: ${{ false }}
     runs-on: ubuntu-22.04
     steps:
@@ -124,4 +124,3 @@ jobs:
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
-
