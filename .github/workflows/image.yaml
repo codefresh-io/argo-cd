@@ -74,7 +74,7 @@ jobs:
     if: ${{ github.repository == 'codefresh-io/argo-cd' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/codefresh/${{ github.event_name == 'pull_request' && 'dev'}}/argocd:${{ needs.set-vars.outputs.image-tag }}
+      quay_image_name: quay.io/codefresh/${{ github.event_name == 'pull_request' && 'dev/' || '' }}argocd:${{ needs.set-vars.outputs.image-tag }}
       # ghcr_image_name: ghcr.io/codefresh-io/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
