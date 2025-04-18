@@ -1,12 +1,12 @@
 name: Integration tests
 on:
-  # push:
-  #   branches:
-  #     - 'sync-*'
-  #     - 'master'
-  #     - 'release-*'
-  #     - '!release-1.4'
-  #     - '!release-1.5'
+  push:
+    branches:
+      - 'sync-*'
+      # - 'master'
+      # - 'release-*'
+      # - '!release-1.4'
+      # - '!release-1.5'
   pull_request:
     branches:
       - 'sync-*'
@@ -41,7 +41,7 @@ jobs:
           files_yaml: |
             backend:
               - '!ui/**'
-              - '!**.md'
+              - '!**.md'            
               - '!**/*.md'
               - '!docs/**'
             frontend:
@@ -343,7 +343,7 @@ jobs:
       - test-go
       - build-ui
       - changes
-      # - test-e2e
+      - test-e2e
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
@@ -360,44 +360,43 @@ jobs:
       - name: Remove other node_modules directory
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
-      # - name: Get e2e code coverage
-      #   uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-      #   with:
-      #     name: e2e-code-coverage
-      #     path: e2e-code-coverage
+      - name: Get e2e code coverage
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: e2e-code-coverage
+          path: e2e-code-coverage
       - name: Get unit test code coverage
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: test-results
           path: test-results
-      # - name: combine-go-coverage
-      #   # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
-      #   # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
-      #   # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
-      #   # references to their coverage output directories.
-      #   run: |
-      #     go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
+      - name: combine-go-coverage
+        # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
+        # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
+        # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
+        # references to their coverage output directories.
+        run: |
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
         with:
-          # file: test-results/full-coverage.out
-          file: coverage.out
-          # fail_ci_if_error: true
-  #       env:
-  #         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  #     - name: Upload test results to Codecov
-  #       if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
-  #       uses: codecov/test-results-action@9739113ad922ea0a9abb4b2c0f8bf6a4aa8ef820 # v1.0.1
-  #       with:
-  #         file: test-results/junit.xml
-  #         fail_ci_if_error: true
-  #         token: ${{ secrets.CODECOV_TOKEN }}
-  #     - name: Perform static code analysis using SonarCloud
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #       uses: SonarSource/sonarqube-scan-action@bfd4e558cda28cda6b5defafb9232d191be8c203 # v4.2.1
-  #       if: env.sonar_secret != ''
+          file: test-results/full-coverage.out
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if:  ${{ secrets.CODECOV_TOKEN }} != '' && github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
+        uses: codecov/test-results-action@9739113ad922ea0a9abb4b2c0f8bf6a4aa8ef820 # v1.0.1
+        with:
+          file: test-results/junit.xml
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Perform static code analysis using SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        uses: SonarSource/sonarqube-scan-action@bfd4e558cda28cda6b5defafb9232d191be8c203 # v4.2.1
+        if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
