@@ -80,6 +80,7 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
+		1*time.Minute,
 		10*time.Second,
 	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{}, maxPayloadSize)
 }

@@ -576,7 +576,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			if err != nil {
 				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
 			}
-			nodes = append(nodes, appv1.ResourceNode{
+			newNode := appv1.ResourceNode{
 				ResourceRef: appv1.ResourceRef{
 					Version:   target.GroupVersionKind().Version,
 					Name:      managedResource.Name,
@@ -584,7 +584,16 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 					Group:     managedResource.Group,
 					Namespace: managedResource.Namespace,
 				},
-			})
+			}
+
+			if targetLabels := target.GetLabels(); targetLabels != nil {
+				newNode.Labels = targetLabels
+			}
+			if targetAnnotations := target.GetAnnotations(); targetAnnotations != nil {
+				newNode.Annotations = targetAnnotations
+			}
+
+			nodes = append(nodes, newNode)
 		} else {
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
@@ -1624,6 +1633,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 	origApp = origApp.DeepCopy()
+
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {

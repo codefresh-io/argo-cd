@@ -1357,7 +1357,9 @@ type SyncOperation struct {
 	// If omitted, will use the revision specified in app spec.
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 	// SelfHealAttemptsCount contains the number of auto-heal attempts
-	SelfHealAttemptsCount int64 `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	SelfHealAttemptsCount int64    `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	ChangeRevisions       []string `json:"changeRevisions,omitempty" protobuf:"-"`
+	ChangeRevision        string   `json:"changeRevision,omitempty" protobuf:"-"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1965,6 +1967,15 @@ type ResourceRef struct {
 	UID       string `json:"uid,omitempty" protobuf:"bytes,6,opt,name=uid"`
 }
 
+func (r ResourceRef) IsEqual(other ResourceRef) bool {
+	return (r.Group == other.Group &&
+		r.Version == other.Version &&
+		r.Kind == other.Kind &&
+		r.Namespace == other.Namespace &&
+		r.Name == other.Name) ||
+		r.UID == other.UID
+}
+
 // ResourceNode contains information about live resource and its children
 // TODO: describe members of this type
 type ResourceNode struct {
@@ -1976,6 +1987,10 @@ type ResourceNode struct {
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
+	// available for managed resource
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,9,opt,name=labels"`
+	// available for managed resource without k8s-last-applied-configuration
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,10,opt,name=annotations"`
 }
 
 // FullName returns a resource node's full name in the format "group/kind/namespace/name"
@@ -1991,6 +2006,42 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 		Version: n.Version,
 		Kind:    n.Kind,
 	}
+}
+
+func (n *ResourceNode) GetAllChildNodes(tree *ApplicationTree, kind string) []ResourceNode {
+	curChildren := []ResourceNode{}
+
+	for _, c := range tree.Nodes {
+		if (kind == "" || kind == c.Kind) && c.hasInParents(tree, n) {
+			curChildren = append(curChildren, c)
+		}
+	}
+
+	return curChildren
+}
+
+func (n *ResourceNode) hasInParents(tree *ApplicationTree, p *ResourceNode) bool {
+	if len(n.ParentRefs) == 0 {
+		return false
+	}
+
+	for _, curParentRef := range n.ParentRefs {
+		if curParentRef.IsEqual(p.ResourceRef) {
+			return true
+		}
+
+		parentNode := tree.FindNode(curParentRef.Group, curParentRef.Kind, curParentRef.Namespace, curParentRef.Name)
+		if parentNode == nil {
+			continue
+		}
+
+		parentResult := parentNode.hasInParents(tree, p)
+		if parentResult {
+			return true
+		}
+	}
+
+	return false
 }
 
 // ResourceStatus holds the current sync and health status of a resource
@@ -2970,6 +3021,8 @@ type KustomizeOptions struct {
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 	// BinaryPath holds optional path to kustomize binary
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
+
+	SetNamespace bool `protobuf:"varint,3,opt,name=setNamespace"`
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
@@ -3155,6 +3208,11 @@ func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationCon
 // IsError returns true if a condition indicates an error condition
 func (condition *ApplicationCondition) IsError() bool {
 	return strings.HasSuffix(condition.Type, "Error")
+}
+
+// IsWarning returns true if a condition indicates an warning condition
+func (condition *ApplicationCondition) IsWarning() bool {
+	return strings.HasSuffix(condition.Type, "Warning")
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.

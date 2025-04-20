@@ -3721,6 +3721,20 @@ func (in *ResourceNode) DeepCopyInto(out *ResourceNode) {
 		in, out := &in.CreatedAt, &out.CreatedAt
 		*out = (*in).DeepCopy()
 	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
@@ -4356,6 +4370,11 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 	}
 	if in.Revisions != nil {
 		in, out := &in.Revisions, &out.Revisions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ChangeRevisions != nil {
+		in, out := &in.ChangeRevisions, &out.ChangeRevisions
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

@@ -208,7 +208,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+		kustomizeOptions, err := kustomizeSettings.GetOptions(source, m.settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
@@ -290,12 +290,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
 			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 			InstallationID:                  installationID,
+			ApplicationMetadata:             &app.ObjectMeta,
 		})
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
+		targetObj, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}
@@ -611,13 +612,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
+		logCtx.Errorf("Failed to load live state: %v", err)
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := fmt.Sprintf("Failed to load live state: %s", err.Error())
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
 
-	logCtx.Debugf("Retrieved live manifests")
+	logCtx.Debugf("Retrieved live manifests, amount of live objects: %d", len(liveObjByKey))
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
@@ -629,6 +631,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			return clusters, nil
 		})
 		if err != nil {
+			logCtx.Infof("Failed to check if live resource %q is permitted in project %q: %v", k.String(), app.Spec.Project, err)
 			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), app.Spec.Project, err.Error())
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
@@ -693,6 +696,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	}
 
+	logCtx.Debugf("Resources before reconciliation: target %d, live %d", len(targetObjs), len(liveObjByKey))
+
 	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
@@ -704,6 +709,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	manifestRevisions := make([]string, 0)
 
 	for _, manifestInfo := range manifestInfos {
+		logCtx.Infof("Manifest for revision %s has been generated", manifestInfo.Revision)
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
@@ -772,6 +778,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	syncCode := v1alpha1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(reconciliation.Target))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(reconciliation.Target))
+
+	logCtx.Debugf("Resources after reconciliation: target %d, live %d", len(reconciliation.Target), len(reconciliation.Live))
+
 	for i, targetObj := range reconciliation.Target {
 		liveObj := reconciliation.Live[i]
 		obj := liveObj
@@ -822,6 +831,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
 		} else if !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil) {
+			// logging for precisely, can be removed in future
+			if diffResult.Modified {
+				logCtx.Debugf("Resource %s is out of sync, because diff between live and desired state", resState.Name)
+				logCtx.Debugf("Live state: %s", string(diffResult.NormalizedLive))
+				logCtx.Debugf("Desired state: %s", string(diffResult.PredictedLive))
+			} else if targetObj == nil {
+				logCtx.Debugf("Resource %s is out of sync, because target object is nil", resState.Name)
+			} else if liveObj == nil {
+				logCtx.Debugf("Resource %s is out of sync, because live object is nil", resState.Name)
+			}
+
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
@@ -872,6 +892,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
 	} else if app.HasChangedManagedNamespaceMetadata() {
+		logCtx.Infof("Application has changed managedNamespaceMetadata, marking application as out of sync")
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 	var revision string

@@ -17,6 +17,11 @@ argocd-repo-server [flags]
 ```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
+      --cf-app-config-cache-expiration duration        Cache expiration for Codefresh application configs (default 3m0s)
+      --codefresh-application-version-enabled          Allow Codefresh application versioning (default true)
+      --codefresh-application-version-use-appconfig    Allow getting application configuration from the Codefresh API (default true)
+      --codefresh-token string                         Codefresh token
+      --codefresh-url string                           Codefresh API URL (default "https://g.codefresh.io")
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint

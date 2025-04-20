@@ -1171,10 +1171,10 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj
 		ProjectName:                     proj.Name,
 		ProjectSourceRepos:              proj.Spec.SourceRepos,
 		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
-	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	errors.CheckError(err)
 
-	return res.Manifests
+	return res.GetCompiledManifests()
 }
 
 type resourceInfoProvider struct {
@@ -1388,7 +1388,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	} else if diffOptions.revision != "" || len(diffOptions.revisions) > 0 {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst.CompiledManifest)
 			errors.CheckError(err)
 			unstructureds = append(unstructureds, obj)
 		}
@@ -1397,7 +1397,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	} else if diffOptions.serversideRes != nil {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.serversideRes.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst.CompiledManifest)
 			errors.CheckError(err)
 			unstructureds = append(unstructureds, obj)
 		}
@@ -2091,7 +2091,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Println("The name of the app is ", appName)
 
 					for _, mfst := range res.Manifests {
-						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst.CompiledManifest)
 						errors.CheckError(err)
 						for key, selectedValue := range selectedLabels {
 							if objectValue, ok := obj.GetLabels()[key]; ok && selectedValue == objectValue {
@@ -3047,7 +3047,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.CheckError(err)
 
 					for _, mfst := range res.Manifests {
-						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst.CompiledManifest)
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
 					}
@@ -3061,7 +3061,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.CheckError(err)
 
 					for _, mfst := range res.Manifests {
-						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst.CompiledManifest)
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
 					}
