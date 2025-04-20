@@ -6,6 +6,9 @@ mockname: "{{.InterfaceName}}"
 with-expecter: false
 # individual interface config
 packages:
+  github.com/argoproj/argo-cd/v2/acr_controller/application:
+    interfaces:
+      ApplicationClient:
   github.com/argoproj/argo-cd/v2/applicationset/generators:
     interfaces:
       Generator:
@@ -36,6 +39,9 @@ packages:
   github.com/argoproj/argo-cd/v2/controller/cache:
     interfaces:
       LiveStateCache:
+  github.com/argoproj/argo-cd/v2/event_reporter/application:
+    interfaces:
+      ApplicationClient:
   github.com/argoproj/argo-cd/v2/reposerver/apiclient:
     interfaces:
       RepoServerServiceClient:

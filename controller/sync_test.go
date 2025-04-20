@@ -37,7 +37,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -83,7 +83,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -114,7 +114,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -167,7 +167,7 @@ func TestSyncComparisonError(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
+			Manifests:    []*apiclient.Manifest{},
 			Namespace:    test.FakeDestNamespace,
 			Server:       test.FakeClusterURL,
 			Revision:     "abc123",
@@ -213,7 +213,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{app, project},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
+				Manifests: []*apiclient.Manifest{},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",
@@ -288,7 +288,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{app, project},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
+				Manifests: []*apiclient.Manifest{},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",
@@ -1307,7 +1307,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{app, project},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
+				Manifests: []*apiclient.Manifest{},
 				Namespace: test.FakeDestNamespace,
 				Server:    "https://localhost:6443",
 				Revision:  "abc123",

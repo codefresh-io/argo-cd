@@ -125,6 +125,7 @@ define run-in-test-client
 		-e GITHUB_TOKEN \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
+		-e GOSUMDB=off \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -145,7 +146,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_NAMESPACE?=
+IMAGE_NAMESPACE?=quay.io/codefresh
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -532,6 +533,9 @@ start-local: mod-vendor-local dep-ui-local cli-local
 run:
 	bash ./hack/goreman-start.sh
 
+.PHONY: cf-release
+cf-release:
+	go run ./hack/release
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit

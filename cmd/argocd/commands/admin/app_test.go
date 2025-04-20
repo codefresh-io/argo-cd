@@ -97,7 +97,11 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	clusterCache.On("GetGVKParser", mock.Anything).Return(nil)
 	repoServerClient := mocks.RepoServerServiceClient{}
 	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&argocdclient.ManifestResponse{
-		Manifests: []string{test.DeploymentManifest},
+		Manifests: []*argocdclient.Manifest{
+			{
+				CompiledManifest: test.DeploymentManifest,
+			},
+		},
 	}, nil)
 	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 	liveStateCache := cachemocks.LiveStateCache{}
