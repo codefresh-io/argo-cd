@@ -569,6 +569,8 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	require.NoError(t, err)
 
+	time.Sleep(1 * time.Second)
+
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.ErrorContains(t, err, "blocked by sync window")
