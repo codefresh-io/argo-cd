@@ -87,6 +87,16 @@ func (s *Service) getVersionConfig(appMetadata *metav1.ObjectMeta) *version_conf
 	return versionConfig
 }
 
+func (s *Service) GetVersionConfig(app *metav1.ObjectMeta) *version_config_manager.VersionConfig {
+	versionConfig, err := s.versionConfigManager.GetVersionConfig(app)
+
+	if versionConfig == nil || err != nil {
+		return nil
+	}
+
+	return versionConfig
+}
+
 func kustomizeBuild(
 	k kustomize.Kustomize,
 	repoRoot string,

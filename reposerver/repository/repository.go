@@ -98,7 +98,6 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
-	codefreshClient           codefresh.CodefreshClientInterface
 	versionConfigManager      *version_config_manager.VersionConfigManager
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
@@ -156,7 +155,6 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		chartPaths:           helmRandomizedPaths,
 		gitRepoInitializer:   directoryPermissionInitializer,
 		rootDir:              rootDir,
-		codefreshClient:      codefreshClient,
 		versionConfigManager: versionConfigManager,
 	}
 }
@@ -552,16 +550,6 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		}
 	}
 	return repoRefs, nil
-}
-
-func (s *Service) GetVersionConfig(app *metav1.ObjectMeta) *version_config_manager.VersionConfig {
-	versionConfig, err := s.versionConfigManager.GetVersionConfig(app)
-
-	if versionConfig == nil || err != nil {
-		return nil
-	}
-
-	return versionConfig
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
