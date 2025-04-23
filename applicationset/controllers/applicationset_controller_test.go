@@ -1885,7 +1885,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	}
 
 	res, err := r.Reconcile(context.Background(), req)
-	require.NoError(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 }
 
