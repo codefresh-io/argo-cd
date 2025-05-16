@@ -37,7 +37,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 
 	if err := validateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		entity := destinationEntity
-		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.Name, err.Error())
+		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.ObjectMeta.Name, err.Error())
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
@@ -55,7 +55,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 	}
 	if len(conditions) > 0 {
 		entity := sourceEntity
-		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.ObjectMeta.Name, argo.FormatAppConditions(conditions))
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,

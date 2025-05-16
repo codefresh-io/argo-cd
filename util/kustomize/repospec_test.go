@@ -43,7 +43,7 @@ var hostNamesRawAndNormalized = [][]string{
 }
 
 func makeURL(hostFmt, orgRepo, path, href string) string {
-	if path != "" {
+	if len(path) > 0 {
 		orgRepo = filepath.Join(orgRepo, path)
 	}
 	url := hostFmt + orgRepo

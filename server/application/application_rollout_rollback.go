@@ -78,22 +78,22 @@ func (s *Server) getRsOfSpecificRevision(ctx context.Context, config *rest.Confi
 		if err != nil {
 			return nil, fmt.Errorf("error getting resource: %w", err)
 		}
-		v := resource.GetRevision(rsliveObj)
-		switch toRevision {
-		case 0:
-			if latestRevision < v {
-				// newest one we've seen so far
-				previousRevision = latestRevision
-				previousReplicaSet = latestReplicaSet
-				latestRevision = v
-				latestReplicaSet = rsliveObj
-			} else if previousRevision < v {
-				// second newest one we've seen so far
-				previousRevision = v
-				previousReplicaSet = rsliveObj
+		if v := resource.GetRevision(rsliveObj); err == nil {
+			if toRevision == 0 {
+				if latestRevision < v {
+					// newest one we've seen so far
+					previousRevision = latestRevision
+					previousReplicaSet = latestReplicaSet
+					latestRevision = v
+					latestReplicaSet = rsliveObj
+				} else if previousRevision < v {
+					// second newest one we've seen so far
+					previousRevision = v
+					previousReplicaSet = rsliveObj
+				}
+			} else if toRevision == v {
+				return rsliveObj, nil
 			}
-		case v:
-			return rsliveObj, nil
 		}
 	}
 
@@ -138,7 +138,7 @@ func (s *Server) getReplicaSetForRolloutRollack(ctx context.Context, config *res
 	rolloutGVK := getRolloutGVK()
 
 	foundRolloutNode := tree.FindNode(rolloutGVK.Group, rolloutGVK.Kind, q.GetRolloutNamespace(), q.GetRolloutName())
-	if foundRolloutNode == nil || foundRolloutNode.UID == "" {
+	if foundRolloutNode == nil || foundRolloutNode.ResourceRef.UID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", rolloutGVK.Kind, rolloutGVK.Group, q.GetRolloutName(), q.GetName())
 	}
 

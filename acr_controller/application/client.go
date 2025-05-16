@@ -23,6 +23,7 @@ type httpApplicationClient struct {
 	httpClient *http.Client
 	baseURL    string
 	token      string
+	rootpath   string
 }
 
 func NewHTTPApplicationClient(token string, address string, rootpath string) ApplicationClient {
@@ -46,13 +47,14 @@ func NewHTTPApplicationClient(token string, address string, rootpath string) App
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
 		},
-		baseURL: address,
-		token:   token,
+		baseURL:  address,
+		token:    token,
+		rootpath: rootpath,
 	}
 }
 
 func (c *httpApplicationClient) execute(ctx context.Context, url string, result any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
