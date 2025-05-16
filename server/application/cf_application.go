@@ -12,7 +12,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	ioutil "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -41,7 +41,7 @@ func (s *Server) GetChangeRevision(ctx context.Context, in *application.ChangeRe
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
-	defer utilio.Close(closer)
+	defer ioutil.Close(closer)
 
 	response, err := client.GetChangeRevision(ctx, &apiclient.ChangeRevisionRequest{
 		AppName:          in.GetAppName(),

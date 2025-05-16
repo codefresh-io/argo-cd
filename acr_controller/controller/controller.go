@@ -13,6 +13,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 )
 
 var watchAPIBufferSize = 1000
@@ -22,21 +24,27 @@ type ACRController interface {
 }
 
 type applicationChangeRevisionController struct {
-	appBroadcaster Broadcaster
-	acrService     service.ACRService
-	useAnnotations bool
+	appBroadcaster           Broadcaster
+	cache                    *servercache.Cache
+	appLister                applisters.ApplicationLister
+	applicationServiceClient appclient.ApplicationClient
+	acrService               service.ACRService
+	applicationClientset     appclientset.Interface
 }
 
-func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInformer, applicationServiceClient appclient.ApplicationClient, applicationClientset appclientset.Interface, useAnnotations bool) ACRController {
+func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, applicationClientset appclientset.Interface) ACRController {
 	appBroadcaster := NewBroadcaster()
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
 		log.Error(err)
 	}
 	return &applicationChangeRevisionController{
-		appBroadcaster: appBroadcaster,
-		acrService:     service.NewACRService(applicationClientset, applicationServiceClient),
-		useAnnotations: useAnnotations,
+		appBroadcaster:           appBroadcaster,
+		cache:                    cache,
+		applicationServiceClient: applicationServiceClient,
+		appLister:                appLister,
+		applicationClientset:     applicationClientset,
+		acrService:               service.NewACRService(applicationClientset, applicationServiceClient),
 	}
 }
 
@@ -48,7 +56,7 @@ func (c *applicationChangeRevisionController) Run(ctx context.Context) {
 			return nil // ignore this event
 		}
 
-		return c.acrService.ChangeRevision(ctx, &a, c.useAnnotations)
+		return c.acrService.ChangeRevision(ctx, &a)
 	}
 
 	// TODO: move to abstraction

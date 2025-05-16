@@ -2,11 +2,14 @@ package acr_controller
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
 
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,11 +36,15 @@ var backoff = wait.Backoff{
 type ACRServer struct {
 	ACRServerOpts
 
+	settings             *settings_util.ArgoCDSettings
+	log                  *log.Entry
 	appInformer          cache.SharedIndexInformer
+	appLister            applisters.ApplicationLister
 	applicationClientset appclientset.Interface
 
 	// stopCh is the channel which when closed, will shutdown the Event Reporter server
-	stopCh chan struct{}
+	stopCh     chan struct{}
+	serviceSet *ACRServerSet
 }
 
 type ACRServerSet struct{}
@@ -97,7 +104,7 @@ func (a *ACRServer) Init(ctx context.Context) {
 }
 
 func (a *ACRServer) RunController(ctx context.Context) {
-	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.ApplicationServiceClient, a.applicationClientset, !a.DisableAnnotations)
+	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
 	go controller.Run(ctx)
 }
 
@@ -156,6 +163,10 @@ func (a *ACRServer) Listen() (*Listeners, error) {
 // golang/protobuf).
 func (a *ACRServer) Run(ctx context.Context, lns *Listeners) {
 	httpS := a.newHTTPServer(ctx, a.ListenPort)
+	tlsConfig := tls.Config{}
+	tlsConfig.GetCertificate = func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return a.settings.Certificate, nil
+	}
 	go func() { a.checkServeErr("httpS", httpS.Serve(lns.Main)) }()
 	go a.RunController(ctx)
 
@@ -176,10 +187,13 @@ func NewApplicationChangeRevisionServer(_ context.Context, opts ACRServerOpts) *
 	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 
 	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
+	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	server := &ACRServer{
 		ACRServerOpts:        opts,
+		log:                  log.NewEntry(log.StandardLogger()),
 		appInformer:          appInformer,
+		appLister:            appLister,
 		applicationClientset: opts.AppClientset,
 	}
 

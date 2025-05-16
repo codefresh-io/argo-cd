@@ -542,6 +542,9 @@ start-local: mod-vendor-local dep-ui-local cli-local
 run:
 	bash ./hack/goreman-start.sh
 
+.PHONY: cf-release
+cf-release:
+	go run ./hack/release
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit
