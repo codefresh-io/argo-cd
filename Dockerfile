@@ -43,7 +43,11 @@ USER root
 ENV ARGOCD_USER_ID=999
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN groupadd -g $ARGOCD_USER_ID argocd && \
+RUN apt-get update && \
+    apt-get install curl -y && \
+    curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
+    apt-get install git-lfs -y && \
+    groupadd -g $ARGOCD_USER_ID argocd && \
     useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
@@ -51,7 +55,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y \
-    git git-lfs tini gpg tzdata connect-proxy && \
+    git tini gpg tzdata connect-proxy && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
