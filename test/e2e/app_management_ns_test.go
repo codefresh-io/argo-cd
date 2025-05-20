@@ -1135,6 +1135,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		}).
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		// make sure application resource actiions are successful
 		And(func(app *Application) {
