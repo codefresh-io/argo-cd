@@ -1,14 +1,14 @@
 ## Process of merging upstream changes
 
-1. create "sync-3.0.1" branch on top of upstream v3.0.1 tag (git checkout -b sync-3.0.1 v3.0.1), push to codefresh-io/argocd
+1. create "sync-3.0.2" branch on top of upstream v3.0.2 tag (git checkout -b sync-3.0.2 v3.0.2), push to codefresh-io/argocd
 2. create branch "make-cf-changes" on current release (sync-2.14.9 HEAD)
-3. rebase onto sync-3.0.1 ("git rebase --onto sync-3.0.1 v2.14.9 make-cf-changes)
-4. make a pr from "make-cf-changes" into "sync-3.0.1". 
+3. rebase onto sync-3.0.2 ("git rebase --onto sync-3.0.2 v2.14.9 make-cf-changes)
+4. make a pr from "make-cf-changes" into "sync-3.0.2". 
    1. the pr will trigger dev image builds, e2e runs, etc (quay.io/codefresh/dev/argocd)
 5. fix conflicts, test, fixes, whatever (by instuction in following section)
 6. merge pr
    1. merge will create official image of fork (quay.io/codefresh/argocd)
-   2. manually create tag "v3.0.1-2025-05-DD-SHA"
+   2. manually create tag "v3.0.2-YYYY-MM-DD-SHA"
    3. THERE IS NOT GITHUB RELEASE
 
 ## Resolving conflicts during upstream changes merge 
