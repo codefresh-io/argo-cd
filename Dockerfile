@@ -47,6 +47,7 @@ RUN apt-get update && \
     apt-get install curl -y && \
     curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
     apt-get install git-lfs -y && \
+    apt-get remove --purge -y curl && \
     groupadd -g $ARGOCD_USER_ID argocd && \
     useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
     mkdir -p /home/argocd && \
