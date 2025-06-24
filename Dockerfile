@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab
+ARG BASE_IMAGE=docker.io/library/ubuntu:25.04@sha256:10bb10bb062de665d4dc3e0ea36715270ead632cfcb74d08ca2273712a0dfb42
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -43,19 +43,15 @@ USER root
 ENV ARGOCD_USER_ID=999 \
     DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install curl -y && \
-    curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
-    apt-get install git-lfs -y && \
-    apt-get remove --purge -y curl && \
-    groupadd -g $ARGOCD_USER_ID argocd && \
+RUN groupadd -g $ARGOCD_USER_ID argocd && \
     useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
+    apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y \
-    git tini gpg tzdata connect-proxy && \
+    git git-lfs tini gpg tzdata connect-proxy && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
