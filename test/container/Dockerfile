@@ -14,9 +14,13 @@ FROM docker.io/library/registry:2.8@sha256:543dade69668e02e5768d7ea2b0aa4fae6aa7
 
 FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
 
-FROM docker.io/library/ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab
+FROM docker.io/library/ubuntu:25.04@sha256:10bb10bb062de665d4dc3e0ea36715270ead632cfcb74d08ca2273712a0dfb42
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# NOTE: binutils-gold contains the gold linker, which was recently removed
+#       from binutils, but is still nesessary for building lint-tools on arm64 only
+#       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
 RUN  apt-get update && apt-get install --fix-missing -y \
     ca-certificates \
     curl \
@@ -34,6 +38,9 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     sudo \
     tini \
     zip && \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+       apt-get install --fix-missing -y binutils-gold; \
+    fi && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
