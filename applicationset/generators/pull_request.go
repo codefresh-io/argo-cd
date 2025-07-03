@@ -49,6 +49,10 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 	return DefaultPullRequestRequeueAfterSeconds
 }
 
+func (g *PullRequestGenerator) GetContinueOnRepoNotFoundError(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) bool {
+	return appSetGenerator.PullRequest.ContinueOnRepoNotFoundError
+}
+
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.PullRequest.Template
 }
