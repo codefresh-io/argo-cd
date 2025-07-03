@@ -291,6 +291,7 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 		})
 	}
 }
+
 func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
