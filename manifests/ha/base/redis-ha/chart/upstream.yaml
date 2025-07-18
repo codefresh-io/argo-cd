@@ -12,7 +12,7 @@ metadata:
     chart: redis-ha-4.26.6
     app: argocd-redis-ha
 secrets:
-- name: argocd-redis
+  - name: argocd-redis
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
 apiVersion: v1
@@ -1099,7 +1099,7 @@ spec:
         - sh
         args:
         - /readonly/haproxy_init.sh
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1117,7 +1117,7 @@ spec:
       - name: haproxy
         image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1227,7 +1227,7 @@ spec:
         - sh
         args:
         - /readonly-config/init.sh
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1235,7 +1235,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1264,12 +1264,13 @@ spec:
           - redis-server
         args:
           - /data/conf/redis.conf
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - ALL
+            - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         env:
@@ -1326,12 +1327,13 @@ spec:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - ALL
+            - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         env:
@@ -1387,14 +1389,15 @@ spec:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - ALL
+            - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
