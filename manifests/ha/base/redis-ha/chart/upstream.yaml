@@ -12,7 +12,7 @@ metadata:
     chart: redis-ha-4.26.6
     app: argocd-redis-ha
 secrets:
-  - name: argocd-redis
+- name: argocd-redis
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
 apiVersion: v1
