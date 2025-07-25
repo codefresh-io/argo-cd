@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )

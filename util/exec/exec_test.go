@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	argoexec "github.com/argoproj/pkg/exec"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
