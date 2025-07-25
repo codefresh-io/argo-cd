@@ -131,7 +131,7 @@ RUN GIT_COMMIT=$GIT_COMMIT \
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM argocd-base
+FROM argocd-base
 ENTRYPOINT ["/usr/bin/tini", "--"]
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 
