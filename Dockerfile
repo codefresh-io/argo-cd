@@ -4,7 +4,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:25.04@sha256:10bb10bb062de665d4dc3e0ea36
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.24.1@sha256:c5adecdb7b3f8c5ca3c88648a861882849cc8b02fed68ece31e25de88ad13418 AS builder
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.24.1@sha256:c5adecdb7b3f8c5ca3c88648a861882849cc8b02fed68ece31e25de88ad13418 AS builder
 
 WORKDIR /tmp
 
@@ -34,7 +34,7 @@ RUN ./install.sh helm && \
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################
-FROM $BASE_IMAGE AS argocd-base
+FROM --platform=$BUILDPLATFORM $BASE_IMAGE AS argocd-base
 
 LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd"
 
@@ -131,7 +131,7 @@ RUN GIT_COMMIT=$GIT_COMMIT \
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM argocd-base
+FROM --platform=$BUILDPLATFORM argocd-base
 ENTRYPOINT ["/usr/bin/tini", "--"]
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 
