@@ -225,9 +225,12 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		timeoutBehavior = opts.TimeoutBehavior
 	}
 
+	logCtx.Error("*************************************** HELM COMMAND STARTED ***************************************")
+
 	select {
 	// noinspection ALL
 	case <-timoutCh:
+		logCtx.Error("*************************************** HELM TIMEOUT HAPPENED ***************************************")
 		// send timeout signal
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
@@ -235,6 +238,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
+				logCtx.Error("*************************************** HELM FATAL TIMEOUT HAPPENED ***************************************")
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
 				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
