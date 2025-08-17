@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
@@ -122,7 +123,15 @@ func Version() (string, error) {
 	cmd := exec.Command("helm", "version", "--client", "--short")
 	// example version output:
 	// short: "v3.3.1+g249e521"
-	version, err := executil.RunWithRedactor(cmd, redactor)
+	opts := executil.ExecRunOpts{
+		TimeoutBehavior: executil.TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+		SkipErrorLogging: false,
+		CaptureStderr:    true,
+	}
+	version, err := executil.RunWithExecRunOpts(cmd, opts)
 	if err != nil {
 		return "", fmt.Errorf("could not get helm version: %w", err)
 	}
