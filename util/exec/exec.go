@@ -235,6 +235,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
+			logCtx.Error("*************************************** HELM WAIT HAPPENED ***************************************")
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
