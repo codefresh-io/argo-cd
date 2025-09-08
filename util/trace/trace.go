@@ -76,3 +76,28 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 		}
 	}, nil
 }
+
+func InitGlobalTraceProvider(ctx context.Context) (func(), error) {
+	exporter, err := otlptracegrpc.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceNameKey.String("argocd-server"))),
+	)
+
+	// set the global tracer provider
+	otel.SetTracerProvider(tp)
+	// set the global propagator to use TraceContext and Baggage
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+	return func() {
+		if err := exporter.Shutdown(ctx); err != nil {
+			log.Errorf("failed to stop exporter: %v", err)
+		}
+	}, nil
+}
