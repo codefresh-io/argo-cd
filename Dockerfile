@@ -55,6 +55,9 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# To make sure that the latesst version of sqlite is installed that addresses this CVE-2025-6965
+RUN apt update && apt install --only-upgrade libsqlite3-0
+
 COPY hack/gpg-wrapper.sh \
     hack/git-verify-wrapper.sh \
     entrypoint.sh \
