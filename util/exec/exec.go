@@ -196,7 +196,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			"headLockPath":   lockPath,
 			"headLockExists": exists,
 			"where":          where,
-		}).Info("HEAD.lock status " + execId)
+		}).Info("HEAD.lock status execId=" + execId)
 	}
 
 	var stdout bytes.Buffer
@@ -206,7 +206,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 
 	start := time.Now()
 	err = cmd.Start()
-	logCtx.Info("*************************************** EXEC COMMAND STARTED *************************************** " + execId)
 	if err != nil {
 		return "", err
 	}
@@ -245,16 +244,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
-		logCtx.Info("*************************************** EXEC TIMEOUT HAPPENED *************************************** " + execId)
 		// send timeout signal
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
-			logCtx.Info("*************************************** EXEC WAIT HAPPENED *************************************** " + execId)
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
-				logCtx.Info("*************************************** EXEC FATAL TIMEOUT HAPPENED *************************************** " + execId)
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
 				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
@@ -282,9 +278,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:
-		logCtx.Info("*************************************** FINISHED ON TIME *************************************** " + execId)
 		if err != nil {
-			logCtx.Error("*************************************** FINISHED ON TIME EXEC FAILED *************************************** " + execId)
 			output := stdout.String()
 			if opts.CaptureStderr {
 				output += stderr.String()
