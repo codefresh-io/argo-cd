@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -183,6 +184,21 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	args := strings.Join(cmd.Args, " ")
 	logCtx.WithFields(logrus.Fields{"dir": cmd.Dir}).Info(redactor(args))
 
+	// Helper: debug whether HEAD.lock exists under the current working directory
+	logHeadLockStatus := func(where string) {
+		if cmd.Dir == "" {
+			return
+		}
+		lockPath := filepath.Join(cmd.Dir, ".git", "HEAD.lock")
+		_, statErr := os.Stat(lockPath)
+		exists := statErr == nil
+		logCtx.WithFields(logrus.Fields{
+			"headLockPath":   lockPath,
+			"headLockExists": exists,
+			"where":          where,
+		}).Info("HEAD.lock status " + execId)
+	}
+
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -190,6 +206,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 
 	start := time.Now()
 	err = cmd.Start()
+	logCtx.Error("*************************************** EXEC COMMAND STARTED *************************************** " + execId)
 	if err != nil {
 		return "", err
 	}
@@ -225,21 +242,19 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		timeoutBehavior = opts.TimeoutBehavior
 	}
 
-	logCtx.Error("*************************************** HELM COMMAND STARTED ***************************************")
-
 	select {
 	// noinspection ALL
 	case <-timoutCh:
-		logCtx.Error("*************************************** HELM TIMEOUT HAPPENED ***************************************")
+		logCtx.Error("*************************************** EXEC TIMEOUT HAPPENED *************************************** " + execId)
 		// send timeout signal
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
-			logCtx.Error("*************************************** HELM WAIT HAPPENED ***************************************")
+			logCtx.Error("*************************************** EXEC WAIT HAPPENED *************************************** " + execId)
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
-				logCtx.Error("*************************************** HELM FATAL TIMEOUT HAPPENED ***************************************")
+				logCtx.Error("*************************************** EXEC FATAL TIMEOUT HAPPENED *************************************** " + execId)
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
 				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
@@ -250,6 +265,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 					output += stderr.String()
 				}
 				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+				logHeadLockStatus("fatal-timeout")
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
 				logCtx.Error(err.Error())
 				return strings.TrimSuffix(output, "\n"), err
@@ -261,11 +277,14 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			output += stderr.String()
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		logHeadLockStatus("timeout")
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:
+		logCtx.Info("*************************************** FINISHED ON TIME *************************************** " + execId)
 		if err != nil {
+			logCtx.Error("*************************************** FINISHED ON TIME EXEC FAILED *************************************** " + execId)
 			output := stdout.String()
 			if opts.CaptureStderr {
 				output += stderr.String()
@@ -275,6 +294,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			if !opts.SkipErrorLogging {
 				logCtx.Error(err.Error())
 			}
+			logHeadLockStatus("done-error")
 			return strings.TrimSuffix(output, "\n"), err
 		}
 	}
@@ -283,6 +303,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		output += stderr.String()
 	}
 	logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+	logHeadLockStatus("done-success")
 
 	return strings.TrimSuffix(output, "\n"), nil
 }
