@@ -210,6 +210,8 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return "", err
 	}
 
+	logHeadLockStatus("start exec")
+
 	done := make(chan error)
 	go func() { done <- cmd.Wait() }()
 
