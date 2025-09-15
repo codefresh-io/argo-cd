@@ -204,6 +204,12 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
+	// Configure the child to run in its own process group so we can signal the whole group on timeout/cancel.
+	// On Unix this sets Setpgid; on Windows this is a no-op.
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = newSysProcAttr(true)
+	}
+
 	start := time.Now()
 	err = cmd.Start()
 	if err != nil {
@@ -247,14 +253,19 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// noinspection ALL
 	case <-timoutCh:
 		// send timeout signal
-		_ = cmd.Process.Signal(timeoutBehavior.Signal)
+		// signal the process group (negative PID) so children are terminated as well
+		if cmd.Process != nil {
+			_ = sysCallSignal(-cmd.Process.Pid, timeoutBehavior.Signal)
+		}
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
-				// upgrades to SIGKILL if cmd does not respect SIGTERM
-				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				// upgrades to fatal signal (default SIGKILL) if cmd does not respect the initial signal
+				if cmd.Process != nil {
+					_ = sysCallSignal(-cmd.Process.Pid, fatalTimeoutBehaviour)
+				}
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
