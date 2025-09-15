@@ -3028,7 +3028,7 @@ func TestRemoveStaleGitHeadLock(t *testing.T) {
 	_, err := os.Stat(headLock)
 	require.NoError(t, err)
 
-	removeStaleGitLocks(dir)
+	removeStaleGitLock(dir)
 
 	// lock should be gone after cleanup
 	_, err = os.Stat(headLock)
@@ -3036,7 +3036,7 @@ func TestRemoveStaleGitHeadLock(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 
 	// calling again should be a no-op (no error)
-	removeStaleGitLocks(dir)
+	removeStaleGitLock(dir)
 }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
