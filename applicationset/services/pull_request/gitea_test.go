@@ -359,7 +359,7 @@ func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", false)
+	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", nil, false)
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())

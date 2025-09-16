@@ -522,7 +522,7 @@ func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
 		Components:              []string{"../../../../../../kustomize/components/all"},
 		IgnoreMissingComponents: true,
 	}
-	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil, "")
 	require.NoError(t, err)
 	obj := objs[2]
 	require.Equal(t, "hello-world-kustomize", obj.GetName())
@@ -611,7 +611,7 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 		},
 	}
 
-	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil, "")
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil, "some-namespace")
 	require.EqualError(t, err, "kustomization file not found in the path")
 }
 
@@ -626,7 +626,7 @@ func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
 		Components:              []string{"./non-existent-component1", "./non-existent-component2"},
 		IgnoreMissingComponents: true,
 	}
-	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil, "")
 	require.NoError(t, err)
 
 	// Verify that no "edit add component" command was executed
