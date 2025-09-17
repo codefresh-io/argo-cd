@@ -190,13 +190,31 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			return
 		}
 		lockPath := filepath.Join(cmd.Dir, ".git", "HEAD.lock")
-		_, statErr := os.Stat(lockPath)
+		fileInfo, statErr := os.Stat(lockPath)
 		exists := statErr == nil
-		logCtx.WithFields(logrus.Fields{
+		fields := logrus.Fields{
 			"headLockPath":   lockPath,
 			"headLockExists": exists,
 			"where":          where,
-		}).Info("HEAD.lock status execId=" + execId)
+		}
+		if exists {
+			fields["headLockSize"] = fileInfo.Size()
+			fields["headLockMode"] = fileInfo.Mode().String()
+			fields["headLockModTime"] = fileInfo.ModTime()
+			fields["headLockIsDir"] = fileInfo.IsDir()
+
+			pgid, pgErr := syscall.Getpgid(cmd.Process.Pid)
+			if pgErr == nil && pgid > 0 {
+				out, _ := exec.Command(
+					"ps",
+					"-o", "pid,ppid,pgid,etime,comm,args",
+					"--no-headers",
+					"--pgroup", strconv.Itoa(pgid),
+				).CombinedOutput()
+				fields["processesInGroup"] = strings.TrimSpace(string(out))
+			}
+		}
+		logCtx.WithFields(fields).Info("HEAD.lock status")
 	}
 
 	var stdout bytes.Buffer
@@ -261,6 +279,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		if timeoutBehavior.ShouldWait {
 			select {
 			case <-done:
+				logHeadLockStatus("timeout-waited-done")
 			case <-fatalTimeoutCh:
 				// upgrades to fatal signal (default SIGKILL) if cmd does not respect the initial signal
 				if cmd.Process != nil {
