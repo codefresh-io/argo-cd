@@ -57,9 +57,7 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 		if s.matches(event) {
 			select {
 			case s.ch <- event:
-				{
-					// log.Infof("adding application '%s' to channel", event.Application.Name)
-				}
+				log.Infof("adding application '%s' to channel", event.Application.Name)
 			default:
 				// drop event if cannot send right away
 				log.WithField("application", event.Application.Name).Warn("unable to send event notification")

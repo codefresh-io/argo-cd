@@ -2,7 +2,6 @@ package acr_controller
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -20,10 +19,8 @@ import (
 
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
-	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
-	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var backoff = wait.Backoff{
@@ -36,15 +33,11 @@ var backoff = wait.Backoff{
 type ACRServer struct {
 	ACRServerOpts
 
-	settings             *settings_util.ArgoCDSettings
-	log                  *log.Entry
 	appInformer          cache.SharedIndexInformer
-	appLister            applisters.ApplicationLister
 	applicationClientset appclientset.Interface
 
 	// stopCh is the channel which when closed, will shutdown the Event Reporter server
-	stopCh     chan struct{}
-	serviceSet *ACRServerSet
+	stopCh chan struct{}
 }
 
 type ACRServerSet struct{}
@@ -100,12 +93,10 @@ func (a *ACRServer) healthCheck(_ *http.Request) error {
 // Init starts informers used by the API server
 func (a *ACRServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	svcSet := newApplicationChangeRevisionServiceSet()
-	a.serviceSet = svcSet
 }
 
 func (a *ACRServer) RunController(ctx context.Context) {
-	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
+	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.ApplicationServiceClient, a.applicationClientset)
 	go controller.Run(ctx)
 }
 
@@ -164,10 +155,6 @@ func (a *ACRServer) Listen() (*Listeners, error) {
 // golang/protobuf).
 func (a *ACRServer) Run(ctx context.Context, lns *Listeners) {
 	httpS := a.newHTTPServer(ctx, a.ListenPort)
-	tlsConfig := tls.Config{}
-	tlsConfig.GetCertificate = func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return a.settings.Certificate, nil
-	}
 	go func() { a.checkServeErr("httpS", httpS.Serve(lns.Main)) }()
 	go a.RunController(ctx)
 
@@ -179,7 +166,7 @@ func (a *ACRServer) Run(ctx context.Context, lns *Listeners) {
 	<-a.stopCh
 }
 
-// NewServer returns a new instance of the Event Reporter server
+// NewApplicationChangeRevisionServer returns a new instance of the Event Reporter server
 func NewApplicationChangeRevisionServer(_ context.Context, opts ACRServerOpts) *ACRServer {
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
@@ -188,19 +175,12 @@ func NewApplicationChangeRevisionServer(_ context.Context, opts ACRServerOpts) *
 	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 
 	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	server := &ACRServer{
 		ACRServerOpts:        opts,
-		log:                  log.NewEntry(log.StandardLogger()),
 		appInformer:          appInformer,
-		appLister:            appLister,
 		applicationClientset: opts.AppClientset,
 	}
 
 	return server
-}
-
-func newApplicationChangeRevisionServiceSet() *ACRServerSet {
-	return &ACRServerSet{}
 }
