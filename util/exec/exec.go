@@ -184,6 +184,21 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	args := strings.Join(cmd.Args, " ")
 	logCtx.WithFields(logrus.Fields{"dir": cmd.Dir}).Info(redactor(args))
 
+	// Best-effort cleanup of a stale HEAD.lock after the command finishes.
+	defer func() {
+		if cmd.Dir == "" {
+			return
+		}
+		lockPath := filepath.Join(cmd.Dir, ".git", "HEAD.lock")
+		if _, err := os.Stat(lockPath); err == nil {
+			// Log and attempt removal; ignore ENOENT races
+			logCtx.WithFields(logrus.Fields{"headLockPath": lockPath}).Warn("HEAD.lock present post-exec, removing it")
+			if rmErr := os.Remove(lockPath); rmErr != nil && !os.IsNotExist(rmErr) {
+				logCtx.WithFields(logrus.Fields{"headLockPath": lockPath}).Warnf("Failed to remove HEAD.lock: %v", rmErr)
+			}
+		}
+	}()
+
 	// Helper: debug whether HEAD.lock exists under the current working directory
 	logHeadLockStatus := func(where string) {
 		if cmd.Dir == "" {
