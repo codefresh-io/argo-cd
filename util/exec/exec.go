@@ -256,7 +256,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		}
 		logCtx.WithFields(fields).Info("HEAD.lock status")
 	}
-
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
