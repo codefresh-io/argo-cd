@@ -186,12 +186,11 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 
 	// Best-effort cleanup of a stale HEAD.lock after the command finishes.
 	defer func() {
-
 		if cmd.Dir == "" {
 			return
 		}
 		lockPath := filepath.Join(cmd.Dir, ".git", "HEAD.lock")
-		logCtx.WithFields(logrus.Fields{"headLockPath": lockPath}).Info("Checking HEAD.lock presense post-exec")
+		logCtx.WithFields(logrus.Fields{"headLockPath": lockPath}).Info("Checking HEAD.lock presence post-exec")
 		if _, err := os.Stat(lockPath); err == nil {
 			// Log and attempt removal; ignore ENOENT races
 			logCtx.WithFields(logrus.Fields{"headLockPath": lockPath}).Warn("HEAD.lock present post-exec, removing it")
@@ -218,22 +217,42 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			"headLockExists": exists,
 			"where":          where,
 		}
+
+		pgid, pgErr := syscall.Getpgid(cmd.Process.Pid)
+		if pgErr == nil && pgid > 0 {
+			// Portable ps: list all processes, print needed columns without headers, then filter by PGID in Go.
+			out, _ := exec.Command(
+				"ps",
+				"-ax",
+				"-o", "pid=,ppid=,pgid=,etime=,comm=,args=",
+			).Output()
+			if len(out) > 0 {
+				var b strings.Builder
+				want := strconv.Itoa(pgid)
+				for _, line := range strings.Split(string(out), "\n") {
+					line = strings.TrimSpace(line)
+					if line == "" {
+						continue
+					}
+					fieldsSlice := strings.Fields(line)
+					if len(fieldsSlice) < 3 {
+						continue
+					}
+					if fieldsSlice[2] == want {
+						b.WriteString(line)
+						b.WriteByte('\n')
+					}
+				}
+				fields["gitProcsInGroup"] = strings.TrimSpace(b.String())
+			}
+		}
+
 		if exists {
 			fields["headLockSize"] = fileInfo.Size()
 			fields["headLockMode"] = fileInfo.Mode().String()
 			fields["headLockModTime"] = fileInfo.ModTime()
 			fields["headLockIsDir"] = fileInfo.IsDir()
 
-			pgid, pgErr := syscall.Getpgid(cmd.Process.Pid)
-			if pgErr == nil && pgid > 0 {
-				out, _ := exec.Command(
-					"ps",
-					"-o", "pid,ppid,pgid,etime,comm,args",
-					"--no-headers",
-					"--pgroup", strconv.Itoa(pgid),
-				).CombinedOutput()
-				fields["processesInGroup"] = strings.TrimSpace(string(out))
-			}
 		}
 		logCtx.WithFields(fields).Info("HEAD.lock status")
 	}
