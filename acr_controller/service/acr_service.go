@@ -105,10 +105,10 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 	if len(revisions) > 0 {
 		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
 			c.logger.Infof("Patch operation status for application %s", app.Name)
-			patchMap = c.patchOperationSyncResultWithChangeRevision(ctx, app, revisions)
+			patchMap = c.patchOperationSyncResultWithChangeRevision(revisions)
 		} else {
 			c.logger.Infof("Patch operation for application %s", app.Name)
-			patchMap = c.patchOperationWithChangeRevision(ctx, app, revisions)
+			patchMap = c.patchOperationWithChangeRevision(revisions)
 		}
 	}
 	if useAnnotations {
@@ -125,10 +125,9 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 		}
 		_, err = c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		return err
-	} else {
-		c.logger.Infof("no patch needed")
-		return nil
 	}
+	c.logger.Infof("no patch needed")
+	return nil
 }
 
 func addPatchIfNeeded(annotations map[string]string, currentAnnotations map[string]string, key string, val string) {
@@ -143,30 +142,32 @@ func (c *acrService) addAnnotationPatch(m map[string]any,
 	changeRevision string,
 	changeRevisions []string,
 	gitRevision string,
-	gitRevisions []string) error {
+	gitRevisions []string,
+) error {
 	c.logger.Infof("annotating application '%s', changeRevision=%s, changeRevisions=%v, gitRevision=%s, gitRevisions=%v", a.Name, changeRevision, changeRevisions, gitRevision, gitRevisions)
 	annotations := map[string]string{}
 	currentAnnotations := a.Annotations
 
-	changeRevisionsJson, err := json.Marshal(changeRevisions)
+	changeRevisionsJSON, err := json.Marshal(changeRevisions)
 	if err != nil {
-		return fmt.Errorf("Failed to marshall changeRevisions %v: %v", changeRevisions, err)
+		return fmt.Errorf("failed to marshall changeRevisions %v: %w", changeRevisions, err)
 	}
-	gitRevisionsJson, err := json.Marshal(gitRevisions)
+	gitRevisionsJSON, err := json.Marshal(gitRevisions)
 	if err != nil {
-		return fmt.Errorf("Failed to marshall gitRevisions %v: %v", gitRevisions, err)
+		return fmt.Errorf("failed to marshall gitRevisions %v: %w", gitRevisions, err)
 	}
 
 	addPatchIfNeeded(annotations, currentAnnotations, CHANGE_REVISION_ANN, changeRevision)
-	addPatchIfNeeded(annotations, currentAnnotations, CHANGE_REVISIONS_ANN, string(changeRevisionsJson))
+	addPatchIfNeeded(annotations, currentAnnotations, CHANGE_REVISIONS_ANN, string(changeRevisionsJSON))
 	addPatchIfNeeded(annotations, currentAnnotations, GIT_REVISION_ANN, gitRevision)
-	addPatchIfNeeded(annotations, currentAnnotations, GIT_REVISIONS_ANN, string(gitRevisionsJson))
+	addPatchIfNeeded(annotations, currentAnnotations, GIT_REVISIONS_ANN, string(gitRevisionsJSON))
 
 	if len(annotations) == 0 {
 		c.logger.Info("no need to add annotations")
+	} else {
+		c.logger.Infof("added annotations to application %s patch: %v", a.Name, annotations)
+		m["metadata"] = map[string]any{"annotations": annotations}
 	}
-	c.logger.Infof("added annotations to application %s patch: %v", a.Name, annotations)
-	m["metadata"] = map[string]any{"annotations": annotations}
 	return nil
 }
 
@@ -184,7 +185,7 @@ func (c *acrService) calculateRevision(ctx context.Context, a *application.Appli
 	return changeRevisionResult.Revision, nil
 }
 
-func (c *acrService) patchOperationWithChangeRevision(ctx context.Context, a *application.Application, revisions []string) map[string]any {
+func (c *acrService) patchOperationWithChangeRevision(revisions []string) map[string]any {
 	if len(revisions) == 1 {
 		return map[string]any{
 			"operation": map[string]any{
@@ -203,7 +204,7 @@ func (c *acrService) patchOperationWithChangeRevision(ctx context.Context, a *ap
 	}
 }
 
-func (c *acrService) patchOperationSyncResultWithChangeRevision(ctx context.Context, a *application.Application, revisions []string) map[string]any {
+func (c *acrService) patchOperationSyncResultWithChangeRevision(revisions []string) map[string]any {
 	if len(revisions) == 1 {
 		return map[string]any{
 			"status": map[string]any{
