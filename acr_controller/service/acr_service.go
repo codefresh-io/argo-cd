@@ -83,7 +83,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 
 	currentRevision, previousRevision := c.getRevisions(ctx, a)
 	if currentRevision == "" {
-		c.logger.Infof("Got empty revision for application %s, is it an unsupported  multisource or helm repo based application?", app.Name)
+		c.logger.Infof("Got empty current revision for application %s, is it an unsupported multisource or helm repo based application?", app.Name)
 		return nil
 	}
 	revision, err := c.calculateRevision(ctx, app, currentRevision, previousRevision)
@@ -122,7 +122,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 		}
 	}
 	if len(patchMap) > 0 {
-		c.logger.Infof("patching resource: %v", patchMap)
+		c.logger.Infof("Patching resource: %v", patchMap)
 		patch, err := json.Marshal(patchMap)
 		if err != nil {
 			return err
@@ -130,7 +130,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 		_, err = c.applicationClientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		return err
 	}
-	c.logger.Infof("no patch needed")
+	c.logger.Infof("No patch needed")
 	return nil
 }
 

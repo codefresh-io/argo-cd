@@ -38,6 +38,26 @@ spec:
     server: https://cluster-api.example.com
 `
 
+const multisourceApp = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: .
+  name: guestbook
+  namespace: codefresh
+spec:
+  sources:
+    - path: some/path
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      ksonnet:
+        environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    server: https://cluster-api.example.com
+`
+
 const fakeAppWithOperation = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -266,53 +286,85 @@ func Test_getRevisions(r *testing.T) {
 }
 
 func Test_ChangeRevision(r *testing.T) {
-	r.Run("Change revision", func(t *testing.T) {
+	newChangeRevision := "new-revision"
+	gitRevision := "c732f4d2ef24c7eeb900e9211ff98f90bb646505"
+	useAnnotations := true
+	appSrc := syncedAppWithHistory
+
+	testNewChangeRevision := func(t *testing.T) (*acrService, *test2.Hook, *appsv1.Application) {
+		t.Helper()
 		client := &mocks.ApplicationClient{}
 		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
-			Revision: ptr.To("new-revision"),
+			Revision: ptr.To(newChangeRevision),
 		}, nil)
-		acrService := newTestACRService(client)
-		app := createTestApp(syncedAppWithHistory)
-
-		err := acrService.ChangeRevision(r.Context(), app, false)
-		require.NoError(t, err)
-
-		app, err = acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
-		require.NoError(t, err)
-
-		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
-	})
-
-	r.Run("Change revision already exists", func(t *testing.T) {
-		client := &mocks.ApplicationClient{}
-		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
-			Revision: ptr.To("new-revision"),
-		}, nil)
-
 		logger, logHook := test2.NewNullLogger()
-
 		acrService := newTestACRService(client)
 		acrService.logger = logger
-
-		app := createTestApp(syncedAppWithHistory)
-
-		err := acrService.ChangeRevision(r.Context(), app, false)
+		app := createTestApp(appSrc)
+		orgManifestPath := app.GetAnnotation(appsv1.AnnotationKeyManifestGeneratePaths)
+		err := acrService.ChangeRevision(r.Context(), app, useAnnotations)
 		require.NoError(t, err)
+		assert.Equal(t, orgManifestPath, app.GetAnnotation(appsv1.AnnotationKeyManifestGeneratePaths))
+		return acrService, logHook, app
+	}
 
-		app, err = acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
-		require.NoError(t, err)
-
-		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
-
-		err = acrService.ChangeRevision(r.Context(), app, false)
-
-		require.NoError(t, err)
-
-		lastLogEntry := logHook.LastEntry()
+	testLastLogEntry := func(t *testing.T, hook *test2.Hook, expectedMsg string) {
+		t.Helper()
+		lastLogEntry := hook.LastEntry()
 		if lastLogEntry == nil {
 			t.Fatal("No log entry")
 		}
+		require.Equal(t, expectedMsg, lastLogEntry.Message)
+	}
 
-		require.Equal(t, "Change revision already calculated for application guestbook", lastLogEntry.Message)
+	r.Run("New change revision with annotations", func(t *testing.T) {
+		acrService, _, app := testNewChangeRevision(t)
+		app, err := acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Len(t, app.GetAnnotations(), 5)
+		assert.Equal(t, newChangeRevision, app.Status.OperationState.Operation.Sync.ChangeRevision)
+		assert.Equal(t, newChangeRevision, app.GetAnnotation(CHANGE_REVISION_ANN))
+		assert.Equal(t, "[\""+"new-revision"+"\"]", app.GetAnnotation(CHANGE_REVISIONS_ANN))
+		assert.Equal(t, gitRevision, app.GetAnnotation(GIT_REVISION_ANN))
+		assert.Equal(t, "[\""+gitRevision+"\"]", app.GetAnnotation(GIT_REVISIONS_ANN))
+	})
+
+	r.Run("Change revision already exists with annotations", func(t *testing.T) {
+		acrService, logHook, app := testNewChangeRevision(t)
+		app, err := acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		err = acrService.ChangeRevision(r.Context(), app, useAnnotations)
+		require.NoError(t, err)
+		testLastLogEntry(t, logHook, "Change revision already calculated for application guestbook")
+	})
+
+	useAnnotations = false
+
+	r.Run("New change revision without annotations", func(t *testing.T) {
+		acrService, _, app := testNewChangeRevision(t)
+		app, err := acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Len(t, app.GetAnnotations(), 1)
+		assert.Equal(t, newChangeRevision, app.Status.OperationState.Operation.Sync.ChangeRevision)
+	})
+
+	appSrc = syncedAppWithSingleHistory
+	newChangeRevision = ""
+	r.Run("No previous revision", func(t *testing.T) {
+		acrService, logHook, app := testNewChangeRevision(t)
+		app, err := acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Len(t, app.GetAnnotations(), 1)
+		testLastLogEntry(t, logHook, "No patch needed")
+	})
+
+	appSrc = multisourceApp
+
+	r.Run("No current revision", func(t *testing.T) {
+		acrService, logHook, app := testNewChangeRevision(t)
+		app, err := acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(r.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Len(t, app.GetAnnotations(), 1)
+		testLastLogEntry(t, logHook, "Got empty current revision for application guestbook, is it an unsupported multisource or helm repo based application?")
 	})
 }
