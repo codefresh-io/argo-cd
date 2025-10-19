@@ -3039,7 +3039,7 @@ func TestInit(t *testing.T) {
 	require.Error(t, err, "index.lock file should be removed after Init()")
 	require.ErrorContains(t, err, ".git/index.lock: no such file or directory")
 	_, err = os.Stat(indexFile)
-	//index file should stay after Init(), since it was recreated after repo reset
+	// index file should stay after Init(), since it was recreated after repo reset
 	require.NoError(t, err)
 	_, err = os.Stat(headLockFile)
 	require.Error(t, err, "HEAD.lock file should be removed after Init()")
@@ -3059,7 +3059,7 @@ func TestInit(t *testing.T) {
 	require.NoError(t, service.Init())
 
 	_, err = os.Stat(headLockDir)
-	//headLockDir should stay after Init(), since it is a directory
+	// headLockDir should stay after Init(), since it is a directory
 	require.NoError(t, err)
 }
 
