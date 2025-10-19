@@ -3016,20 +3016,74 @@ func TestInit(t *testing.T) {
 	initGitRepo(t, newGitRepoOptions{path: path.Join(dir, "repo2"), remote: "https://github.com/argo-cd/test-repo2", createPath: true, addEmptyCommit: false})
 
 	repoPath = path.Join(dir, "repo3")
-	lockFile := path.Join(repoPath, ".git", "index.lock")
-	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo3", createPath: true, addEmptyCommit: false})
-	require.NoError(t, os.WriteFile(lockFile, []byte("test"), 0o644))
+	lockFile1 := path.Join(repoPath, ".git", "index.lock")
+	lockFile2 := path.Join(repoPath, ".git", "index")
+	lockFile3 := path.Join(repoPath, ".git", "HEAD.lock")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo3", createPath: true, addEmptyCommit: true})
+	require.NoError(t, os.WriteFile(lockFile1, []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(lockFile2, []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(lockFile3, []byte("test"), 0o644))
 
 	service = newService(t, ".")
 	service.rootDir = dir
 
-	_, err = os.Stat(lockFile)
+	_, err = os.Stat(lockFile1)
 	require.NoError(t, err)
+	_, err = os.Stat(lockFile2)
+	require.NoError(t, err)
+	_, err = os.Stat(lockFile3)
+	require.NoError(t, err)
+
 	require.NoError(t, service.Init())
-	_, err = os.Stat(lockFile)
+
+	_, err = os.Stat(lockFile1)
 	require.Error(t, err, "lock file should be removed after Init()")
 	require.ErrorContains(t, err, ".git/index.lock: no such file or directory")
+	// _, err = os.Stat(lockFile2)
+	// require.Error(t, err, "lock file should be removed after Init()")
+	// require.ErrorContains(t, err, ".git/index: no such file or directory")
+	// _, err = os.Stat(lockFile3)
+	// require.Error(t, err, "lock file should be removed after Init()")
+	// require.ErrorContains(t, err, ".git/HEAD.lock: no such file or directory")
 }
+
+// func TestCleanupStaleFiles(t *testing.T) {
+// 	// Setup: create a temp directory and some files to be cleaned up
+// 	tmpDir := t.TempDir()
+// 	gitDir := filepath.Join(tmpDir, ".git")
+// 	require.NoError(t, os.MkdirAll(gitDir, 0o755))
+
+// 	staleFile1 := filepath.Join(gitDir, "index.lock")
+// 	staleFile2 := filepath.Join(gitDir, "index")
+// 	staleFile3 := filepath.Join(gitDir, "HEAD.lock")
+
+// 	require.NoError(t, os.WriteFile(staleFile1, []byte("foo"), 0o644))
+// 	require.NoError(t, os.WriteFile(staleFile2, []byte("bar"), 0o644))
+// 	require.NoError(t, os.WriteFile(staleFile3, []byte("baz"), 0o644))
+
+// 	// Sanity check: files exist
+// 	_, err := os.Stat(staleFile1)
+// 	require.NoError(t, err)
+// 	_, err = os.Stat(staleFile2)
+// 	require.NoError(t, err)
+// 	_, err = os.Stat(staleFile3)
+// 	require.NoError(t, err)
+
+// 	repo, err := gogit.PlainInit(tmpDir, false)
+// 	require.NoError(t, err)
+
+// 	// Call cleanupStaleFiles
+// 	service := newService(t, tmpDir)
+// 	service.cleanupStaleFiles(tmpDir, []string{"index.lock", "index", "HEAD.lock"}, repo)
+
+// 	// Assert: files are removed
+// 	_, err = os.Stat(staleFile1)
+// 	assert.True(t, os.IsNotExist(err))
+// 	_, err = os.Stat(staleFile2)
+// 	assert.True(t, os.IsNotExist(err))
+// 	_, err = os.Stat(staleFile3)
+// 	assert.True(t, os.IsNotExist(err))
+// }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
