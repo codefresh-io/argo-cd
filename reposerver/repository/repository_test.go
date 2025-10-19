@@ -3044,6 +3044,23 @@ func TestInit(t *testing.T) {
 	_, err = os.Stat(headLockFile)
 	require.Error(t, err, "HEAD.lock file should be removed after Init()")
 	require.ErrorContains(t, err, ".git/HEAD.lock: no such file or directory")
+
+	repoPath = path.Join(dir, "repo4")
+	headLockDir := path.Join(repoPath, ".git", "HEAD.lock")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo4", createPath: true, addEmptyCommit: false})
+	require.NoError(t, os.Mkdir(headLockDir, 0o755))
+
+	service = newService(t, ".")
+	service.rootDir = dir
+
+	_, err = os.Stat(headLockDir)
+	require.NoError(t, err)
+
+	require.NoError(t, service.Init())
+
+	_, err = os.Stat(headLockDir)
+	//headLockDir should stay after Init(), since it is a directory
+	require.NoError(t, err)
 }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
