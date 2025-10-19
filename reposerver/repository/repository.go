@@ -180,28 +180,33 @@ func (s *Service) cleanupStaleFiles(fullPath string, staleFiles []string, repo *
 	// for each stale file, if it exists, remove it
 	for _, staleFile := range staleFiles {
 		gitFile := filepath.Join(fullPath, ".git", staleFile)
-		if _, err := os.Stat(gitFile); err == nil {
-			log.Warnf("Stale file %s present in git repository %s, removing it", staleFile, fullPath)
-			if err = os.Remove(gitFile); err != nil {
-				log.Errorf("Failed to remove stale file %s: %v", gitFile, err)
-			}
-			if staleFile == "index" {
-				if err == nil {
-					wt, _ := repo.Worktree()
-					headRef, _ := repo.Head()
-					err = wt.Reset(&gogit.ResetOptions{
-						Mode:   gogit.MixedReset,
-						Commit: headRef.Hash(),
-					})
+		info, err := os.Lstat(gitFile)
+		if err == nil {
+			// Only delete if it's a regular file (not a symlink, dir, etc.)
+			if info.Mode().IsRegular() {
+				log.Warnf("Stale file %s present in git repository %s, removing it", staleFile, fullPath)
+				if err = os.Remove(gitFile); err != nil {
+					log.Errorf("Failed to remove stale file %s: %v", gitFile, err)
 				}
+				if staleFile == "index" {
+					if err == nil {
+						wt, _ := repo.Worktree()
+						headRef, _ := repo.Head()
+						err = wt.Reset(&gogit.ResetOptions{
+							Mode:   gogit.MixedReset,
+							Commit: headRef.Hash(),
+						})
+					}
 
-				if err != nil {
-					log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
+					if err != nil {
+						log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
+					}
 				}
 			}
+		} else {
+			log.Warnf("Stale file %s in git repository %s is not a regular file, skipping removal", staleFile, fullPath)
 		}
 	}
-
 }
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
