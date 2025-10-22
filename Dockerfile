@@ -62,6 +62,7 @@ COPY hack/gpg-wrapper.sh \
     hack/git-verify-wrapper.sh \
     entrypoint.sh \
     /usr/local/bin/
+COPY hack/gitconfig /etc/gitconfig
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 

@@ -29,3 +29,5 @@ examples/
 !hack/git-verify-wrapper.sh
 !hack/tool-versions.sh
 !hack/install.sh
+!hack/gitconfig
+
