@@ -165,6 +165,7 @@ func (s *Service) Init() error {
 		fullPath := filepath.Join(s.rootDir, file.Name())
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
+			s.cleanupStaleFiles(fullPath, []string{"index.lock", "index", "HEAD.lock"}, repo)
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
 				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
 			}
@@ -173,6 +174,39 @@ func (s *Service) Init() error {
 	}
 	// remove read permissions since no-one should be able to list the directories
 	return os.Chmod(s.rootDir, 0o300)
+}
+
+func (s *Service) cleanupStaleFiles(fullPath string, staleFiles []string, repo *gogit.Repository) {
+	// for each stale file, if it exists, remove it
+	for _, staleFile := range staleFiles {
+		gitFile := filepath.Join(fullPath, ".git", staleFile)
+		info, err := os.Lstat(gitFile)
+		if err == nil {
+			// Only delete if it's a regular file (not a symlink, dir, etc.)
+			if info.Mode().IsRegular() {
+				log.Warnf("Stale file %s present in git repository %s, removing it", staleFile, fullPath)
+				if err = os.Remove(gitFile); err != nil {
+					log.Errorf("Failed to remove stale file %s: %v", gitFile, err)
+				}
+				if staleFile == "index" {
+					if err == nil {
+						wt, _ := repo.Worktree()
+						headRef, _ := repo.Head()
+						err = wt.Reset(&gogit.ResetOptions{
+							Mode:   gogit.MixedReset,
+							Commit: headRef.Hash(),
+						})
+					}
+
+					if err != nil {
+						log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
+					}
+				}
+			}
+		} else {
+			log.Warnf("Stale file %s in git repository %s is not a regular file, skipping removal", staleFile, fullPath)
+		}
+	}
 }
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo

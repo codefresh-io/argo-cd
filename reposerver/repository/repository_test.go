@@ -3014,6 +3014,53 @@ func TestInit(t *testing.T) {
 	_, err := os.ReadDir(dir)
 	require.Error(t, err)
 	initGitRepo(t, newGitRepoOptions{path: path.Join(dir, "repo2"), remote: "https://github.com/argo-cd/test-repo2", createPath: true, addEmptyCommit: false})
+
+	repoPath = path.Join(dir, "repo3")
+	indexLockFile := path.Join(repoPath, ".git", "index.lock")
+	indexFile := path.Join(repoPath, ".git", "index")
+	headLockFile := path.Join(repoPath, ".git", "HEAD.lock")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo3", createPath: true, addEmptyCommit: true})
+	require.NoError(t, os.WriteFile(indexLockFile, []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(headLockFile, []byte("test"), 0o644))
+
+	service = newService(t, ".")
+	service.rootDir = dir
+
+	_, err = os.Stat(indexLockFile)
+	require.NoError(t, err)
+	_, err = os.Stat(indexFile)
+	require.NoError(t, err)
+	_, err = os.Stat(headLockFile)
+	require.NoError(t, err)
+
+	require.NoError(t, service.Init())
+
+	_, err = os.Stat(indexLockFile)
+	require.Error(t, err, "index.lock file should be removed after Init()")
+	require.ErrorContains(t, err, ".git/index.lock: no such file or directory")
+	_, err = os.Stat(indexFile)
+	// index file should stay after Init(), since it was recreated after repo reset
+	require.NoError(t, err)
+	_, err = os.Stat(headLockFile)
+	require.Error(t, err, "HEAD.lock file should be removed after Init()")
+	require.ErrorContains(t, err, ".git/HEAD.lock: no such file or directory")
+
+	repoPath = path.Join(dir, "repo4")
+	headLockDir := path.Join(repoPath, ".git", "HEAD.lock")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo4", createPath: true, addEmptyCommit: false})
+	require.NoError(t, os.Mkdir(headLockDir, 0o755))
+
+	service = newService(t, ".")
+	service.rootDir = dir
+
+	_, err = os.Stat(headLockDir)
+	require.NoError(t, err)
+
+	require.NoError(t, service.Init())
+
+	_, err = os.Stat(headLockDir)
+	// headLockDir should stay after Init(), since it is a directory
+	require.NoError(t, err)
 }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
