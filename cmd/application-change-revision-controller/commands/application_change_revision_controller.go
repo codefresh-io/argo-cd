@@ -128,13 +128,9 @@ func NewCommand() *cobra.Command {
 			lns, err := changeRevisionServer.Listen()
 			errors.CheckError(err)
 			for {
-				var closer func()
 				ctx, cancel := context.WithCancel(ctx)
 				changeRevisionServer.Run(ctx, lns)
 				cancel()
-				if closer != nil {
-					closer()
-				}
 			}
 		},
 	}
