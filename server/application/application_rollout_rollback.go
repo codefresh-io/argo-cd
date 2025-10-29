@@ -78,7 +78,6 @@ func (s *Server) getRsOfSpecificRevision(ctx context.Context, config *rest.Confi
 		if err != nil {
 			return nil, fmt.Errorf("error getting resource: %w", err)
 		}
-
 		v := resource.GetRevision(rsliveObj)
 		switch toRevision {
 		case 0:

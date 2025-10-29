@@ -97,7 +97,7 @@ func (a *ACRServer) Init(ctx context.Context) {
 }
 
 func (a *ACRServer) RunController(ctx context.Context) {
-	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.ApplicationServiceClient, a.applicationClientset, !a.DisableAnnotations)
+	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.ApplicationServiceClient, a.applicationClientset)
 	go controller.Run(ctx)
 }
 

@@ -611,7 +611,7 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 		},
 	}
 
-	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil, "some-namespace")
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil, "")
 	require.EqualError(t, err, "kustomization file not found in the path")
 }
 

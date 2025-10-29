@@ -538,6 +538,22 @@ service ApplicationService {
     };
   }
 
+	// Rollback application rollout
+	rpc RollbackApplicationRollout(ApplicationRolloutRollbackRequest) returns (ApplicationRolloutRollbackResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rollout-rollback"
+			body: "*"
+		};
+	}
+
+	// Create creates an application
+	rpc ValidateSrcAndDst(ApplicationValidationRequest) returns (ApplicationValidateResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/application-validate"
+			body: "application"
+		};
+	}
+
   // DeleteResource deletes a single application resource
   rpc DeleteResource(ApplicationResourceDeleteRequest) returns (ApplicationResponse) {
     option (google.api.http).delete = "/api/v1/applications/{name}/resource";
