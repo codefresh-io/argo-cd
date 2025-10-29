@@ -229,22 +229,22 @@ func Test_getRevisions(r *testing.T) {
 	r.Run("history list is empty", func(t *testing.T) {
 		acrService := newTestACRService(&mocks.ApplicationClient{})
 		current, previous := acrService.getRevisions(r.Context(), createTestApp(fakeApp))
-		assert.Equal(t, "", current)
-		assert.Equal(t, "", previous)
+		assert.Empty(t, current)
+		assert.Empty(t, previous)
 	})
 
 	r.Run("history list is empty, but operation happens right now", func(t *testing.T) {
 		acrService := newTestACRService(&mocks.ApplicationClient{})
 		current, previous := acrService.getRevisions(r.Context(), createTestApp(fakeAppWithOperation))
 		assert.Equal(t, "c732f4d2ef24c7eeb900e9211ff98f90bb646505", current)
-		assert.Equal(t, "", previous)
+		assert.Empty(t, previous)
 	})
 
 	r.Run("history list contains only one element, also sync result is here", func(t *testing.T) {
 		acrService := newTestACRService(&mocks.ApplicationClient{})
 		current, previous := acrService.getRevisions(r.Context(), createTestApp(syncedAppWithSingleHistory))
 		assert.Equal(t, "c732f4d2ef24c7eeb900e9211ff98f90bb646505", current)
-		assert.Equal(t, "", previous)
+		assert.Empty(t, previous)
 	})
 
 	r.Run("application is synced", func(t *testing.T) {
