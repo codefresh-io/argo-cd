@@ -1,7 +1,9 @@
 package exec
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"syscall"
 	"testing"
@@ -214,4 +216,52 @@ func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
+}
+
+// This test demonstrates that when a process group is signaled, all child processes are also terminated and file locks released.
+func TestProcessGroupSignalRemovesChildLock(t *testing.T) {
+	hook := test.NewGlobal()
+	log.SetLevel(log.DebugLevel)
+	defer log.SetLevel(log.InfoLevel)
+
+	dir := t.TempDir()
+	lockFile := filepath.Join(dir, "lockfile")
+	childScript := filepath.Join(dir, "child.sh")
+	parentScript := filepath.Join(dir, "parent.sh")
+
+	// Child: create lock file; on SIGTERM remove it and exit
+	child := "#!/bin/sh\n" +
+		"trap 'rm -f lockfile; exit 0' TERM\n" +
+		"touch lockfile\n" +
+		"sleep 100\n"
+	require.NoError(t, os.WriteFile(childScript, []byte(child), 0o755))
+
+	// Parent: start child in background and sleep
+	parent := "#!/bin/sh\n" +
+		"./child.sh &\n" +
+		"sleep 100\n"
+	require.NoError(t, os.WriteFile(parentScript, []byte(parent), 0o755))
+
+	// Run parent with a short timeout; our implementation signals the process group
+	opts := CmdOpts{
+		Timeout:      500 * time.Millisecond,
+		FatalTimeout: 500 * time.Millisecond,
+		TimeoutBehavior: TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	_, err := RunCommand("sh", opts, "-c", "cd "+dir+" && ./parent.sh")
+	require.Error(t, err)
+
+	// Give a bit of time for traps to run and for the process tree to settle
+	time.Sleep(200 * time.Millisecond)
+
+	// Because the process group was signaled, the child should have removed the lock
+	_, statErr := os.Stat(lockFile)
+	require.Error(t, statErr, "expected lock file to be removed when process group is signaled")
+	assert.True(t, os.IsNotExist(statErr))
+
+	// basic sanity: logs produced
+	require.GreaterOrEqual(t, len(hook.Entries), 1)
 }

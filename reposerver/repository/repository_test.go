@@ -3016,6 +3016,29 @@ func TestInit(t *testing.T) {
 	initGitRepo(t, newGitRepoOptions{path: path.Join(dir, "repo2"), remote: "https://github.com/argo-cd/test-repo2", createPath: true, addEmptyCommit: false})
 }
 
+// func TestRemoveStaleGitHeadLock(t *testing.T) {
+// 	dir := t.TempDir()
+// 	// create a fake repo structure with .git/HEAD.lock
+// 	gitDir := path.Join(dir, ".git")
+// 	require.NoError(t, os.MkdirAll(gitDir, 0o755))
+// 	headLock := path.Join(gitDir, "HEAD.lock")
+// 	require.NoError(t, os.WriteFile(headLock, []byte("test"), 0o644))
+
+// 	// sanity: lock exists before
+// 	_, err := os.Stat(headLock)
+// 	require.NoError(t, err)
+
+// 	removeStaleGitLock(dir)
+
+// 	// lock should be gone after cleanup
+// 	_, err = os.Stat(headLock)
+// 	require.Error(t, err)
+// 	require.True(t, os.IsNotExist(err))
+
+// 	// calling again should be a no-op (no error)
+// 	removeStaleGitLock(dir)
+// }
+
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
@@ -3057,6 +3080,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.On("Init").Return(nil)
+	// gitClient.On("Root").Return("<repo-root>")
 	gitClient.On("IsRevisionPresent", revision).Return(true)
 	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
 
@@ -3069,6 +3093,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.On("Init").Return(nil)
+	// gitClient.On("Root").Return("<repo-root>")
 	gitClient.On("IsRevisionPresent", revision).Return(false)
 	gitClient.On("Fetch", "").Return(nil)
 	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
@@ -3083,6 +3108,7 @@ func TestFetch(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.On("Init").Return(nil)
+	// gitClient.On("Root").Return("<repo-root>")
 	gitClient.On("IsRevisionPresent", revision1).Once().Return(true)
 	gitClient.On("IsRevisionPresent", revision2).Once().Return(false)
 	gitClient.On("Fetch", "").Return(nil)

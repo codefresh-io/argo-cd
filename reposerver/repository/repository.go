@@ -2533,7 +2533,23 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
+// removeStaleGitLocks best-effort removes common stale git lock files in the repository.
+// It is safe to call while holding the per-repo lock and before running any git commands.
+
+// func removeStaleGitLock(repoRoot string) {
+// 	path := filepath.Join(repoRoot, ".git", "HEAD.lock")
+// 	log.Infof("Checking whether HEAD.lock exists %s", path)
+// 	if _, err := os.Stat(path); err == nil {
+// 		log.Warnf("HEAD.lock present in git repository %s, removing it", repoRoot)
+// 		if rmErr := os.Remove(path); rmErr != nil {
+// 			log.Errorf("Failed to remove git lock %s: %v", path, rmErr)
+// 		}
+// 	}
+// }
+
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
+	// removeStaleGitLock(gitClient.Root())
+
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
