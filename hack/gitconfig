@@ -1,0 +1,4 @@
+[maintenance]
+autoDetach = false
+[gc]
+autoDetach = false
