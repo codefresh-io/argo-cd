@@ -270,10 +270,11 @@ func NewCommand() *cobra.Command {
 				lns, err := argocd.Listen()
 				errors.CheckError(err)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
-					if err != nil {
-						log.Fatalf("failed to initialize tracing: %v", err)
-					}
+					// closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+					// if err != nil {
+					// 	log.Fatalf("failed to initialize tracing: %v", err)
+					// }
+					traceutil.InitGlobalTraceProvider(serverCtx)
 				}
 				argocd.Run(serverCtx, lns)
 				if closer != nil {

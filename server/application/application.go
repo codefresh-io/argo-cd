@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"go.opentelemetry.io/otel"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
@@ -412,6 +413,9 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	enabledSourceTypes map[string]bool,
 ) error,
 ) error {
+	ctx, span := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "queryRepoServer")
+	defer span.End()
+
 	closer, client, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return fmt.Errorf("error creating repo server client: %w", err)
@@ -448,6 +452,9 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
+	ctx, span := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "Server.GetManifests")
+	defer span.End()
+
 	if q.Name == nil || *q.Name == "" {
 		return nil, errors.New("invalid request: application name is missing")
 	}
@@ -474,12 +481,20 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting application cluster config: %w", err)
 		}
 
-		serverVersion, err := s.kubectl.GetServerVersion(config)
+		var ci v1alpha1.ClusterInfo
+		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 		if err != nil {
-			return fmt.Errorf("error getting server version: %w", err)
+			return fmt.Errorf("error getting destination cluster: %w", err)
 		}
+		getClusterInfoErr := s.cache.GetClusterInfo(destCluster.Server, &ci)
+		if getClusterInfoErr != nil {
+			return fmt.Errorf("error getting server version: %w", getClusterInfoErr)
+		}
+		serverVersion := ci.ServerVersion
 
+		_, kubectlSpan := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "kubectl.GetAPIResources")
 		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
+		kubectlSpan.End()
 		if err != nil {
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
@@ -1358,6 +1373,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 }
 
 func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (*v1alpha1.ApplicationTree, error) {
+	ctx, span := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "Server.getAppResources")
+	defer span.End()
+
 	var tree v1alpha1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
@@ -1372,6 +1390,9 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 }
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*v1alpha1.ResourceNode, *rest.Config, *v1alpha1.Application, error) {
+	ctx, span := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "Server.getAppLiveResource")
+	defer span.End()
+
 	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled()
 	if err != nil {
 		return nil, nil, nil, err
@@ -1406,6 +1427,9 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 }
 
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
+	ctx, span := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "Server.GetResource")
+	defer span.End()
+
 	res, config, _, err := s.getAppLiveResource(ctx, rbac.ActionGet, q)
 	if err != nil {
 		return nil, err
@@ -1415,7 +1439,10 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if q.GetVersion() != "" {
 		res.Version = q.GetVersion()
 	}
+
+	_, kubectlSpan := otel.GetTracerProvider().Tracer("argocd-server").Start(ctx, "kbuectl.GetResource")
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
+	kubectlSpan.End()
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource: %w", err)
 	}
