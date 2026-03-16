@@ -6,10 +6,18 @@ on:
       - 'release-*'
       - '!release-1.4'
       - '!release-1.5'
+      - 'sync-*'
+      # - 'master'
+      # - 'release-*'
+      # - '!release-1.4'
+      # - '!release-1.5'
   pull_request:
     branches:
       - 'master'
       - 'release-*'
+      - 'sync-*'
+      # - 'master'
+      # - 'release-*'
 
 env:
   # Golang version to use across CI steps
